@@ -19,11 +19,11 @@ export default function ProfileScreen() {
   console.log('Store data:', data);
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Profile test</Text>
+      <Text style={styles.title}>Profile test1</Text>
       
-      {/* {data?.map((store: any) => (
+      {data?.data.map((store: any) => (
         <Text key={store.id}>{store.name}</Text>
-      ))} */}
+      ))}
 
       <Pressable 
         style={styles.button}
