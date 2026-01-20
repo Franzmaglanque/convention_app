@@ -1,7 +1,22 @@
 import { View, Text, TextInput, StyleSheet, Pressable } from 'react-native';
 import { router } from 'expo-router';
+// use the useLogin hook here when implementing login functionality
+import { useLogin } from '@/hooks/useAuth';
+import { useState } from 'react';
 
 export default function LoginScreen() {
+  const [loginForm, setLoginForm] = useState({
+    email: '',
+    password: ''
+  });
+
+  const loginMutation = useLogin();
+
+  const handleLogin = () => {
+    const foo = loginMutation.mutate({ username: loginForm.email, password: loginForm.password });
+    console.log('Login response:', foo);
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Login</Text>
@@ -11,17 +26,19 @@ export default function LoginScreen() {
         placeholder="Email"
         keyboardType="email-address"
         autoCapitalize="none"
+        onChangeText={(text) => setLoginForm({...loginForm, email: text})}
       />
       
       <TextInput
         style={styles.input}
         placeholder="Password"
         secureTextEntry
+        onChangeText={(text) => setLoginForm({...loginForm, password: text})}
       />
       
       <Pressable 
         style={styles.button}
-        onPress={() => router.replace('/(tabs)')}
+        onPress={() => handleLogin()}
       >
         <Text style={styles.buttonText}>Login</Text>
       </Pressable>

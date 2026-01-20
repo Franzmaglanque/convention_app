@@ -12,6 +12,12 @@ export default function HomeScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Quick Actions</Text>
         
+        <Link href="/(auth)/login" asChild>
+          <Pressable style={styles.button}>
+            <Text style={styles.buttonText}>Login</Text>
+          </Pressable>
+        </Link>
+
         <Link href="/products" asChild>
           <Pressable style={styles.button}>
             <Text style={styles.buttonText}>Browse Products</Text>
