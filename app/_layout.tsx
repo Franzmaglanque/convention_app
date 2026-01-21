@@ -2,12 +2,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
+import ToastProvider from '@/components/ToastProvider';
 
 export default function RootLayout() {
-
     const [queryClient] = useState(() => new QueryClient());
+
     return (
         <QueryClientProvider client={queryClient}>
+            <ToastProvider>
         <StatusBar style="auto" />
         <Stack
             screenOptions={{
@@ -25,6 +27,7 @@ export default function RootLayout() {
             {/* <Stack.Screen name="products" options={{ headerShown: false }} /> */}
             {/* <Stack.Screen name="+not-found" /> */}
         </Stack>
+            </ToastProvider>
         </QueryClientProvider>
     );
 }

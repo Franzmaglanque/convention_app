@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import MessageToast from './MessageToast';
-import useMessageToast from '@/hooks/useMessageToast';
+import { useToast } from '@/components/ToastProvider';
 
 /**
  * Example component demonstrating how to use the MessageToast component
@@ -9,24 +8,14 @@ import useMessageToast from '@/hooks/useMessageToast';
  */
 const MessageToastExample: React.FC = () => {
   const {
-    toastState,
     showSuccess,
     showError,
     showInfo,
     showWarning,
-    hideToast,
-  } = useMessageToast();
+  } = useToast();
 
   return (
     <View style={styles.container}>
-      {/* The MessageToast component - should be placed near the root of your component */}
-      <MessageToast
-        {...toastState}
-        onDismiss={hideToast}
-        position="top"
-        duration={3000}
-      />
-
       <Text style={styles.title}>Message Toast Examples</Text>
       
       <Pressable

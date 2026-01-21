@@ -4,16 +4,14 @@ import { router } from 'expo-router';
 import { useLogin } from '@/hooks/useAuth';
 import { useState } from 'react';
 import LoadingSpinner from '@/components/LoadingSpinner';
-import useMessageToast from '@/hooks/useMessageToast';
-import MessageToast from '@/components/MessageToast';
+import { useToast } from '@/components/ToastProvider';
 
 export default function LoginScreen() {
   const {
-      toastState,
       showSuccess,
       showError,
       hideToast,
-    } = useMessageToast();
+    } = useToast();
   const [loginForm, setLoginForm] = useState({
     email: '',
     password: ''
@@ -42,15 +40,6 @@ export default function LoginScreen() {
   return (
     <View style={styles.container}>
       <LoadingSpinner visible={loginMutation.isPending} />
-
-      {/* Message Toast Component */}
-      <MessageToast
-        visible={toastState.visible}
-        type={toastState.type}
-        message={toastState.message}
-        onDismiss={hideToast}
-        position="top"
-      />
 
       <Text style={styles.title}>Login</Text>
 

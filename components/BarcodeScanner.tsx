@@ -15,7 +15,7 @@ import {
   BarcodeScanningResult 
 } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
-import { useMessageToast } from '../hooks/useMessageToast';
+import { useToast } from '@/components/ToastProvider';
 
 interface BarcodeScannerProps {
   isVisible: boolean;
@@ -35,7 +35,7 @@ export default function BarcodeScanner({
   const [permission, requestPermission] = useCameraPermissions();
   const [isLoading, setIsLoading] = useState(true);
   const cameraRef = useRef<CameraView>(null);
-  const { showError } = useMessageToast();
+  const { showError } = useToast();
 
   // Request permissions when component mounts
   useEffect(() => {
