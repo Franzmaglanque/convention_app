@@ -53,7 +53,7 @@ export default function CartScreen() {
   const [isCreatingTransaction, setIsCreatingTransaction] = useState(false);
   const { showSuccess, showError, showInfo } = useToast();
 
-  const handleNewTransaction = async () => {
+    const handleNewTransaction = async () => {
     if (cartItems.length > 0) {
       Alert.alert(
         'Start New Transaction',
@@ -72,22 +72,80 @@ export default function CartScreen() {
     }
   };
 
+  const handleCancelOrder = () => {
+    Alert.alert(
+      'Cancel Order',
+      'Are you sure you want to cancel this order? This will clear all items from the cart.',
+      [
+        { text: 'Keep Order', style: 'cancel' },
+        {
+          text: 'Cancel Order',
+          style: 'destructive',
+          onPress: () => {
+            setCartItems([]);
+            setOrderNo(null);
+            showInfo('Order cancelled successfully');
+          }
+        }
+      ]
+    );
+  };
+
+  // const createNewTransaction = async () => {
+  //   setIsCreatingTransaction(true);
+  //   try {
+  //     // Call the mutation with success/error handlers
+  //     newOrderMutation.mutate(undefined, {
+  //       onSuccess: (response) => {
+  //         // The response here is the data from orderService.newOrder()
+  //         console.log('New order mutation result:', response);
+          
+  //         // Extract order_no from the response
+  //         const orderNo = response.data?.order_no;
+  //         if (orderNo) {
+  //           setOrderNo(orderNo.toString());
+  //           setCartItems([]); // Clear existing cart items
+  //           showSuccess(`New transaction started: ${orderNo}`);
+  //         } else {
+  //           showError('Failed to get order number from response');
+  //         }
+  //       },
+  //       onError: (error) => {
+  //         showError('Failed to create new transaction. Please try again.');
+  //       }
+  //     });
+      
+  //     // Note: You can remove the mock orderService.createNewTransaction() call
+  //     // since you're now using the real API through the mutation
+  //   } catch (error) {
+  //     showError('Failed to create new transaction. Please try again.');
+  //   } finally {
+  //     setIsCreatingTransaction(false);
+  //   }
+  // };
   const createNewTransaction = async () => {
     setIsCreatingTransaction(true);
     try {
-      const result = await orderService.createNewTransaction();
-      const result2 = newOrderMutation.mutate();
-      console.log('New order mutation result:', result2);
-
-      setOrderNo(result.orderNo);
-      setCartItems([]); // Clear existing cart items
-      showSuccess(`New transaction started: ${result.orderNo}`);
+      // Use mutateAsync to get a Promise
+      const response = await newOrderMutation.mutateAsync();
+      console.log('New order mutation result:', response);
+      
+      // Extract order_no from the response
+      const orderNo = response.data?.order_no;
+      if (orderNo) {
+        setOrderNo(orderNo.toString());
+        setCartItems([]);
+        showSuccess(`New transaction started: ${orderNo}`);
+      } else {
+        showError('Failed to get order number from response');
+      }
     } catch (error) {
       showError('Failed to create new transaction. Please try again.');
     } finally {
       setIsCreatingTransaction(false);
     }
   };
+
 
   const handleBarcodeScanned = async (barcodeData: string) => {
     if (!orderNo) {
@@ -206,20 +264,20 @@ export default function CartScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerTopRow}>
+                <View style={styles.headerTopRow}>
           <Text style={styles.headerTitle}>Convention Cart</Text>
           <TouchableOpacity
             style={[styles.newTransactionButton, !orderNo && styles.activeTransactionButton]}
-            onPress={handleNewTransaction}
+            onPress={orderNo ? handleCancelOrder : handleNewTransaction}
             disabled={isCreatingTransaction}
           >
             {isCreatingTransaction ? (
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
               <>
-                <Ionicons name="receipt-outline" size={20} color="#FFFFFF" />
+                <Ionicons name={orderNo ? "close-circle-outline" : "receipt-outline"} size={20} color="#FFFFFF" />
                 <Text style={styles.newTransactionButtonText}>
-                  {orderNo ? 'New' : 'Start Transaction'}
+                  {orderNo ? 'Cancel Order' : 'Start Transaction'}
                 </Text>
               </>
             )}
@@ -349,59 +407,70 @@ export default function CartScreen() {
         </View>
       )}
 
-      {/* Action Buttons - Icon Only */}
+            {/* Action Buttons - Neatly Aligned */}
       <View style={styles.actionButtonsContainer}>
-        {cartItems.length > 0 && (
-          <TouchableOpacity
-            style={[styles.iconButton, styles.clearButton]}
-            onPress={clearCart}
-          >
-            <Ionicons name="trash-outline" size={24} color="#FF3B30" />
-          </TouchableOpacity>
-        )}
+        <View style={styles.buttonGroup}>
+          {cartItems.length > 0 && (
+            <TouchableOpacity
+              style={[styles.iconButton, styles.clearButton]}
+              onPress={clearCart}
+            >
+              <Ionicons name="trash-outline" size={24} color="#FF3B30" />
+              <Text style={styles.buttonLabel}>Clear</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
-        <TouchableOpacity
-          style={[styles.iconButton, styles.scanButton, !orderNo && styles.scanButtonDisabled]}
-          onPress={() => {
-            if (!orderNo) {
-              showError('Please start a transaction first');
-              return;
-            }
-            setShowScanner(true);
-          }}
-          disabled={!orderNo}
-        >
-          <Ionicons 
-            name="barcode-outline" 
-            size={28} 
-            color={orderNo ? "#FFFFFF" : "#CCCCCC"} 
-          />
-        </TouchableOpacity>
-
-        {cartItems.length > 0 && (
+        <View style={styles.buttonGroup}>
           <TouchableOpacity
-            style={[styles.iconButton, styles.checkoutButton]}
+            style={[styles.iconButton, styles.scanButton, !orderNo && styles.scanButtonDisabled]}
             onPress={() => {
-              Alert.alert(
-                'Complete Transaction',
-                `Process transaction ${orderNo} for $${(calculateSubtotal() * 1.085).toFixed(2)}?`,
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Process Payment',
-                    onPress: () => {
-                      showSuccess(`Transaction ${orderNo} completed successfully!`);
-                      setCartItems([]);
-                      setOrderNo(null);
-                    }
-                  }
-                ]
-              );
+              if (!orderNo) {
+                showError('Please start a transaction first');
+                return;
+              }
+              setShowScanner(true);
             }}
+            disabled={!orderNo}
           >
-            <Ionicons name="checkmark-circle-outline" size={28} color="#FFFFFF" />
+            <Ionicons 
+              name="barcode-outline" 
+              size={28} 
+              color={orderNo ? "#FFFFFF" : "#CCCCCC"} 
+            />
+            <Text style={[styles.buttonLabel, orderNo ? styles.buttonLabelActive : styles.buttonLabelDisabled]}>
+              Scan
+            </Text>
           </TouchableOpacity>
-        )}
+        </View>
+
+        <View style={styles.buttonGroup}>
+          {cartItems.length > 0 && (
+            <TouchableOpacity
+              style={[styles.iconButton, styles.checkoutButton]}
+              onPress={() => {
+                Alert.alert(
+                  'Complete Transaction',
+                  `Process transaction ${orderNo} for $${(calculateSubtotal() * 1.085).toFixed(2)}?`,
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Process Payment',
+                      onPress: () => {
+                        showSuccess(`Transaction ${orderNo} completed successfully!`);
+                        setCartItems([]);
+                        setOrderNo(null);
+                      }
+                    }
+                  ]
+                );
+              }}
+            >
+              <Ionicons name="checkmark-circle-outline" size={28} color="#FFFFFF" />
+              <Text style={styles.buttonLabel}>Checkout</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {/* Barcode Scanner Modal */}
@@ -427,16 +496,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5EA',
   },
-  headerTopRow: {
+    headerTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '700',
     color: '#1D1D1F',
+    flex: 1,
   },
   newTransactionButton: {
     flexDirection: 'row',
@@ -446,9 +516,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
     gap: 6,
+    marginLeft: 12,
   },
   activeTransactionButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#FF3B30',
   },
   newTransactionButtonText: {
     fontSize: 14,
@@ -625,13 +696,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#007AFF',
   },
-  actionButtonsContainer: {
+    actionButtonsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    padding: 16,
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E5E5EA',
+  },
+  buttonGroup: {
+    alignItems: 'center',
+    minWidth: 80,
   },
   iconButton: {
     width: 60,
@@ -644,6 +720,19 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    marginBottom: 6,
+  },
+  buttonLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#666666',
+    marginTop: 4,
+  },
+  buttonLabelActive: {
+    color: '#007AFF',
+  },
+  buttonLabelDisabled: {
+    color: '#CCCCCC',
   },
   clearButton: {
     backgroundColor: '#FFF5F5',
