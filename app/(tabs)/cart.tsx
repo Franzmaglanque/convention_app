@@ -1,8 +1,10 @@
 import { View, Text, StyleSheet } from 'react-native';
+import MessageToastExample from '@/components/MessageToastExample';
 
 export default function CartScreen() {
   return (
     <View style={styles.container}>
+      <MessageToastExample />
       <Text style={styles.title}>Your Cart</Text>
       <Text style={styles.emptyText}>Your cart is empty</Text>
     </View>

@@ -3,8 +3,17 @@ import { router } from 'expo-router';
 // use the useLogin hook here when implementing login functionality
 import { useLogin } from '@/hooks/useAuth';
 import { useState } from 'react';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import useMessageToast from '@/hooks/useMessageToast';
+import MessageToast from '@/components/MessageToast';
 
 export default function LoginScreen() {
+  const {
+      toastState,
+      showSuccess,
+      showError,
+      hideToast,
+    } = useMessageToast();
   const [loginForm, setLoginForm] = useState({
     email: '',
     password: ''
@@ -13,14 +22,38 @@ export default function LoginScreen() {
   const loginMutation = useLogin();
 
   const handleLogin = () => {
-    const foo = loginMutation.mutate({ username: loginForm.email, password: loginForm.password });
-    console.log('Login response:', foo);
+    loginMutation.mutate(
+      { username: loginForm.email, password: loginForm.password },
+      {
+        onSuccess: (response) => {
+          console.log('Login successful:', response);
+          showSuccess('Login successful!');
+          // You can add navigation logic here if needed
+          router.push('/(tabs)');
+        },
+        onError: (error) => {
+          console.log('Login failed:', error);
+          showError('Login failed. Please check your credentials.');
+        }
+      }
+    );
   }
 
   return (
     <View style={styles.container}>
+      <LoadingSpinner visible={loginMutation.isPending} />
+
+      {/* Message Toast Component */}
+      <MessageToast
+        visible={toastState.visible}
+        type={toastState.type}
+        message={toastState.message}
+        onDismiss={hideToast}
+        position="top"
+      />
+
       <Text style={styles.title}>Login</Text>
-      
+
       <TextInput
         style={styles.input}
         placeholder="Email"
@@ -28,15 +61,15 @@ export default function LoginScreen() {
         autoCapitalize="none"
         onChangeText={(text) => setLoginForm({...loginForm, email: text})}
       />
-      
+
       <TextInput
         style={styles.input}
         placeholder="Password"
         secureTextEntry
         onChangeText={(text) => setLoginForm({...loginForm, password: text})}
       />
-      
-      <Pressable 
+
+      <Pressable
         style={styles.button}
         onPress={() => handleLogin()}
       >
