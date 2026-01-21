@@ -15,6 +15,10 @@ export const API_ENDPOINTS = {
 
   STORES: {
     LIST: '/storeList',
+  },
+
+  ORDER: {
+    NEW_ORDER: '/supplier/new-order',
   }
 
 } as const;
