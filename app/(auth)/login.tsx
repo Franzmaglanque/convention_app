@@ -5,8 +5,11 @@ import { useLogin } from '@/hooks/useAuth';
 import { useState } from 'react';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { useToast } from '@/components/ToastProvider';
+import { Redirect } from 'expo-router';
+import { useAuthStore } from '@/stores/auth.store';
 
 export default function LoginScreen() {
+  const { isAuthenticated } = useAuthStore();
   const {
       showSuccess,
       showError,
@@ -33,6 +36,10 @@ export default function LoginScreen() {
         }
       }
     );
+  }
+
+  if(isAuthenticated){
+    return <Redirect href="(tabs)" />;
   }
 
   return (
