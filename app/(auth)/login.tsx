@@ -24,10 +24,7 @@ export default function LoginScreen() {
       { username: loginForm.email, password: loginForm.password },
       {
         onSuccess: (response) => {
-          console.log('Login successful:', response);
           showSuccess('Login successful!');
-          // You can add navigation logic here if needed
-          router.push('/(tabs)');
         },
         onError: (error) => {
           console.log('Login failed:', error);
