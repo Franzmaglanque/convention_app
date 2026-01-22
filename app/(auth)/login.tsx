@@ -23,7 +23,8 @@ export default function LoginScreen() {
     loginMutation.mutate(
       { username: loginForm.email, password: loginForm.password },
       {
-        onSuccess: (response) => {
+        onSuccess: (responseData) => {
+          // Response data is automatically saved to auth store via useLogin hook
           showSuccess('Login successful!');
         },
         onError: (error) => {

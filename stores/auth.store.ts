@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { secureStorage } from './secureStore';
 
 export interface User {
   id: number;
@@ -33,30 +33,35 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       user: null,
       isAuthenticated: false,
-
-      login: (response: AuthResponse) => 
+      
+      login: (response: AuthResponse) => {
+        console.log('Storing login data in auth store:', response);
         set({
           token: response.token,
           user: response.user,
           isAuthenticated: true,
-        }),
-
-      logout: () => 
+        });
+      },
+      
+      logout: () => {
         set({
           token: null,
           user: null,
           isAuthenticated: false,
-        }),
-
-      setToken: (token: string) => 
-        set({ token }),
-
-      setUser: (user: User) => 
-        set({ user }),
+        });
+      },
+      
+      setToken: (token: string) => {
+        set({ token });
+      },
+      
+      setUser: (user: User) => {
+        set({ user });
+      },
     }),
     {
-      name: 'auth-storage', // unique name for storage
-      storage: createJSONStorage(() => AsyncStorage), // use AsyncStorage for React Native
+      name: 'auth-storage', // unique name for the storage key
+      storage: createJSONStorage(() => secureStorage),
     }
   )
 );

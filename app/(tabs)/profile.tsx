@@ -1,30 +1,14 @@
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { router } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
-import { storeService } from '../../services/stores.service';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function ProfileScreen() {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['stores'],
-    queryFn: () => storeService.getStoreList(),
-  });
-
-  if (isLoading) {
-    return (
-      <View style={styles.container}>
-        <Text>Loading...</Text>
-      </View>
-    );
-  }
-  console.log('Store data:', data);
+  const { token, user, isAuthenticated } = useAuth();
+  console.log('User info in ProfileScreen:', user);
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Profile test1</Text>
-      
-      {data?.data.map((store: any) => (
-        <Text key={store.id}>{store.name}</Text>
-      ))}
-
+<Text>Welcome {user?.fullname}</Text>;
       <Pressable 
         style={styles.button}
         onPress={() => router.push('/(auth)/login')}
