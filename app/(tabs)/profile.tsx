@@ -1,21 +1,24 @@
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
+import UserProfile from '@/components/UserProfile';
 
 export default function ProfileScreen() {
   const { token, user, isAuthenticated } = useAuth();
   console.log('User info in ProfileScreen:', user);
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Profile test1</Text>
-<Text>Welcome {user?.fullname}</Text>;
-      <Pressable 
-        style={styles.button}
-        onPress={() => router.push('/(auth)/login')}
-      >
-        <Text style={styles.buttonText}>Go to Login</Text>
-      </Pressable>
-    </View>
+//     <View style={styles.container}>
+//       <Text style={styles.title}>Profile test1</Text>
+// <Text>Welcome {user?.fullname}</Text>;
+//       <Pressable 
+//         style={styles.button}
+//         onPress={() => router.push('/(auth)/login')}
+//       >
+//         <Text style={styles.buttonText}>Go to Login</Text>
+//       </Pressable>
+//     </View>
+
+<UserProfile />
   );
 }
 
