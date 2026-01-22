@@ -5,12 +5,12 @@ import { useLogin } from '@/hooks/useAuth';
 import { useState } from 'react';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { useToast } from '@/components/ToastProvider';
+import { useAuthStore } from '@/stores/auth.store';
 
 export default function LoginScreen() {
   const {
       showSuccess,
       showError,
-      hideToast,
     } = useToast();
   const [loginForm, setLoginForm] = useState({
     email: '',
@@ -24,7 +24,11 @@ export default function LoginScreen() {
       { username: loginForm.email, password: loginForm.password },
       {
         onSuccess: (response) => {
+          console.log('Login successful:', response);
+          useAuthStore.getState().login(response);
           showSuccess('Login successful!');
+          // Navigation will be handled by AuthGuard
+          router.replace('/(tabs)');
         },
         onError: (error) => {
           console.log('Login failed:', error);
@@ -45,6 +49,7 @@ export default function LoginScreen() {
         placeholder="Email"
         keyboardType="email-address"
         autoCapitalize="none"
+        value={loginForm.email}
         onChangeText={(text) => setLoginForm({...loginForm, email: text})}
       />
 
@@ -52,12 +57,14 @@ export default function LoginScreen() {
         style={styles.input}
         placeholder="Password"
         secureTextEntry
+        value={loginForm.password}
         onChangeText={(text) => setLoginForm({...loginForm, password: text})}
       />
 
       <Pressable
         style={styles.button}
-        onPress={() => handleLogin()}
+        onPress={handleLogin}
+        disabled={loginMutation.isPending}
       >
         <Text style={styles.buttonText}>Login</Text>
       </Pressable>

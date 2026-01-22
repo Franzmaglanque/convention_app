@@ -1,10 +1,12 @@
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { authService } from '@/services/auth.service';
 import { router } from 'expo-router';
+import { useAuthStore, AuthResponse } from '@/stores/auth.store';
+
 export function useLogin() {
-    return useMutation({
+    return useMutation<AuthResponse, Error, { username: string; password: string }>({
         mutationKey: ['login'],
-        mutationFn: (credentials: { username: string; password: string }) => authService.login(credentials),
+        mutationFn: (credentials) => authService.login(credentials),
         onSuccess: (response) => {
             console.log('Login successful:', response);
             router.push('/(tabs)');

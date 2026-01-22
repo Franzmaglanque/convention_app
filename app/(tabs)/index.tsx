@@ -1,34 +1,36 @@
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
+import { useAuthStore } from '@/stores/auth.store';
 
 export default function HomeScreen() {
+  const { user } = useAuthStore();
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Welcome to Puregold!</Text>
         <Text style={styles.subtitle}>Fresh groceries delivered to your door</Text>
+        {user && (
+          <Text style={styles.welcomeText}>Welcome back, {user.fullname}!</Text>
+        )}
       </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Quick Actions</Text>
         
-        <Link href="/(auth)/login" asChild>
-          <Pressable style={styles.button}>
-            <Text style={styles.buttonText}>Login</Text>
+        <Pressable
+          style={styles.button}
+          onPress={() => router.push('/(tabs)/cart')}
+        >
+          <Text style={styles.buttonText}>Go to Cart</Text>
           </Pressable>
-        </Link>
 
-        <Link href="/products" asChild>
-          <Pressable style={styles.button}>
-            <Text style={styles.buttonText}>Browse Products</Text>
+        <Pressable
+          style={styles.button}
+          onPress={() => router.push('/(tabs)/profile')}
+        >
+          <Text style={styles.buttonText}>View Profile</Text>
           </Pressable>
-        </Link>
-
-        <Link href="/products/123" asChild>
-          <Pressable style={styles.button}>
-            <Text style={styles.buttonText}>View Sample Product</Text>
-          </Pressable>
-        </Link>
       </View>
     </ScrollView>
   );
@@ -53,6 +55,12 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     color: '#666',
+    marginBottom: 8,
+  },
+  welcomeText: {
+    fontSize: 16,
+    color: '#0066cc',
+    fontWeight: '600',
   },
   section: {
     padding: 20,

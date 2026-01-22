@@ -1,16 +1,12 @@
-import { StyleSheet, Text, View } from "react-native";
+import { useEffect } from 'react';
+import { StyleSheet, Text, View, ActivityIndicator } from "react-native";
+import { router } from 'expo-router';
+import { useAuthStore } from '@/stores/auth.store';
 
-export default function Page() {
-  return (
-    <View style={styles.container}>
-      <View style={styles.main}>
-        <Text style={styles.title}>Hello World</Text>
-        <Text style={styles.subtitle}>This is the first page of your app.</Text>
-      </View>
-    </View>
-  );
+// This file is no longer needed as the root layout handles authentication routing
+export default function Index() {
+  return null;
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -32,3 +28,4 @@ const styles = StyleSheet.create({
     color: "#38434D",
   },
 });
+
