@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import BarcodeScanner from '@/components/BarcodeScanner';
 import { useToast } from '@/components/ToastProvider';
 import { newOrder } from '@/hooks/useOrder';
+import { useAuth } from '@/hooks/useAuth';
 
 // Mock product interface - in a real app, this would come from your types
 interface Product {
@@ -46,7 +47,12 @@ const orderService = {
 };
 
 export default function CartScreen() {
-  const newOrderMutation = newOrder();
+  const { user, isAuthenticated } = useAuth();
+  console.log('user in cart screen:', user);
+  const newOrderMutation = newOrder({
+        user_id: user?.id || null,
+        vendor_code: user?.supplier_code || null
+      });
   const [showScanner, setShowScanner] = useState(false);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [orderNo, setOrderNo] = useState<string | null>(null);

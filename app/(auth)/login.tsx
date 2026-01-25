@@ -46,7 +46,7 @@ export default function LoginScreen() {
     <View style={styles.container}>
       <LoadingSpinner visible={loginMutation.isPending} />
 
-      <Text style={styles.title}>Login</Text>
+      <Text style={styles.title}>Login test</Text>
 
       <TextInput
         style={styles.input}

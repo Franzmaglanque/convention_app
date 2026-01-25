@@ -4,9 +4,10 @@ import { AxiosResponse } from 'axios';
 
 class OrderService {
 
-    async newOrder(): Promise<AxiosResponse<any>> {
+    async newOrder(params: any): Promise<AxiosResponse<any>> {
         const response: AxiosResponse<any> = await apiClient.post(
             API_ENDPOINTS.ORDER.NEW_ORDER,
+            params
         );
         return response.data;
     }
