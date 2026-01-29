@@ -2,6 +2,7 @@ import BarcodeScanner from '@/components/BarcodeScanner';
 import { useToast } from '@/components/ToastProvider';
 import { useAuth } from '@/hooks/useAuth';
 import { newOrder } from '@/hooks/useOrder';
+import { useScanProduct } from '@/hooks/useProduct';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
@@ -31,8 +32,6 @@ interface CartItem {
   quantity: number;
 }
 
-
-
 // Mock API service - replace with your actual API calls
 const orderService = {
   createNewTransaction: async (): Promise<{ orderNo: string }> => {
@@ -53,6 +52,7 @@ export default function CartScreen() {
       user_id: user?.id || null,
       vendor_code: user?.supplier_code || null,
   });
+  const scanProductMutation = useScanProduct();
   const [showScanner, setShowScanner] = useState(false);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [orderNo, setOrderNo] = useState<string | null>(null);
@@ -152,14 +152,17 @@ export default function CartScreen() {
     }
   };
 
-
-  const handleBarcodeScanned = async (barcodeData: string) => {
+    const handleBarcodeScanned = async (barcodeData: string) => {
     if (!orderNo) {
       showError('Please start a new transaction first');
       return;
     }
 
     try {
+      const scanResponse = (await scanProductMutation.mutateAsync({
+        barcode: barcodeData
+      })).data;
+      console.log('Scanned product response:', scanResponse.price);
       // In a real app, you would fetch product data from your backend
       // const product = await storesService.findProductByBarcode(barcodeData);
       
@@ -167,10 +170,13 @@ export default function CartScreen() {
       const mockProduct: Product = {
         id: Date.now().toString(),
         barcode: barcodeData,
-        name: `Product ${barcodeData.substring(0, 6)}`,
-        price: Math.floor(Math.random() * 100) + 10,
+        // name: `Product ${barcodeData.substring(0, 6)}`,
+        //  price: Math.floor(Math.random() * 100) + 10,
+        // stock: Math.floor(Math.random() * 100) + 1,
+        name: scanResponse.description,
+        price: scanResponse.price,
         stock: Math.floor(Math.random() * 100) + 1,
-        category: 'General'
+        category: scanResponse.category || 'General'
       };
 
       // Check if product already exists in cart
@@ -183,7 +189,7 @@ export default function CartScreen() {
         const updatedItems = [...cartItems];
         updatedItems[existingItemIndex].quantity += 1;
         setCartItems(updatedItems);
-        showSuccess(`Added another ${mockProduct.name} to cart`);
+        showSuccess(`Added another hehe${mockProduct.name} to cart`);
       } else {
         // Add new product to cart
         const newItem: CartItem = {
@@ -348,7 +354,7 @@ export default function CartScreen() {
                   Category: {item.product.category}
                 </Text>
                 <Text style={styles.productPrice}>
-                  ${item.product.price.toFixed(2)} each
+                  ${item.product.price} each
                 </Text>
               </View>
 

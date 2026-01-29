@@ -19,6 +19,12 @@ export const API_ENDPOINTS = {
 
   ORDER: {
     NEW_ORDER: '/supplier/new-order',
+  },
+
+  PRODUCTS: {
+    SCAN: '/supplier/scan-product',
+    FIND_BY_BARCODE: (barcode: string) => `/products/barcode/${barcode}`,
+    SEARCH: '/products/search',
   }
 
 } as const;
