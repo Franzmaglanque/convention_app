@@ -109,26 +109,6 @@ export default function CartScreen() {
     try {
 
       console.log('customer card number',cardNumber);
-      // Use mutateAsync to get a Promise
-      // const response = await newOrderMutation.mutateAsync();
-      // console.log('New order mutation result:', response);
-      
-      // // Extract order_no from the response
-      // const orderNo = response.data?.order_no;
-      // if (orderNo) {
-      //   setOrderNo(orderNo.toString());
-      //   setCartItems([]);
-      //   setIsCardedTransaction(isCarded);
-        
-      //   if (isCarded && cardNumber) {
-      //     showSuccess(`Carded transaction started: ${orderNo}\nCustomer Card: ${cardNumber}`);
-      //   } else {
-      //     showSuccess(`New transaction started: ${orderNo}`);
-      //   }
-      // } else {
-      //   showError('Failed to get order number from response');
-      // }
-
       await newOrderMutation.mutate({
             user_id: user?.id || null,
             vendor_code: user?.supplier_code || null,

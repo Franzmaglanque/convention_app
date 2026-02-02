@@ -1,7 +1,6 @@
-import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { router } from 'expo-router';
-import { useAuth } from '@/hooks/useAuth';
 import UserProfile from '@/components/UserProfile';
+import { useAuth } from '@/hooks/useAuth';
+import { StyleSheet } from 'react-native';
 
 export default function ProfileScreen() {
   const { token, user, isAuthenticated } = useAuth();

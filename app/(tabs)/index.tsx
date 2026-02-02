@@ -1,9 +1,11 @@
-import { Link, router } from 'expo-router';
+import { useAuth } from '@/hooks/useAuth';
+import { Link, Redirect, router } from 'expo-router';
 import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BarChart, PieChart } from 'react-native-chart-kit';
 
-
 export default function HomeScreen() {
+  const { user} = useAuth();
+  
   // Mock data for dashboard
   const salesData = {
     currentDay: 125430.75,
@@ -53,6 +55,10 @@ export default function HomeScreen() {
       data: salesData.topItems.map(item => item.sold)
     }]
   };
+
+  if (user?.department === 'SUPPLIER' && user.role === 'CASHIER') {
+    return <Redirect href="/(tabs)/cart" />;
+  }
 
   return (
     <ScrollView style={styles.container}>
