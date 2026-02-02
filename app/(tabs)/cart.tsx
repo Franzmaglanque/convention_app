@@ -1,3 +1,4 @@
+
 import BarcodeScanner from '@/components/BarcodeScanner';
 import { useToast } from '@/components/ToastProvider';
 import { useAuth } from '@/hooks/useAuth';
@@ -8,15 +9,16 @@ import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
 
-// Mock product interface - in a real app, this would come from your types
 interface Product {
   id: string;
   barcode: string;
@@ -46,12 +48,17 @@ const orderService = {
 };
 
 export default function CartScreen() {
-  const { user, isAuthenticated } = useAuth();
-  console.log('user in cart screen:', user);
-  const newOrderMutation = newOrder({
-      user_id: user?.id || null,
-      vendor_code: user?.supplier_code || null,
-  });
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentType, setPaymentType] = useState<'PWALLET' | 'GCASH' | 'CASH' | null>(null);
+  const [referenceNumber, setReferenceNumber] = useState('');
+  const [showTransactionTypeModal, setShowTransactionTypeModal] = useState(false);
+  const [showCardInputModal, setShowCardInputModal] = useState(false);
+  const [customerCardNumber, setCustomerCardNumber] = useState('');
+  const [isCardedTransaction, setIsCardedTransaction] = useState(false);
+  const [isScanningCard, setIsScanningCard] = useState(false);
+
+  const { user } = useAuth();
+  const newOrderMutation = newOrder();
   const scanProductMutation = useScanProduct();
   const [showScanner, setShowScanner] = useState(false);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -59,7 +66,7 @@ export default function CartScreen() {
   const [isCreatingTransaction, setIsCreatingTransaction] = useState(false);
   const { showSuccess, showError, showInfo } = useToast();
 
-    const handleNewTransaction = async () => {
+  const handleNewTransaction = async () => {
     if (cartItems.length > 0) {
       Alert.alert(
         'Start New Transaction',
@@ -69,12 +76,12 @@ export default function CartScreen() {
           {
             text: 'New Transaction',
             style: 'destructive',
-            onPress: () => createNewTransaction()
+            onPress: () => setShowTransactionTypeModal(true)
           }
         ]
       );
     } else {
-      createNewTransaction();
+      setShowTransactionTypeModal(true);
     }
   };
 
@@ -96,55 +103,64 @@ export default function CartScreen() {
       ]
     );
   };
-
-  // const createNewTransaction = async () => {
-  //   setIsCreatingTransaction(true);
-  //   try {
-  //     // Call the mutation with success/error handlers
-  //     newOrderMutation.mutate(undefined, {
-  //       onSuccess: (response) => {
-  //         // The response here is the data from orderService.newOrder()
-  //         console.log('New order mutation result:', response);
-          
-  //         // Extract order_no from the response
-  //         const orderNo = response.data?.order_no;
-  //         if (orderNo) {
-  //           setOrderNo(orderNo.toString());
-  //           setCartItems([]); // Clear existing cart items
-  //           showSuccess(`New transaction started: ${orderNo}`);
-  //         } else {
-  //           showError('Failed to get order number from response');
-  //         }
-  //       },
-  //       onError: (error) => {
-  //         showError('Failed to create new transaction. Please try again.');
-  //       }
-  //     });
-      
-  //     // Note: You can remove the mock orderService.createNewTransaction() call
-  //     // since you're now using the real API through the mutation
-  //   } catch (error) {
-  //     showError('Failed to create new transaction. Please try again.');
-  //   } finally {
-  //     setIsCreatingTransaction(false);
-  //   }
-  // };
-  const createNewTransaction = async () => {
+ 
+  const createNewTransaction = async (isCarded: boolean = false, cardNumber: string = '') => {
     setIsCreatingTransaction(true);
     try {
+
+      console.log('customer card number',cardNumber);
       // Use mutateAsync to get a Promise
-      const response = await newOrderMutation.mutateAsync();
-      console.log('New order mutation result:', response);
+      // const response = await newOrderMutation.mutateAsync();
+      // console.log('New order mutation result:', response);
       
-      // Extract order_no from the response
-      const orderNo = response.data?.order_no;
-      if (orderNo) {
-        setOrderNo(orderNo.toString());
-        setCartItems([]);
-        showSuccess(`New transaction started: ${orderNo}`);
-      } else {
-        showError('Failed to get order number from response');
-      }
+      // // Extract order_no from the response
+      // const orderNo = response.data?.order_no;
+      // if (orderNo) {
+      //   setOrderNo(orderNo.toString());
+      //   setCartItems([]);
+      //   setIsCardedTransaction(isCarded);
+        
+      //   if (isCarded && cardNumber) {
+      //     showSuccess(`Carded transaction started: ${orderNo}\nCustomer Card: ${cardNumber}`);
+      //   } else {
+      //     showSuccess(`New transaction started: ${orderNo}`);
+      //   }
+      // } else {
+      //   showError('Failed to get order number from response');
+      // }
+
+      await newOrderMutation.mutate({
+            user_id: user?.id || null,
+            vendor_code: user?.supplier_code || null,
+            customerCardNumber : cardNumber
+        },{
+        onSuccess: (response) => {
+          console.log('New order mutation result:', response);
+                
+          // Extract order_no from the response
+          const orderNo = response.data?.order_no;
+          if (orderNo) {
+            setOrderNo(orderNo.toString());
+            setCartItems([]);
+            setIsCardedTransaction(isCarded);
+            
+            if (isCarded && cardNumber) {
+              showSuccess(`Carded transaction started: ${orderNo}\nCustomer Card: ${cardNumber}`);
+            } else {
+              showSuccess(`New transaction started: ${orderNo}`);
+            }
+          } else {
+            showError('Failed to get order number from response');
+          }
+        },
+        onError: () => {
+           showError('Failed to create new transaction. Please try again.');
+        },
+        onSettled: () => {
+          setIsCreatingTransaction(false);
+        }
+      });
+      
     } catch (error) {
       showError('Failed to create new transaction. Please try again.');
     } finally {
@@ -152,58 +168,68 @@ export default function CartScreen() {
     }
   };
 
-    const handleBarcodeScanned = async (barcodeData: string) => {
+  const handleBarcodeScanned = (barcodeData: string) => {
     if (!orderNo) {
       showError('Please start a new transaction first');
       return;
     }
 
-    try {
-      const scanResponse = (await scanProductMutation.mutateAsync({
-        barcode: barcodeData
-      })).data;
-      console.log('Scanned product response:', scanResponse.price);
-      // In a real app, you would fetch product data from your backend
-      // const product = await storesService.findProductByBarcode(barcodeData);
-      
-      // Mock product data for demonstration
-      const mockProduct: Product = {
-        id: Date.now().toString(),
-        barcode: barcodeData,
-        // name: `Product ${barcodeData.substring(0, 6)}`,
-        //  price: Math.floor(Math.random() * 100) + 10,
-        // stock: Math.floor(Math.random() * 100) + 1,
-        name: scanResponse.description,
-        price: scanResponse.price,
-        stock: Math.floor(Math.random() * 100) + 1,
-        category: scanResponse.category || 'General'
-      };
+    scanProductMutation.mutate(
+      { barcode: barcodeData },
+      {
+        onSuccess: (response) => {
+          const scanResponse = response.data;
+          
+          console.log('Scanned product response:', scanResponse.price);
+          
+          const mockProduct: Product = {
+            id: Date.now().toString(),
+            barcode: barcodeData,
+            name: scanResponse.description || `Product ${barcodeData.substring(0, 6)}`,
+            price: scanResponse.price,
+            stock: Math.floor(Math.random() * 100) + 1,
+            category: scanResponse.category || 'General'
+          };
 
-      // Check if product already exists in cart
-      const existingItemIndex = cartItems.findIndex(
-        item => item.product.barcode === barcodeData
-      );
+          // Check if product already exists in cart
+          const existingItemIndex = cartItems.findIndex(
+            item => item.product.barcode === barcodeData
+          );
 
-      if (existingItemIndex >= 0) {
-        // Update quantity if product exists
-        const updatedItems = [...cartItems];
-        updatedItems[existingItemIndex].quantity += 1;
-        setCartItems(updatedItems);
-        showSuccess(`Added another hehe${mockProduct.name} to cart`);
-      } else {
-        // Add new product to cart
-        const newItem: CartItem = {
-          product: mockProduct,
-          quantity: 1
-        };
-        setCartItems([...cartItems, newItem]);
-        showSuccess(`Added ${mockProduct.name} to cart`);
+          if (existingItemIndex >= 0) {
+            // Update quantity if product exists
+            const updatedItems = [...cartItems];
+            updatedItems[existingItemIndex].quantity += 1;
+            setCartItems(updatedItems);
+            showSuccess(`Added another ${mockProduct.name} to cart`);
+          } else {
+            // Add new product to cart
+            const newItem: CartItem = {
+              product: mockProduct,
+              quantity: 1
+            };
+            setCartItems([...cartItems, newItem]);
+            showSuccess(`Added ${mockProduct.name} to cart`);
+          }
+
+          setShowScanner(false);
+        },
+        onError: (error:any) => {
+          // Handle API error (product not found, network error, etc.)
+          console.error('Scan error:', error);
+          setShowScanner(false);
+          
+          // Check if it's a "not found" error
+          if (error.response?.status === 404 || error.message?.includes('not found')) {
+            showError('Product not found. Please try manual entry.');
+          } else if (error.response?.status === 401) {
+            showError('Session expired. Please login again.');
+          } else {
+            showError('Failed to scan product. Please try again.');
+          }
+        }
       }
-
-      setShowScanner(false);
-    } catch (error) {
-      showError('Product not found. Please try manual entry.');
-    }
+    );
   };
 
   const updateQuantity = (itemId: string, newQuantity: number) => {
@@ -272,6 +298,29 @@ export default function CartScreen() {
     return cartItems.reduce((total, item) => total + item.quantity, 0);
   };
 
+  const handleCompleteTransaction = () => {
+    console.log('Processing payment with details:');
+    console.log('Payment Type:', paymentType);
+    console.log('Reference Number:', referenceNumber);
+    console.log('Order No:', orderNo);
+    console.log('Subtotal Amount:', calculateSubtotal().toFixed(2));
+    console.log('Carded Transaction:', isCardedTransaction);
+
+    setShowPaymentModal(false);
+    
+    let successMessage = `Transaction ${orderNo} completed via ${paymentType}!`;
+    if (isCardedTransaction) {
+      successMessage += ' (Carded)';
+    }
+    
+    showSuccess(successMessage);
+    setCartItems([]);
+    setOrderNo(null);
+    setIsCardedTransaction(false);
+    setPaymentType(null);
+    setReferenceNumber('');
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -296,11 +345,19 @@ export default function CartScreen() {
           </TouchableOpacity>
         </View>
         
-        {orderNo ? (
+                {orderNo ? (
           <View style={styles.orderInfoContainer}>
-            <View style={styles.orderBadge}>
-              <Ionicons name="document-text-outline" size={16} color="#007AFF" />
-              <Text style={styles.orderNoText}>{orderNo}</Text>
+            <View style={styles.orderBadgeRow}>
+              <View style={styles.orderBadge}>
+                <Ionicons name="document-text-outline" size={16} color="#007AFF" />
+                <Text style={styles.orderNoText}>{orderNo}</Text>
+              </View>
+              {isCardedTransaction && (
+                <View style={styles.cardedBadge}>
+                  <Ionicons name="id-card-outline" size={14} color="#007AFF" />
+                  <Text style={styles.cardedBadgeText}>Carded</Text>
+                </View>
+              )}
             </View>
             <Text style={styles.headerStatsText}>
               {calculateTotalItems()} items • ${calculateSubtotal().toFixed(2)}
@@ -419,7 +476,7 @@ export default function CartScreen() {
         </View>
       )}
 
-            {/* Action Buttons - Neatly Aligned */}
+      {/* Action Buttons - Neatly Aligned */}
       <View style={styles.actionButtonsContainer}>
         <View style={styles.buttonGroup}>
           {cartItems.length > 0 && (
@@ -458,25 +515,33 @@ export default function CartScreen() {
 
         <View style={styles.buttonGroup}>
           {cartItems.length > 0 && (
+            // <TouchableOpacity
+            //   style={[styles.iconButton, styles.checkoutButton]}
+              // onPress={() => {
+              //   Alert.alert(
+              //     'Complete Transaction',
+              //     `Process transaction ${orderNo} for $${(calculateSubtotal() * 1.085).toFixed(2)}?`,
+              //     [
+              //       { text: 'Cancel', style: 'cancel' },
+              //       {
+              //         text: 'Process Payment',
+              //         onPress: () => {
+              //           showSuccess(`Transaction ${orderNo} completed successfully!`);
+              //           setCartItems([]);
+              //           setOrderNo(null);
+              //         }
+              //       }
+              //     ]
+              //   );
+              // }}
+            // >
+            //   <Ionicons name="checkmark-circle-outline" size={28} color="#FFFFFF" />
+            //   <Text style={styles.buttonLabel}>Checkout</Text>
+            // </TouchableOpacity>
+            // Inside your return statement, update the Checkout Button:
             <TouchableOpacity
               style={[styles.iconButton, styles.checkoutButton]}
-              onPress={() => {
-                Alert.alert(
-                  'Complete Transaction',
-                  `Process transaction ${orderNo} for $${(calculateSubtotal() * 1.085).toFixed(2)}?`,
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: 'Process Payment',
-                      onPress: () => {
-                        showSuccess(`Transaction ${orderNo} completed successfully!`);
-                        setCartItems([]);
-                        setOrderNo(null);
-                      }
-                    }
-                  ]
-                );
-              }}
+              onPress={() => setShowPaymentModal(true)} // Open payment selection instead of direct Alert
             >
               <Ionicons name="checkmark-circle-outline" size={28} color="#FFFFFF" />
               <Text style={styles.buttonLabel}>Checkout</Text>
@@ -485,13 +550,231 @@ export default function CartScreen() {
         </View>
       </View>
 
-      {/* Barcode Scanner Modal */}
+            {/* Barcode Scanner Modal */}
       <BarcodeScanner
         isVisible={showScanner}
         onBarcodeScanned={handleBarcodeScanned}
         onClose={() => setShowScanner(false)}
         scanDelay={1000}
       />
+
+      {/* Card Scanner Modal */}
+      <BarcodeScanner
+        isVisible={isScanningCard}
+        onBarcodeScanned={(barcodeData) => {
+          createNewTransaction(true, barcodeData);
+          setCustomerCardNumber('');
+          setIsScanningCard(false);
+          // setCustomerCardNumber(barcodeData);
+          // setIsScanningCard(false);
+          // showSuccess(`Card scanned: ${barcodeData}`);
+        }}
+        onClose={() => setIsScanningCard(false)}
+        scanDelay={1000}
+      />
+
+      {/* Transaction Type Selection Modal */}
+      <Modal
+        visible={showTransactionTypeModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowTransactionTypeModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.transactionTypeModalContent}>
+            <Text style={styles.modalTitle}>Select Transaction Type</Text>
+            
+            <View style={styles.transactionTypeOptions}>
+              <TouchableOpacity
+                style={[styles.transactionTypeOption, styles.uncardedOption]}
+                onPress={() => {
+                  setShowTransactionTypeModal(false);
+                  createNewTransaction(false);
+                }}
+              >
+                <Ionicons name="card-outline" size={32} color="#34C759" />
+                <Text style={styles.transactionTypeText}>Uncarded</Text>
+                <Text style={styles.transactionTypeSubtext}>Regular transaction</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.transactionTypeOption, styles.cardedOption]}
+                onPress={() => {
+                  setShowTransactionTypeModal(false);
+                  setShowCardInputModal(true);
+                }}
+              >
+                <Ionicons name="id-card-outline" size={32} color="#007AFF" />
+                <Text style={styles.transactionTypeText}>Carded</Text>
+                <Text style={styles.transactionTypeSubtext}>Customer card required</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <TouchableOpacity 
+              style={styles.cancelTransactionTypeButton}
+              onPress={() => setShowTransactionTypeModal(false)}
+            >
+              <Text style={styles.cancelTransactionTypeButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Card Input Modal */}
+    <Modal
+      visible={showCardInputModal}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={() => {
+        setShowCardInputModal(false);
+        setCustomerCardNumber('');
+      }}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.cardInputModalContent}>
+          <Text style={styles.modalTitle}>Enter Customer Card</Text>
+          
+          <View style={styles.cardInputContainer}>
+            <Text style={styles.inputLabel}>Customer Card Number</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="Scan or enter card number"
+              value={customerCardNumber}
+              onChangeText={setCustomerCardNumber}
+              autoFocus={true}
+            />
+            
+            <TouchableOpacity
+              style={styles.scanCardButton}
+              onPress={() => {
+                setShowCardInputModal(false);
+                setIsScanningCard(true);
+              }}
+            >
+              <Ionicons name="barcode-outline" size={24} color="#007AFF" />
+              <Text style={styles.scanCardButtonText}>Scan Card</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.modalActions}>
+            <TouchableOpacity 
+              style={styles.cancelButton}
+              onPress={() => {
+                setShowCardInputModal(false);
+                setCustomerCardNumber('');
+              }}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.processButton, !customerCardNumber && styles.processButtonDisabled]}
+              disabled={!customerCardNumber}
+              onPress={() => {
+                if (customerCardNumber.trim()) {
+                  setShowCardInputModal(false);
+                  createNewTransaction(true, customerCardNumber.trim());
+                  setCustomerCardNumber('');
+                }
+              }}
+            >
+              <Text style={styles.processButtonText}>Start Carded Transaction</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+
+      {/* Payment Selection Modal */}
+    <Modal
+      visible={showPaymentModal}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={() => setShowPaymentModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.paymentModalContent}>
+          <Text style={styles.modalTitle}>Select Payment Method</Text>
+          
+          <View style={styles.paymentOptions}>
+            {(['PWALLET', 'GCASH', 'CASH'] as const).map((type) => (
+              <TouchableOpacity
+                key={type}
+                style={[
+                  styles.paymentOption,
+                  paymentType === type && styles.paymentOptionSelected
+                ]}
+                onPress={() => setPaymentType(type)}
+              >
+                <Text style={[
+                  styles.paymentOptionText,
+                  paymentType === type && styles.paymentOptionTextSelected
+                ]}>{type}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Reference Number Input - Only for PWALLET and GCASH */}
+          {(paymentType === 'PWALLET' || paymentType === 'GCASH') && (
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>{paymentType} Reference Number</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Enter reference number"
+                value={referenceNumber}
+                onChangeText={setReferenceNumber}
+              />
+            </View>
+          )}
+
+          <View style={styles.modalActions}>
+            <TouchableOpacity 
+              style={styles.cancelButton} 
+              onPress={() => {
+                setShowPaymentModal(false);
+                setPaymentType(null);
+                setReferenceNumber('');
+              }}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[
+                styles.processButton, 
+                (!paymentType || ((paymentType === 'PWALLET' || paymentType === 'GCASH') && !referenceNumber)) && styles.processButtonDisabled
+              ]}
+              disabled={!paymentType || ((paymentType === 'PWALLET' || paymentType === 'GCASH') && !referenceNumber)}
+              onPress={async () => {
+                Alert.alert(
+                  'Payment Confirmation',
+                  // `Process transaction ${orderNo} for $${(calculateSubtotal() * 1.085).toFixed(2)}?`,
+                  `Confirm payment receive of $${calculateSubtotal().toFixed(2)} via ${paymentType} `,
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Complete Transaction',
+                    onPress: () => {
+                      handleCompleteTransaction();
+                    }
+                  }
+                ]);
+                // handleProcessPayment();
+                // Finalize Transaction Logic
+                // showSuccess(`Transaction ${orderNo} completed via ${paymentType}!`);
+                // setCartItems([]);
+                // setOrderNo(null);
+                // setPaymentType(null);
+                // setReferenceNumber('');
+                // setShowPaymentModal(false);
+              }}
+            >
+              <Text style={styles.processButtonText}>Process Payment</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
     </SafeAreaView>
   );
 }
@@ -538,10 +821,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
   },
-  orderInfoContainer: {
+    orderInfoContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  orderBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   orderBadge: {
     flexDirection: 'row',
@@ -551,6 +839,22 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 6,
     gap: 6,
+  },
+  cardedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F4FF',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+  },
+  cardedBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#007AFF',
   },
   orderNoText: {
     fontSize: 14,
@@ -759,5 +1063,166 @@ const styles = StyleSheet.create({
   },
   checkoutButton: {
     backgroundColor: '#34C759',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  paymentModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  paymentOptions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  paymentOption: {
+    flex: 1,
+    paddingVertical: 12,
+    marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  paymentOptionSelected: {
+    borderColor: '#007AFF',
+    backgroundColor: '#F0F7FF',
+  },
+  paymentOptionText: {
+    fontWeight: '600',
+    color: '#666666',
+  },
+  paymentOptionTextSelected: {
+    color: '#007AFF',
+  },
+  inputContainer: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    color: '#666666',
+    marginBottom: 8,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    padding: 16,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: '#FF3B30',
+    fontWeight: '600',
+  },
+  processButton: {
+    flex: 2,
+    backgroundColor: '#34C759',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  processButtonDisabled: {
+    backgroundColor: '#E5E5EA',
+  },
+    processButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  transactionTypeModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  transactionTypeOptions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    gap: 12,
+  },
+  transactionTypeOption: {
+    flex: 1,
+    padding: 20,
+    borderWidth: 2,
+    borderColor: '#E5E5EA',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uncardedOption: {
+    borderColor: '#34C759',
+    backgroundColor: '#F0FFF4',
+  },
+  cardedOption: {
+    borderColor: '#007AFF',
+    backgroundColor: '#F0F7FF',
+  },
+  transactionTypeText: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  transactionTypeSubtext: {
+    fontSize: 12,
+    color: '#666666',
+    textAlign: 'center',
+  },
+  cancelTransactionTypeButton: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  cancelTransactionTypeButtonText: {
+    color: '#FF3B30',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  cardInputModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  cardInputContainer: {
+    marginBottom: 20,
+  },
+  scanCardButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    backgroundColor: '#F0F7FF',
+    borderRadius: 8,
+    marginTop: 12,
+    gap: 8,
+  },
+  scanCardButtonText: {
+    color: '#007AFF',
+    fontWeight: '600',
+    fontSize: 16,
   },
 });

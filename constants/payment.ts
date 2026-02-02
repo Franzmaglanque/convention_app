@@ -8,6 +8,7 @@ export const PAYMENT_METHODS = {
   GCASH: 'gcash',
   PAYMAYA: 'paymaya',
   CREDIT: 'credit',
+  PWALLET: 'pwallet',
 } as const;
 
 export type PaymentMethod = typeof PAYMENT_METHODS[keyof typeof PAYMENT_METHODS];
@@ -18,6 +19,8 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   [PAYMENT_METHODS.GCASH]: 'GCash',
   [PAYMENT_METHODS.PAYMAYA]: 'PayMaya',
   [PAYMENT_METHODS.CREDIT]: 'Credit Terms',
+  [PAYMENT_METHODS.PWALLET]: 'Puregold Wallet',
+
 };
 
 export const PAYMENT_STATUS = {

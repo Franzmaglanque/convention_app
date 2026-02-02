@@ -1,16 +1,16 @@
-import { useQuery, useMutation } from '@tanstack/react-query';
 import { orderService } from '@/services/order.service';
+import { useMutation } from '@tanstack/react-query';
 
-export function newOrder(params:any) {
-    return useMutation({
-        mutationKey: ['new-order'],
-        mutationFn: () => orderService.newOrder(params),
-        onSuccess: (response) => {
-            console.log('Login successful:', response);
-        },
-        onError: (error) => {
-            console.log('Login failed:', error);
-        }
-    })
+export function newOrder() {
+  return useMutation({
+    mutationKey: ['new-order'],
+    mutationFn: (params: any) => orderService.newOrder(params),  // ← Accept params here
+    onSuccess: (response) => {
+      console.log('Login successful:', response);
+    },
+    onError: (error) => {
+      console.log('Login failed:', error);
+    }
+  })
 }
 
