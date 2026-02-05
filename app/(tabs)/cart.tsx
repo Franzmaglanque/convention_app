@@ -172,7 +172,7 @@ export default function CartScreen() {
             stock: Math.floor(Math.random() * 100) + 1,
             category: productData.category || 'General',
             // Include the original product data
-            ...productData
+            // ...productData
           };
 
           // Check if product already exists in cart
