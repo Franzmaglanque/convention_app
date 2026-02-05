@@ -4,6 +4,7 @@ import { useToast } from '@/components/ToastProvider';
 import { useAuth } from '@/hooks/useAuth';
 import { newOrder } from '@/hooks/useOrder';
 import { useScanProduct } from '@/hooks/useProduct';
+import { Product } from '@/types/product.types';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
@@ -19,18 +20,16 @@ import {
   View
 } from 'react-native';
 
-interface Product {
-  id: string;
-  barcode: string;
-  name: string;
-  price: number;
-  stock: number;
-  category?: string;
-  imageUrl?: string;
-}
-
 interface CartItem {
-  product: Product;
+  product: Product & {
+    id: string;
+    barcode: string;
+    name: string;
+    price: number;
+    stock: number;
+    category?: string;
+    imageUrl?: string;
+  };
   quantity: number;
 }
 
@@ -159,17 +158,21 @@ export default function CartScreen() {
       { barcode: barcodeData },
       {
         onSuccess: (response) => {
-          const scanResponse = response.data;
+          // The response should match ScanProductResponse from product.types.ts
+          const productData = response.data;
           
-          console.log('Scanned product response:', scanResponse.price);
+          console.log('Scanned product response:', productData);
           
-          const mockProduct: Product = {
+          // Create a product for the cart with the scanned data
+          const cartProduct = {
             id: Date.now().toString(),
             barcode: barcodeData,
-            name: scanResponse.description || `Product ${barcodeData.substring(0, 6)}`,
-            price: scanResponse.price,
+            name: productData.description || `Product ${barcodeData.substring(0, 6)}`,
+            price: productData.price,
             stock: Math.floor(Math.random() * 100) + 1,
-            category: scanResponse.category || 'General'
+            category: productData.category || 'General',
+            // Include the original product data
+            ...productData
           };
 
           // Check if product already exists in cart
@@ -182,20 +185,20 @@ export default function CartScreen() {
             const updatedItems = [...cartItems];
             updatedItems[existingItemIndex].quantity += 1;
             setCartItems(updatedItems);
-            showSuccess(`Added another ${mockProduct.name} to cart`);
+            showSuccess(`Added another ${cartProduct.name} to cart`);
           } else {
             // Add new product to cart
             const newItem: CartItem = {
-              product: mockProduct,
+              product: cartProduct,
               quantity: 1
             };
             setCartItems([...cartItems, newItem]);
-            showSuccess(`Added ${mockProduct.name} to cart`);
+            showSuccess(`Added ${cartProduct.name} to cart`);
           }
 
           setShowScanner(false);
         },
-        onError: (error:any) => {
+        onError: (error: any) => {
           // Handle API error (product not found, network error, etc.)
           console.error('Scan error:', error);
           setShowScanner(false);
@@ -702,8 +705,12 @@ export default function CartScreen() {
                   paymentType === type && styles.paymentOptionSelected
                 ]}
                 onPress={() => {
-                  setPaymentScanner(true)
-                  setPaymentType(type)
+                  // Set the payment type first
+                  setPaymentType(type);
+                  // Only open scanner for PWALLET and GCASH, not for CASH
+                  if (type === 'PWALLET' || type === 'GCASH') {
+                    setPaymentScanner(true);
+                  }
                 }}
               >
                 <Text style={[
@@ -719,25 +726,45 @@ export default function CartScreen() {
             <>
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>{paymentType} Reference Number</Text>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Enter reference number"
-                  value={referenceNumber}
-                  onChangeText={setReferenceNumber}
-                />
+                <View style={styles.referenceInputRow}>
+                  <TextInput
+                    style={[styles.textInput, styles.flex1]}
+                    placeholder="Enter reference number"
+                    value={referenceNumber}
+                    onChangeText={setReferenceNumber}
+                  />
+                  <TouchableOpacity
+                    style={styles.scanReferenceButton}
+                    onPress={() => setPaymentScanner(true)}
+                  >
+                    <Ionicons name="barcode-outline" size={24} color="#007AFF" />
+                  </TouchableOpacity>
+                </View>
               </View>
 
               <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}> Enter Amount</Text>
+                <Text style={styles.inputLabel}>Enter Amount</Text>
                 <TextInput
                   style={styles.textInput}
                   placeholder="Enter Amount"
-                
+                  value={calculateSubtotal().toFixed(2)}
+                  editable={false}
                 />
               </View>
             </>
-         
-            
+          )}
+          
+          {/* For CASH payment, show amount only */}
+          {paymentType === 'CASH' && (
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Amount to Collect</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Enter Amount"
+                value={calculateSubtotal().toFixed(2)}
+                editable={false}
+              />
+            </View>
           )}
 
           <View style={styles.modalActions}>
@@ -1134,6 +1161,21 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
+  },
+  flex1: {
+    flex: 1,
+  },
+  referenceInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  scanReferenceButton: {
+    padding: 12,
+    backgroundColor: '#F0F7FF',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalActions: {
     flexDirection: 'row',
