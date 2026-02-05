@@ -4,18 +4,14 @@ import { Tabs } from 'expo-router';
 
 
 export default function TabsLayout() {
-  const { token, user, isAuthenticated } = useAuth();
+  const { user } = useAuth();
 
   const isAdmin = user?.department === 'ADMIN';
-  // Helper to check if user is a Supplier Manager
   const isSupplierManager = user?.department === 'SUPPLIER' && user?.role === 'MANAGER';
-  // Helper to check if user is a Supplier Cashier
   const isSupplierCashier = user?.department === 'SUPPLIER' && user?.role === 'CASHIER';
   console.log('user department',user?.department);
   console.log('user role',user?.role);
 
-
-  
   return (
     <Tabs
       screenOptions={{

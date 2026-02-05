@@ -61,6 +61,8 @@ export default function CartScreen() {
   const newOrderMutation = newOrder();
   const scanProductMutation = useScanProduct();
   const [showScanner, setShowScanner] = useState(false);
+  const [paymentScanner, setPaymentScanner] = useState(false);
+
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [orderNo, setOrderNo] = useState<string | null>(null);
   const [isCreatingTransaction, setIsCreatingTransaction] = useState(false);
@@ -108,7 +110,6 @@ export default function CartScreen() {
     setIsCreatingTransaction(true);
     try {
 
-      console.log('customer card number',cardNumber);
       await newOrderMutation.mutate({
             user_id: user?.id || null,
             vendor_code: user?.supplier_code || null,
@@ -299,6 +300,12 @@ export default function CartScreen() {
     setIsCardedTransaction(false);
     setPaymentType(null);
     setReferenceNumber('');
+  }
+
+  const handlePaymentScanned = (barcodeData: string) => {
+    setReferenceNumber(barcodeData);
+    setPaymentScanner(false)
+    console.log('barcodeData',barcodeData);
   }
 
   return (
@@ -553,6 +560,16 @@ export default function CartScreen() {
         scanDelay={1000}
       />
 
+      {/* Payment Scanner Modal */}
+       <BarcodeScanner
+        isVisible={paymentScanner}
+        onBarcodeScanned={(barcodeData) => {
+          handlePaymentScanned(barcodeData)
+        }}
+        onClose={() => setPaymentScanner(false)}
+        scanDelay={1000}
+      />
+
       {/* Transaction Type Selection Modal */}
       <Modal
         visible={showTransactionTypeModal}
@@ -684,7 +701,10 @@ export default function CartScreen() {
                   styles.paymentOption,
                   paymentType === type && styles.paymentOptionSelected
                 ]}
-                onPress={() => setPaymentType(type)}
+                onPress={() => {
+                  setPaymentScanner(true)
+                  setPaymentType(type)
+                }}
               >
                 <Text style={[
                   styles.paymentOptionText,
@@ -696,15 +716,28 @@ export default function CartScreen() {
 
           {/* Reference Number Input - Only for PWALLET and GCASH */}
           {(paymentType === 'PWALLET' || paymentType === 'GCASH') && (
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>{paymentType} Reference Number</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Enter reference number"
-                value={referenceNumber}
-                onChangeText={setReferenceNumber}
-              />
-            </View>
+            <>
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>{paymentType} Reference Number</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Enter reference number"
+                  value={referenceNumber}
+                  onChangeText={setReferenceNumber}
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}> Enter Amount</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Enter Amount"
+                
+                />
+              </View>
+            </>
+         
+            
           )}
 
           <View style={styles.modalActions}>
