@@ -1,34 +1,33 @@
+
 import BarcodeScanner from '@/components/BarcodeScanner';
 import { useToast } from '@/components/ToastProvider';
 import { useAuth } from '@/hooks/useAuth';
 import { newOrder } from '@/hooks/useOrder';
 import { useScanProduct } from '@/hooks/useProduct';
+import { Product } from '@/types/product.types';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
 
-// Mock product interface - in a real app, this would come from your types
-interface Product {
-  id: string;
-  barcode: string;
-  name: string;
-  price: number;
-  stock: number;
-  category?: string;
-  imageUrl?: string;
-}
-
 interface CartItem {
-  product: Product;
+  product: Product & {
+    id: string;
+    barcode: string;
+    name: string;
+    stock: number;
+    imageUrl?: string;
+  };
   quantity: number;
 }
 
@@ -46,20 +45,36 @@ const orderService = {
 };
 
 export default function CartScreen() {
-  const { user, isAuthenticated } = useAuth();
-  console.log('user in cart screen:', user);
-  const newOrderMutation = newOrder({
-      user_id: user?.id || null,
-      vendor_code: user?.supplier_code || null,
-  });
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentType, setPaymentType] = useState<'PWALLET' | 'GCASH' | 'CASH' | null>(null);
+  const [referenceNumber, setReferenceNumber] = useState('');
+  const [showTransactionTypeModal, setShowTransactionTypeModal] = useState(false);
+  const [showCardInputModal, setShowCardInputModal] = useState(false);
+  const [customerCardNumber, setCustomerCardNumber] = useState('');
+  const [isCardedTransaction, setIsCardedTransaction] = useState(false);
+  const [isScanningCard, setIsScanningCard] = useState(false);
+  const [paymentMode, setPaymentMode] = useState<'full' | 'partial'>('full');
+  const [amountToPay, setAmountToPay] = useState('');
+  const [payments, setPayments] = useState<Array<{
+    type: 'PWALLET' | 'GCASH' | 'CASH';
+    amount: number;
+    referenceNumber?: string;
+  }>>([]);
+  const [currentPaymentAmount, setCurrentPaymentAmount] = useState('');
+  const [currentPaymentMode, setCurrentPaymentMode] = useState<'full' | 'partial'>('full');
+
+  const { user } = useAuth();
+  const newOrderMutation = newOrder();
   const scanProductMutation = useScanProduct();
   const [showScanner, setShowScanner] = useState(false);
+  const [paymentScanner, setPaymentScanner] = useState(false);
+
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [orderNo, setOrderNo] = useState<string | null>(null);
   const [isCreatingTransaction, setIsCreatingTransaction] = useState(false);
   const { showSuccess, showError, showInfo } = useToast();
 
-    const handleNewTransaction = async () => {
+  const handleNewTransaction = async () => {
     if (cartItems.length > 0) {
       Alert.alert(
         'Start New Transaction',
@@ -69,12 +84,12 @@ export default function CartScreen() {
           {
             text: 'New Transaction',
             style: 'destructive',
-            onPress: () => createNewTransaction()
+            onPress: () => setShowTransactionTypeModal(true)
           }
         ]
       );
     } else {
-      createNewTransaction();
+      setShowTransactionTypeModal(true);
     }
   };
 
@@ -96,55 +111,43 @@ export default function CartScreen() {
       ]
     );
   };
-
-  // const createNewTransaction = async () => {
-  //   setIsCreatingTransaction(true);
-  //   try {
-  //     // Call the mutation with success/error handlers
-  //     newOrderMutation.mutate(undefined, {
-  //       onSuccess: (response) => {
-  //         // The response here is the data from orderService.newOrder()
-  //         console.log('New order mutation result:', response);
-          
-  //         // Extract order_no from the response
-  //         const orderNo = response.data?.order_no;
-  //         if (orderNo) {
-  //           setOrderNo(orderNo.toString());
-  //           setCartItems([]); // Clear existing cart items
-  //           showSuccess(`New transaction started: ${orderNo}`);
-  //         } else {
-  //           showError('Failed to get order number from response');
-  //         }
-  //       },
-  //       onError: (error) => {
-  //         showError('Failed to create new transaction. Please try again.');
-  //       }
-  //     });
-      
-  //     // Note: You can remove the mock orderService.createNewTransaction() call
-  //     // since you're now using the real API through the mutation
-  //   } catch (error) {
-  //     showError('Failed to create new transaction. Please try again.');
-  //   } finally {
-  //     setIsCreatingTransaction(false);
-  //   }
-  // };
-  const createNewTransaction = async () => {
+ 
+  const createNewTransaction = async (isCarded: boolean = false, cardNumber: string = '') => {
     setIsCreatingTransaction(true);
     try {
-      // Use mutateAsync to get a Promise
-      const response = await newOrderMutation.mutateAsync();
-      console.log('New order mutation result:', response);
+
+      await newOrderMutation.mutate({
+            user_id: user?.id || null,
+            vendor_code: user?.supplier_code || null,
+            customerCardNumber : cardNumber
+        },{
+        onSuccess: (response) => {
+          console.log('New order mutation result:', response);
+                
+          // Extract order_no from the response
+          const orderNo = response.data?.order_no;
+          if (orderNo) {
+            setOrderNo(orderNo.toString());
+            setCartItems([]);
+            setIsCardedTransaction(isCarded);
+            
+            if (isCarded && cardNumber) {
+              showSuccess(`Carded transaction started: ${orderNo}\nCustomer Card: ${cardNumber}`);
+            } else {
+              showSuccess(`New transaction started: ${orderNo}`);
+            }
+          } else {
+            showError('Failed to get order number from response');
+          }
+        },
+        onError: () => {
+           showError('Failed to create new transaction. Please try again.');
+        },
+        onSettled: () => {
+          setIsCreatingTransaction(false);
+        }
+      });
       
-      // Extract order_no from the response
-      const orderNo = response.data?.order_no;
-      if (orderNo) {
-        setOrderNo(orderNo.toString());
-        setCartItems([]);
-        showSuccess(`New transaction started: ${orderNo}`);
-      } else {
-        showError('Failed to get order number from response');
-      }
     } catch (error) {
       showError('Failed to create new transaction. Please try again.');
     } finally {
@@ -152,58 +155,77 @@ export default function CartScreen() {
     }
   };
 
-    const handleBarcodeScanned = async (barcodeData: string) => {
+  const handleBarcodeScanned = (barcodeData: string) => {
     if (!orderNo) {
       showError('Please start a new transaction first');
       return;
     }
 
-    try {
-      const scanResponse = (await scanProductMutation.mutateAsync({
-        barcode: barcodeData
-      })).data;
-      console.log('Scanned product response:', scanResponse.price);
-      // In a real app, you would fetch product data from your backend
-      // const product = await storesService.findProductByBarcode(barcodeData);
-      
-      // Mock product data for demonstration
-      const mockProduct: Product = {
-        id: Date.now().toString(),
-        barcode: barcodeData,
-        // name: `Product ${barcodeData.substring(0, 6)}`,
-        //  price: Math.floor(Math.random() * 100) + 10,
-        // stock: Math.floor(Math.random() * 100) + 1,
-        name: scanResponse.description,
-        price: scanResponse.price,
-        stock: Math.floor(Math.random() * 100) + 1,
-        category: scanResponse.category || 'General'
-      };
+    scanProductMutation.mutate(
+      { barcode: barcodeData },
+      {
+        onSuccess: (response) => {
+          // The response should match ScanProductResponse from product.types.ts
+          const productData = response.data;
+          
+          console.log('Scanned product response:', productData);
+          
+          // Create a product for the cart with the scanned data
+          // The scanned productData should match the Product interface from product.types.ts
+          // We need to extend it with additional fields for our cart
+          const cartProduct: CartItem['product'] = {
+            // Base Product fields from the API response
+            description: productData.description || '',
+            category: productData.category || 'General',
+            price: productData.price,
+            sku: productData.sku || barcodeData,
+            // Additional fields for our cart
+            id: Date.now().toString(),
+            barcode: barcodeData,
+            name: productData.description || `Product ${barcodeData.substring(0, 6)}`,
+            stock: Math.floor(Math.random() * 100) + 1,
+            imageUrl: undefined,
+          };
 
-      // Check if product already exists in cart
-      const existingItemIndex = cartItems.findIndex(
-        item => item.product.barcode === barcodeData
-      );
+          // Check if product already exists in cart
+          const existingItemIndex = cartItems.findIndex(
+            item => item.product.barcode === barcodeData
+          );
 
-      if (existingItemIndex >= 0) {
-        // Update quantity if product exists
-        const updatedItems = [...cartItems];
-        updatedItems[existingItemIndex].quantity += 1;
-        setCartItems(updatedItems);
-        showSuccess(`Added another hehe${mockProduct.name} to cart`);
-      } else {
-        // Add new product to cart
-        const newItem: CartItem = {
-          product: mockProduct,
-          quantity: 1
-        };
-        setCartItems([...cartItems, newItem]);
-        showSuccess(`Added ${mockProduct.name} to cart`);
+          if (existingItemIndex >= 0) {
+            // Update quantity if product exists
+            const updatedItems = [...cartItems];
+            updatedItems[existingItemIndex].quantity += 1;
+            setCartItems(updatedItems);
+            showSuccess(`Added another ${cartProduct.name} to cart`);
+          } else {
+            // Add new product to cart
+            const newItem: CartItem = {
+              product: cartProduct,
+              quantity: 1
+            };
+            setCartItems([...cartItems, newItem]);
+            showSuccess(`Added ${cartProduct.name} to cart`);
+          }
+
+          setShowScanner(false);
+        },
+        onError: (error: any) => {
+          // Handle API error (product not found, network error, etc.)
+          console.error('Scan error:', error);
+          setShowScanner(false);
+          
+          // Check if it's a "not found" error
+          if (error.response?.status === 404 || error.message?.includes('not found')) {
+            showError('Product not found. Please try manual entry.');
+          } else if (error.response?.status === 401) {
+            showError('Session expired. Please login again.');
+          } else {
+            showError('Failed to scan product. Please try again.');
+          }
+        }
       }
-
-      setShowScanner(false);
-    } catch (error) {
-      showError('Product not found. Please try manual entry.');
-    }
+    );
   };
 
   const updateQuantity = (itemId: string, newQuantity: number) => {
@@ -272,6 +294,97 @@ export default function CartScreen() {
     return cartItems.reduce((total, item) => total + item.quantity, 0);
   };
 
+  const calculateTotal = () => {
+    return calculateSubtotal(); // Remove tax
+  };
+
+  const calculateRemainingBalance = () => {
+    const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
+    return calculateTotal() - totalPaid;
+  };
+
+  const handleAddPayment = () => {
+    if (!paymentType) {
+      showError('Please select a payment method');
+      return false;
+    }
+
+    const amount = parseFloat(currentPaymentAmount);
+    const remainingBalance = calculateRemainingBalance();
+    
+    if (isNaN(amount) || amount <= 0) {
+      showError('Please enter a valid amount');
+      return false;
+    }
+    
+    if (amount > remainingBalance) {
+      showError('Payment amount cannot exceed remaining balance');
+      return false;
+    }
+
+    // For PWALLET and GCASH, require reference number
+    if ((paymentType === 'PWALLET' || paymentType === 'GCASH') && !referenceNumber.trim()) {
+      showError('Please enter a reference number');
+      return false;
+    }
+
+    const newPayment = {
+      type: paymentType,
+      amount: amount,
+      referenceNumber: (paymentType === 'PWALLET' || paymentType === 'GCASH') ? referenceNumber : undefined
+    };
+
+    setPayments([...payments, newPayment]);
+    
+    showSuccess(`Payment of ₱${amount.toFixed(2)} added. Remaining balance: ₱${(remainingBalance - amount).toFixed(2)}`);
+    return true;
+  };
+
+  const handleCompleteTransaction = () => {
+    const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
+    const totalAmount = calculateTotal();
+    
+    console.log('Processing payment with details:');
+    console.log('Payments:', payments);
+    console.log('Total Paid:', totalPaid);
+    console.log('Total Amount:', totalAmount);
+    console.log('Order No:', orderNo);
+    console.log('Carded Transaction:', isCardedTransaction);
+
+    setShowPaymentModal(false);
+    
+    let successMessage = `Transaction ${orderNo} completed!`;
+    if (payments.length > 1) {
+      successMessage += ` (Multi-tender: ${payments.map(p => `${p.type}: ₱${p.amount.toFixed(2)}`).join(', ')})`;
+    } else if (payments.length === 1) {
+      successMessage += ` via ${payments[0].type}`;
+    }
+    
+    if (isCardedTransaction) {
+      successMessage += ' (Carded)';
+    }
+    
+    showSuccess(successMessage);
+    
+    // Don't reset cart items, order number, etc. Keep them to show in summary
+    // Only reset payment modal related states
+    setPaymentType(null);
+    setReferenceNumber('');
+    setCurrentPaymentAmount('');
+  }
+
+  const handleRemovePayment = (index: number) => {
+    const updatedPayments = [...payments];
+    updatedPayments.splice(index, 1);
+    setPayments(updatedPayments);
+  };
+
+  const handlePaymentScanned = (barcodeData: string) => {
+    setReferenceNumber(barcodeData);
+    setPaymentScanner(false)
+    console.log('barcodeData',barcodeData);
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -296,14 +409,22 @@ export default function CartScreen() {
           </TouchableOpacity>
         </View>
         
-        {orderNo ? (
+                {orderNo ? (
           <View style={styles.orderInfoContainer}>
-            <View style={styles.orderBadge}>
-              <Ionicons name="document-text-outline" size={16} color="#007AFF" />
-              <Text style={styles.orderNoText}>{orderNo}</Text>
+            <View style={styles.orderBadgeRow}>
+              <View style={styles.orderBadge}>
+                <Ionicons name="document-text-outline" size={16} color="#007AFF" />
+                <Text style={styles.orderNoText}>{orderNo}</Text>
+              </View>
+              {isCardedTransaction && (
+                <View style={styles.cardedBadge}>
+                  <Ionicons name="id-card-outline" size={14} color="#007AFF" />
+                  <Text style={styles.cardedBadgeText}>Carded</Text>
+                </View>
+              )}
             </View>
             <Text style={styles.headerStatsText}>
-              {calculateTotalItems()} items • ${calculateSubtotal().toFixed(2)}
+              {calculateTotalItems()} items • ₱{calculateSubtotal().toFixed(2)}
             </Text>
           </View>
         ) : (
@@ -354,7 +475,7 @@ export default function CartScreen() {
                   Category: {item.product.category}
                 </Text>
                 <Text style={styles.productPrice}>
-                  ${item.product.price} each
+                  ₱{item.product.price} each
                 </Text>
               </View>
 
@@ -380,7 +501,7 @@ export default function CartScreen() {
                 </View>
 
                 <Text style={styles.itemTotal}>
-                  ${(item.product.price * item.quantity).toFixed(2)}
+                  ₱{(item.product.price * item.quantity).toFixed(2)}
                 </Text>
 
                 <TouchableOpacity
@@ -399,38 +520,57 @@ export default function CartScreen() {
       {cartItems.length > 0 && (
         <View style={styles.summaryContainer}>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Subtotal</Text>
+            <Text style={styles.summaryLabel}>Total</Text>
             <Text style={styles.summaryValue}>
-              ${calculateSubtotal().toFixed(2)}
+              ₱{calculateTotal().toFixed(2)}
             </Text>
           </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Tax (8.5%)</Text>
-            <Text style={styles.summaryValue}>
-              ${(calculateSubtotal() * 0.085).toFixed(2)}
-            </Text>
-          </View>
-          <View style={[styles.summaryRow, styles.totalRow]}>
-            <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>
-              ${(calculateSubtotal() * 1.085).toFixed(2)}
-            </Text>
-          </View>
+          {payments.map((payment, index) => (
+            <View key={index} style={styles.summaryRow}>
+              <View style={styles.paymentInfoContainer}>
+                <Text style={styles.paymentLabel}>- {payment.type}</Text>
+                {payment.referenceNumber && (
+                  <Text style={styles.paymentRefLabel}>Ref: {payment.referenceNumber}</Text>
+                )}
+              </View>
+              <Text style={styles.paymentValue}>
+                ₱{payment.amount.toFixed(2)}
+              </Text>
+            </View>
+          ))}
+          {payments.length > 0 && (
+            <View style={[styles.summaryRow, styles.totalRow]}>
+              <Text style={styles.totalLabel}>Remaining Balance</Text>
+              <Text style={styles.totalValue}>
+                ₱{calculateRemainingBalance().toFixed(2)}
+              </Text>
+            </View>
+          )}
         </View>
       )}
 
-            {/* Action Buttons - Neatly Aligned */}
+      {/* Action Buttons - Neatly Aligned */}
       <View style={styles.actionButtonsContainer}>
         <View style={styles.buttonGroup}>
-          {cartItems.length > 0 && (
-            <TouchableOpacity
-              style={[styles.iconButton, styles.clearButton]}
-              onPress={clearCart}
-            >
-              <Ionicons name="trash-outline" size={24} color="#FF3B30" />
-              <Text style={styles.buttonLabel}>Clear</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={[
+              styles.iconButton, 
+              styles.clearButton,
+              cartItems.length === 0 && styles.clearButtonDisabled
+            ]}
+            onPress={clearCart}
+            disabled={cartItems.length === 0}
+          >
+            <Ionicons 
+              name="trash-outline" 
+              size={24} 
+              color={cartItems.length === 0 ? "#CCCCCC" : "#FF3B30"} 
+            />
+            <Text style={[
+              styles.buttonLabel,
+              cartItems.length === 0 && styles.buttonLabelDisabled
+            ]}>Clear</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.buttonGroup}>
@@ -457,41 +597,349 @@ export default function CartScreen() {
         </View>
 
         <View style={styles.buttonGroup}>
-          {cartItems.length > 0 && (
-            <TouchableOpacity
-              style={[styles.iconButton, styles.checkoutButton]}
-              onPress={() => {
-                Alert.alert(
-                  'Complete Transaction',
-                  `Process transaction ${orderNo} for $${(calculateSubtotal() * 1.085).toFixed(2)}?`,
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: 'Process Payment',
-                      onPress: () => {
-                        showSuccess(`Transaction ${orderNo} completed successfully!`);
-                        setCartItems([]);
-                        setOrderNo(null);
-                      }
-                    }
-                  ]
-                );
-              }}
-            >
-              <Ionicons name="checkmark-circle-outline" size={28} color="#FFFFFF" />
-              <Text style={styles.buttonLabel}>Checkout</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={[
+              styles.iconButton, 
+              styles.checkoutButton,
+              cartItems.length === 0 && styles.checkoutButtonDisabled
+            ]}
+            onPress={() => {
+              if (cartItems.length === 0) return;
+              setShowPaymentModal(true);
+            }}
+            disabled={cartItems.length === 0}
+          >
+            <Ionicons 
+              name="checkmark-circle-outline" 
+              size={28} 
+              color={cartItems.length === 0 ? "#CCCCCC" : "#FFFFFF"} 
+            />
+            <Text style={[
+              styles.buttonLabel,
+              cartItems.length === 0 && styles.buttonLabelDisabled
+            ]}>Pay</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.buttonGroup}>
+          <TouchableOpacity
+            style={[
+              styles.iconButton, 
+              styles.postActionButton,
+              (cartItems.length === 0 || payments.length === 0 || calculateRemainingBalance() > 0.01) && styles.postActionButtonDisabled
+            ]}
+            disabled={cartItems.length === 0 || payments.length === 0 || calculateRemainingBalance() > 0.01}
+            onPress={handleCompleteTransaction}
+          >
+            <Ionicons 
+              name="card-outline" 
+              size={28} 
+              color={(cartItems.length === 0 || payments.length === 0 || calculateRemainingBalance() > 0.01) ? "#CCCCCC" : "#FFFFFF"} 
+            />
+            <Text style={[
+              styles.buttonLabel,
+              (cartItems.length === 0 || payments.length === 0 || calculateRemainingBalance() > 0.01) && styles.buttonLabelDisabled
+            ]}>Post</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
-      {/* Barcode Scanner Modal */}
+            {/* Barcode Scanner Modal */}
       <BarcodeScanner
         isVisible={showScanner}
         onBarcodeScanned={handleBarcodeScanned}
         onClose={() => setShowScanner(false)}
         scanDelay={1000}
       />
+
+      {/* Card Scanner Modal */}
+      <BarcodeScanner
+        isVisible={isScanningCard}
+        onBarcodeScanned={(barcodeData) => {
+          createNewTransaction(true, barcodeData);
+          setCustomerCardNumber('');
+          setIsScanningCard(false);
+          // setCustomerCardNumber(barcodeData);
+          // setIsScanningCard(false);
+          // showSuccess(`Card scanned: ${barcodeData}`);
+        }}
+        onClose={() => setIsScanningCard(false)}
+        scanDelay={1000}
+      />
+
+      {/* Payment Scanner Modal */}
+       <BarcodeScanner
+        isVisible={paymentScanner}
+        onBarcodeScanned={(barcodeData) => {
+          handlePaymentScanned(barcodeData)
+        }}
+        onClose={() => setPaymentScanner(false)}
+        scanDelay={1000}
+      />
+
+      {/* Transaction Type Selection Modal */}
+      <Modal
+        visible={showTransactionTypeModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowTransactionTypeModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.transactionTypeModalContent}>
+            <Text style={styles.modalTitle}>Select Transaction Type</Text>
+            
+            <View style={styles.transactionTypeOptions}>
+              <TouchableOpacity
+                style={[styles.transactionTypeOption, styles.uncardedOption]}
+                onPress={() => {
+                  setShowTransactionTypeModal(false);
+                  createNewTransaction(false);
+                }}
+              >
+                <Ionicons name="card-outline" size={32} color="#34C759" />
+                <Text style={styles.transactionTypeText}>Uncarded</Text>
+                <Text style={styles.transactionTypeSubtext}>Regular transaction</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.transactionTypeOption, styles.cardedOption]}
+                onPress={() => {
+                  setShowTransactionTypeModal(false);
+                  setShowCardInputModal(true);
+                }}
+              >
+                <Ionicons name="id-card-outline" size={32} color="#007AFF" />
+                <Text style={styles.transactionTypeText}>Carded</Text>
+                <Text style={styles.transactionTypeSubtext}>Customer card required</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <TouchableOpacity 
+              style={styles.cancelTransactionTypeButton}
+              onPress={() => setShowTransactionTypeModal(false)}
+            >
+              <Text style={styles.cancelTransactionTypeButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Card Input Modal */}
+    <Modal
+      visible={showCardInputModal}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={() => {
+        setShowCardInputModal(false);
+        setCustomerCardNumber('');
+      }}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.cardInputModalContent}>
+          <Text style={styles.modalTitle}>Enter Customer Card</Text>
+          
+          <View style={styles.cardInputContainer}>
+            <Text style={styles.inputLabel}>Customer Card Number</Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="Scan or enter card number"
+              value={customerCardNumber}
+              onChangeText={setCustomerCardNumber}
+              autoFocus={true}
+            />
+            
+            <TouchableOpacity
+              style={styles.scanCardButton}
+              onPress={() => {
+                setShowCardInputModal(false);
+                setIsScanningCard(true);
+              }}
+            >
+              <Ionicons name="barcode-outline" size={24} color="#007AFF" />
+              <Text style={styles.scanCardButtonText}>Scan Card</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.modalActions}>
+            <TouchableOpacity 
+              style={styles.cancelButton}
+              onPress={() => {
+                setShowCardInputModal(false);
+                setCustomerCardNumber('');
+              }}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.processButton, !customerCardNumber && styles.processButtonDisabled]}
+              disabled={!customerCardNumber}
+              onPress={() => {
+                if (customerCardNumber.trim()) {
+                  setShowCardInputModal(false);
+                  createNewTransaction(true, customerCardNumber.trim());
+                  setCustomerCardNumber('');
+                }
+              }}
+            >
+              <Text style={styles.processButtonText}>Start Carded Transaction</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+
+      {/* Payment Selection Modal */}
+    <Modal
+      visible={showPaymentModal}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={() => {
+        setShowPaymentModal(false);
+        setPaymentType(null);
+        setReferenceNumber('');
+        setCurrentPaymentAmount('');
+        setCurrentPaymentMode('full');
+      }}
+    >
+      <View style={styles.modalOverlay}>
+        <ScrollView style={styles.paymentModalContent}>
+          <Text style={styles.modalTitle}>Add Payment</Text>
+          
+          {/* Total and Remaining Balance */}
+          <View style={styles.balanceContainer}>
+            <View style={styles.balanceRow}>
+              <Text style={styles.balanceLabel}>Total Amount:</Text>
+              <Text style={styles.balanceValue}>₱{calculateTotal().toFixed(2)}</Text>
+            </View>
+            <View style={styles.balanceRow}>
+              <Text style={styles.balanceLabel}>Total Paid:</Text>
+              <Text style={styles.balanceValue}>
+                ₱{payments.reduce((sum, p) => sum + p.amount, 0).toFixed(2)}
+              </Text>
+            </View>
+            <TouchableOpacity 
+              style={[styles.balanceRow, styles.remainingBalanceRow]}
+              onPress={() => setCurrentPaymentAmount(calculateRemainingBalance().toFixed(2))}
+            >
+              <View style={styles.remainingBalanceContent}>
+                <Text style={styles.remainingBalanceLabel}>Remaining Balance:</Text>
+                <View style={styles.remainingBalanceValueContainer}>
+                  <Text style={styles.remainingBalanceValue}>
+                    ₱{calculateRemainingBalance().toFixed(2)}
+                  </Text>
+                  <Ionicons name="arrow-forward-circle" size={20} color="#007AFF" style={styles.remainingBalanceIcon} />
+                </View>
+              </View>
+              <Text style={styles.remainingBalanceHint}>Tap to use full amount</Text>
+            </TouchableOpacity>
+          </View>
+
+
+          {/* Add New Payment Section */}
+          <View style={styles.addPaymentSection}>
+            <Text style={styles.sectionTitle}>New Payment</Text>
+            
+            <View style={styles.paymentOptions}>
+              {(['PWALLET', 'GCASH', 'CASH'] as const).map((type) => (
+                <TouchableOpacity
+                  key={type}
+                  style={[
+                    styles.paymentOption,
+                    paymentType === type && styles.paymentOptionSelected
+                  ]}
+                  onPress={() => {
+                    setPaymentType(type);
+                    if (type === 'PWALLET' || type === 'GCASH') {
+                      setPaymentScanner(true);
+                    }
+                  }}
+                >
+                  <Text style={[
+                    styles.paymentOptionText,
+                    paymentType === type && styles.paymentOptionTextSelected
+                  ]}>{type}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Amount Input */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Amount to Pay</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder={`Enter amount (max: ₱${calculateRemainingBalance().toFixed(2)})`}
+                value={currentPaymentAmount}
+                onChangeText={setCurrentPaymentAmount}
+                keyboardType="numeric"
+              />
+              <TouchableOpacity onPress={() => setCurrentPaymentAmount(calculateRemainingBalance().toFixed(2))}>
+                <Text style={styles.helperText}>
+                  Remaining balance: ₱{calculateRemainingBalance().toFixed(2)} (Tap to use full amount)
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Reference Number Input for PWALLET/GCASH */}
+            {(paymentType === 'PWALLET' || paymentType === 'GCASH') && (
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>{paymentType} Reference Number</Text>
+                <View style={styles.referenceInputRow}>
+                  <TextInput
+                    style={[styles.textInput, styles.flex1]}
+                    placeholder="Enter reference number"
+                    value={referenceNumber}
+                    onChangeText={setReferenceNumber}
+                    keyboardType="numeric"
+                  />
+                  <TouchableOpacity
+                    style={styles.scanReferenceButton}
+                    onPress={() => setPaymentScanner(true)}
+                  >
+                    <Ionicons name="barcode-outline" size={24} color="#007AFF" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.modalActions}>
+            <TouchableOpacity 
+              style={styles.cancelButton} 
+              onPress={() => {
+                setShowPaymentModal(false);
+                setPaymentType(null);
+                setReferenceNumber('');
+                setCurrentPaymentAmount('');
+              }}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[
+                styles.addPaymentButton,
+                (!paymentType || !currentPaymentAmount || 
+                 ((paymentType === 'PWALLET' || paymentType === 'GCASH') && !referenceNumber)) && 
+                styles.addPaymentButtonDisabled
+              ]}
+              disabled={!paymentType || !currentPaymentAmount || 
+                       ((paymentType === 'PWALLET' || paymentType === 'GCASH') && !referenceNumber)}
+              onPress={() => {
+                handleAddPayment();
+                // Close the modal after adding payment
+                setShowPaymentModal(false);
+                setPaymentType(null);
+                setReferenceNumber('');
+                setCurrentPaymentAmount('');
+              }}
+            >
+              <Text style={styles.addPaymentButtonText}>Add Payment</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </View>
+    </Modal>
     </SafeAreaView>
   );
 }
@@ -538,10 +986,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FFFFFF',
   },
-  orderInfoContainer: {
+    orderInfoContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  orderBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   orderBadge: {
     flexDirection: 'row',
@@ -551,6 +1004,22 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 6,
     gap: 6,
+  },
+  cardedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F4FF',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+  },
+  cardedBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#007AFF',
   },
   orderNoText: {
     fontSize: 14,
@@ -708,6 +1177,25 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#007AFF',
   },
+  paymentLabel: {
+    fontSize: 14,
+    color: '#FF3B30',
+    fontStyle: 'italic',
+  },
+  paymentValue: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#FF3B30',
+  },
+  paymentInfoContainer: {
+    flexDirection: 'column',
+  },
+  paymentRefLabel: {
+    fontSize: 12,
+    color: '#666666',
+    marginTop: 2,
+    fontStyle: 'normal',
+  },
     actionButtonsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -751,6 +1239,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#FFD1D1',
   },
+  clearButtonDisabled: {
+    backgroundColor: '#F2F2F7',
+    borderColor: '#E5E5EA',
+  },
   scanButton: {
     backgroundColor: '#007AFF',
   },
@@ -759,5 +1251,377 @@ const styles = StyleSheet.create({
   },
   checkoutButton: {
     backgroundColor: '#34C759',
+  },
+  checkoutButtonDisabled: {
+    backgroundColor: '#F2F2F7',
+  },
+  postActionButton: {
+    backgroundColor: '#34C759',
+  },
+  postActionButtonDisabled: {
+    backgroundColor: '#E5E5EA',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  paymentModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    maxHeight: '80%',
+  },
+  balanceContainer: {
+    backgroundColor: '#F8F9FA',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  balanceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  remainingBalanceRow: {
+    marginTop: 8,
+    paddingTop: 12,
+    paddingBottom: 12,
+    paddingHorizontal: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5EA',
+    backgroundColor: '#F0F7FF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+  },
+  balanceLabel: {
+    fontSize: 16,
+    color: '#666666',
+  },
+  balanceValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1D1D1F',
+  },
+  remainingBalanceContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+  },
+  remainingBalanceLabel: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1D1D1F',
+  },
+  remainingBalanceValueContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  remainingBalanceValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#007AFF',
+    marginRight: 8,
+  },
+  remainingBalanceIcon: {
+    marginLeft: 4,
+  },
+  remainingBalanceHint: {
+    fontSize: 12,
+    color: '#007AFF',
+    marginTop: 4,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    width: '100%',
+  },
+  paymentsListContainer: {
+    marginBottom: 20,
+  },
+  paymentsListTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 12,
+    color: '#1D1D1F',
+  },
+  paymentItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F8F9FA',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  paymentItemInfo: {
+    flex: 1,
+  },
+  paymentItemType: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1D1D1F',
+  },
+  paymentItemAmount: {
+    fontSize: 14,
+    color: '#007AFF',
+    marginTop: 4,
+  },
+  paymentItemRef: {
+    fontSize: 12,
+    color: '#666666',
+    marginTop: 2,
+  },
+  removePaymentButton: {
+    padding: 4,
+  },
+  addPaymentSection: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
+    color: '#1D1D1F',
+  },
+  addPaymentButton: {
+    backgroundColor: '#007AFF',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  addPaymentButtonDisabled: {
+    backgroundColor: '#E5E5EA',
+  },
+  addPaymentButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  postPaymentButton: {
+    backgroundColor: '#34C759',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  postPaymentButtonDisabled: {
+    backgroundColor: '#E5E5EA',
+  },
+  postPaymentButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  paymentOptions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  paymentOption: {
+    flex: 1,
+    paddingVertical: 12,
+    marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  paymentOptionSelected: {
+    borderColor: '#007AFF',
+    backgroundColor: '#F0F7FF',
+  },
+  paymentOptionText: {
+    fontWeight: '600',
+    color: '#666666',
+  },
+  paymentOptionTextSelected: {
+    color: '#007AFF',
+  },
+  inputContainer: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    color: '#666666',
+    marginBottom: 8,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+  },
+  flex1: {
+    flex: 1,
+  },
+  referenceInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  scanReferenceButton: {
+    padding: 12,
+    backgroundColor: '#F0F7FF',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  paymentModeOptions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  paymentModeOption: {
+    flex: 1,
+    paddingVertical: 12,
+    marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  paymentModeOptionSelected: {
+    borderColor: '#007AFF',
+    backgroundColor: '#F0F7FF',
+  },
+  paymentModeOptionText: {
+    fontWeight: '600',
+    color: '#666666',
+  },
+  paymentModeOptionTextSelected: {
+    color: '#007AFF',
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#666666',
+    marginTop: 4,
+    marginLeft: 4,
+  },
+  fullAmountDisplay: {
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    borderRadius: 8,
+    padding: 12,
+    backgroundColor: '#F8F9FA',
+  },
+  fullAmountText: {
+    fontSize: 16,
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    padding: 16,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: '#FF3B30',
+    fontWeight: '600',
+  },
+  processButton: {
+    flex: 2,
+    backgroundColor: '#34C759',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  processButtonDisabled: {
+    backgroundColor: '#E5E5EA',
+  },
+  processButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  transactionTypeModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  transactionTypeOptions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    gap: 12,
+  },
+  transactionTypeOption: {
+    flex: 1,
+    padding: 20,
+    borderWidth: 2,
+    borderColor: '#E5E5EA',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uncardedOption: {
+    borderColor: '#34C759',
+    backgroundColor: '#F0FFF4',
+  },
+  cardedOption: {
+    borderColor: '#007AFF',
+    backgroundColor: '#F0F7FF',
+  },
+  transactionTypeText: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  transactionTypeSubtext: {
+    fontSize: 12,
+    color: '#666666',
+    textAlign: 'center',
+  },
+  cancelTransactionTypeButton: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  cancelTransactionTypeButtonText: {
+    color: '#FF3B30',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  cardInputModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  cardInputContainer: {
+    marginBottom: 20,
+  },
+  scanCardButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    backgroundColor: '#F0F7FF',
+    borderRadius: 8,
+    marginTop: 12,
+    gap: 8,
+  },
+  scanCardButtonText: {
+    color: '#007AFF',
+    fontWeight: '600',
+    fontSize: 16,
   },
 });
