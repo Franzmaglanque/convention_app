@@ -25,9 +25,7 @@ interface CartItem {
     id: string;
     barcode: string;
     name: string;
-    price: number;
     stock: number;
-    category?: string;
     imageUrl?: string;
   };
   quantity: number;
