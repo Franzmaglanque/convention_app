@@ -53,6 +53,15 @@ export default function CartScreen() {
   const [customerCardNumber, setCustomerCardNumber] = useState('');
   const [isCardedTransaction, setIsCardedTransaction] = useState(false);
   const [isScanningCard, setIsScanningCard] = useState(false);
+  const [paymentMode, setPaymentMode] = useState<'full' | 'partial'>('full');
+  const [amountToPay, setAmountToPay] = useState('');
+  const [payments, setPayments] = useState<Array<{
+    type: 'PWALLET' | 'GCASH' | 'CASH';
+    amount: number;
+    referenceNumber?: string;
+  }>>([]);
+  const [currentPaymentAmount, setCurrentPaymentAmount] = useState('');
+  const [currentPaymentMode, setCurrentPaymentMode] = useState<'full' | 'partial'>('full');
 
   const { user } = useAuth();
   const newOrderMutation = newOrder();
@@ -285,28 +294,90 @@ export default function CartScreen() {
     return cartItems.reduce((total, item) => total + item.quantity, 0);
   };
 
+  const calculateTotal = () => {
+    return calculateSubtotal(); // Remove tax
+  };
+
+  const calculateRemainingBalance = () => {
+    const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
+    return calculateTotal() - totalPaid;
+  };
+
+  const handleAddPayment = () => {
+    if (!paymentType) {
+      showError('Please select a payment method');
+      return false;
+    }
+
+    const amount = parseFloat(currentPaymentAmount);
+    const remainingBalance = calculateRemainingBalance();
+    
+    if (isNaN(amount) || amount <= 0) {
+      showError('Please enter a valid amount');
+      return false;
+    }
+    
+    if (amount > remainingBalance) {
+      showError('Payment amount cannot exceed remaining balance');
+      return false;
+    }
+
+    // For PWALLET and GCASH, require reference number
+    if ((paymentType === 'PWALLET' || paymentType === 'GCASH') && !referenceNumber.trim()) {
+      showError('Please enter a reference number');
+      return false;
+    }
+
+    const newPayment = {
+      type: paymentType,
+      amount: amount,
+      referenceNumber: (paymentType === 'PWALLET' || paymentType === 'GCASH') ? referenceNumber : undefined
+    };
+
+    setPayments([...payments, newPayment]);
+    
+    showSuccess(`Payment of ₱${amount.toFixed(2)} added. Remaining balance: ₱${(remainingBalance - amount).toFixed(2)}`);
+    return true;
+  };
+
   const handleCompleteTransaction = () => {
+    const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
+    const totalAmount = calculateTotal();
+    
     console.log('Processing payment with details:');
-    console.log('Payment Type:', paymentType);
-    console.log('Reference Number:', referenceNumber);
+    console.log('Payments:', payments);
+    console.log('Total Paid:', totalPaid);
+    console.log('Total Amount:', totalAmount);
     console.log('Order No:', orderNo);
-    console.log('Subtotal Amount:', calculateSubtotal().toFixed(2));
     console.log('Carded Transaction:', isCardedTransaction);
 
     setShowPaymentModal(false);
     
-    let successMessage = `Transaction ${orderNo} completed via ${paymentType}!`;
+    let successMessage = `Transaction ${orderNo} completed!`;
+    if (payments.length > 1) {
+      successMessage += ` (Multi-tender: ${payments.map(p => `${p.type}: ₱${p.amount.toFixed(2)}`).join(', ')})`;
+    } else if (payments.length === 1) {
+      successMessage += ` via ${payments[0].type}`;
+    }
+    
     if (isCardedTransaction) {
       successMessage += ' (Carded)';
     }
     
     showSuccess(successMessage);
-    setCartItems([]);
-    setOrderNo(null);
-    setIsCardedTransaction(false);
+    
+    // Don't reset cart items, order number, etc. Keep them to show in summary
+    // Only reset payment modal related states
     setPaymentType(null);
     setReferenceNumber('');
+    setCurrentPaymentAmount('');
   }
+
+  const handleRemovePayment = (index: number) => {
+    const updatedPayments = [...payments];
+    updatedPayments.splice(index, 1);
+    setPayments(updatedPayments);
+  };
 
   const handlePaymentScanned = (barcodeData: string) => {
     setReferenceNumber(barcodeData);
@@ -353,7 +424,7 @@ export default function CartScreen() {
               )}
             </View>
             <Text style={styles.headerStatsText}>
-              {calculateTotalItems()} items • ${calculateSubtotal().toFixed(2)}
+              {calculateTotalItems()} items • ₱{calculateSubtotal().toFixed(2)}
             </Text>
           </View>
         ) : (
@@ -404,7 +475,7 @@ export default function CartScreen() {
                   Category: {item.product.category}
                 </Text>
                 <Text style={styles.productPrice}>
-                  ${item.product.price} each
+                  ₱{item.product.price} each
                 </Text>
               </View>
 
@@ -430,7 +501,7 @@ export default function CartScreen() {
                 </View>
 
                 <Text style={styles.itemTotal}>
-                  ${(item.product.price * item.quantity).toFixed(2)}
+                  ₱{(item.product.price * item.quantity).toFixed(2)}
                 </Text>
 
                 <TouchableOpacity
@@ -449,38 +520,57 @@ export default function CartScreen() {
       {cartItems.length > 0 && (
         <View style={styles.summaryContainer}>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Subtotal</Text>
+            <Text style={styles.summaryLabel}>Total</Text>
             <Text style={styles.summaryValue}>
-              ${calculateSubtotal().toFixed(2)}
+              ₱{calculateTotal().toFixed(2)}
             </Text>
           </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Tax (8.5%)</Text>
-            <Text style={styles.summaryValue}>
-              ${(calculateSubtotal() * 0.085).toFixed(2)}
-            </Text>
-          </View>
-          <View style={[styles.summaryRow, styles.totalRow]}>
-            <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>
-              ${(calculateSubtotal() * 1.085).toFixed(2)}
-            </Text>
-          </View>
+          {payments.map((payment, index) => (
+            <View key={index} style={styles.summaryRow}>
+              <View style={styles.paymentInfoContainer}>
+                <Text style={styles.paymentLabel}>- {payment.type}</Text>
+                {payment.referenceNumber && (
+                  <Text style={styles.paymentRefLabel}>Ref: {payment.referenceNumber}</Text>
+                )}
+              </View>
+              <Text style={styles.paymentValue}>
+                ₱{payment.amount.toFixed(2)}
+              </Text>
+            </View>
+          ))}
+          {payments.length > 0 && (
+            <View style={[styles.summaryRow, styles.totalRow]}>
+              <Text style={styles.totalLabel}>Remaining Balance</Text>
+              <Text style={styles.totalValue}>
+                ₱{calculateRemainingBalance().toFixed(2)}
+              </Text>
+            </View>
+          )}
         </View>
       )}
 
       {/* Action Buttons - Neatly Aligned */}
       <View style={styles.actionButtonsContainer}>
         <View style={styles.buttonGroup}>
-          {cartItems.length > 0 && (
-            <TouchableOpacity
-              style={[styles.iconButton, styles.clearButton]}
-              onPress={clearCart}
-            >
-              <Ionicons name="trash-outline" size={24} color="#FF3B30" />
-              <Text style={styles.buttonLabel}>Clear</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={[
+              styles.iconButton, 
+              styles.clearButton,
+              cartItems.length === 0 && styles.clearButtonDisabled
+            ]}
+            onPress={clearCart}
+            disabled={cartItems.length === 0}
+          >
+            <Ionicons 
+              name="trash-outline" 
+              size={24} 
+              color={cartItems.length === 0 ? "#CCCCCC" : "#FF3B30"} 
+            />
+            <Text style={[
+              styles.buttonLabel,
+              cartItems.length === 0 && styles.buttonLabelDisabled
+            ]}>Clear</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.buttonGroup}>
@@ -507,39 +597,50 @@ export default function CartScreen() {
         </View>
 
         <View style={styles.buttonGroup}>
-          {cartItems.length > 0 && (
-            // <TouchableOpacity
-            //   style={[styles.iconButton, styles.checkoutButton]}
-              // onPress={() => {
-              //   Alert.alert(
-              //     'Complete Transaction',
-              //     `Process transaction ${orderNo} for $${(calculateSubtotal() * 1.085).toFixed(2)}?`,
-              //     [
-              //       { text: 'Cancel', style: 'cancel' },
-              //       {
-              //         text: 'Process Payment',
-              //         onPress: () => {
-              //           showSuccess(`Transaction ${orderNo} completed successfully!`);
-              //           setCartItems([]);
-              //           setOrderNo(null);
-              //         }
-              //       }
-              //     ]
-              //   );
-              // }}
-            // >
-            //   <Ionicons name="checkmark-circle-outline" size={28} color="#FFFFFF" />
-            //   <Text style={styles.buttonLabel}>Checkout</Text>
-            // </TouchableOpacity>
-            // Inside your return statement, update the Checkout Button:
-            <TouchableOpacity
-              style={[styles.iconButton, styles.checkoutButton]}
-              onPress={() => setShowPaymentModal(true)} // Open payment selection instead of direct Alert
-            >
-              <Ionicons name="checkmark-circle-outline" size={28} color="#FFFFFF" />
-              <Text style={styles.buttonLabel}>Checkout</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={[
+              styles.iconButton, 
+              styles.checkoutButton,
+              cartItems.length === 0 && styles.checkoutButtonDisabled
+            ]}
+            onPress={() => {
+              if (cartItems.length === 0) return;
+              setShowPaymentModal(true);
+            }}
+            disabled={cartItems.length === 0}
+          >
+            <Ionicons 
+              name="checkmark-circle-outline" 
+              size={28} 
+              color={cartItems.length === 0 ? "#CCCCCC" : "#FFFFFF"} 
+            />
+            <Text style={[
+              styles.buttonLabel,
+              cartItems.length === 0 && styles.buttonLabelDisabled
+            ]}>Pay</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.buttonGroup}>
+          <TouchableOpacity
+            style={[
+              styles.iconButton, 
+              styles.postActionButton,
+              (cartItems.length === 0 || payments.length === 0 || calculateRemainingBalance() > 0.01) && styles.postActionButtonDisabled
+            ]}
+            disabled={cartItems.length === 0 || payments.length === 0 || calculateRemainingBalance() > 0.01}
+            onPress={handleCompleteTransaction}
+          >
+            <Ionicons 
+              name="card-outline" 
+              size={28} 
+              color={(cartItems.length === 0 || payments.length === 0 || calculateRemainingBalance() > 0.01) ? "#CCCCCC" : "#FFFFFF"} 
+            />
+            <Text style={[
+              styles.buttonLabel,
+              (cartItems.length === 0 || payments.length === 0 || calculateRemainingBalance() > 0.01) && styles.buttonLabelDisabled
+            ]}>Post</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -693,40 +794,94 @@ export default function CartScreen() {
       visible={showPaymentModal}
       animationType="slide"
       transparent={true}
-      onRequestClose={() => setShowPaymentModal(false)}
+      onRequestClose={() => {
+        setShowPaymentModal(false);
+        setPaymentType(null);
+        setReferenceNumber('');
+        setCurrentPaymentAmount('');
+        setCurrentPaymentMode('full');
+      }}
     >
       <View style={styles.modalOverlay}>
-        <View style={styles.paymentModalContent}>
-          <Text style={styles.modalTitle}>Select Payment Method</Text>
+        <ScrollView style={styles.paymentModalContent}>
+          <Text style={styles.modalTitle}>Add Payment</Text>
           
-          <View style={styles.paymentOptions}>
-            {(['PWALLET', 'GCASH', 'CASH'] as const).map((type) => (
-              <TouchableOpacity
-                key={type}
-                style={[
-                  styles.paymentOption,
-                  paymentType === type && styles.paymentOptionSelected
-                ]}
-                onPress={() => {
-                  // Set the payment type first
-                  setPaymentType(type);
-                  // Only open scanner for PWALLET and GCASH, not for CASH
-                  if (type === 'PWALLET' || type === 'GCASH') {
-                    setPaymentScanner(true);
-                  }
-                }}
-              >
-                <Text style={[
-                  styles.paymentOptionText,
-                  paymentType === type && styles.paymentOptionTextSelected
-                ]}>{type}</Text>
-              </TouchableOpacity>
-            ))}
+          {/* Total and Remaining Balance */}
+          <View style={styles.balanceContainer}>
+            <View style={styles.balanceRow}>
+              <Text style={styles.balanceLabel}>Total Amount:</Text>
+              <Text style={styles.balanceValue}>₱{calculateTotal().toFixed(2)}</Text>
+            </View>
+            <View style={styles.balanceRow}>
+              <Text style={styles.balanceLabel}>Total Paid:</Text>
+              <Text style={styles.balanceValue}>
+                ₱{payments.reduce((sum, p) => sum + p.amount, 0).toFixed(2)}
+              </Text>
+            </View>
+            <TouchableOpacity 
+              style={[styles.balanceRow, styles.remainingBalanceRow]}
+              onPress={() => setCurrentPaymentAmount(calculateRemainingBalance().toFixed(2))}
+            >
+              <View style={styles.remainingBalanceContent}>
+                <Text style={styles.remainingBalanceLabel}>Remaining Balance:</Text>
+                <View style={styles.remainingBalanceValueContainer}>
+                  <Text style={styles.remainingBalanceValue}>
+                    ₱{calculateRemainingBalance().toFixed(2)}
+                  </Text>
+                  <Ionicons name="arrow-forward-circle" size={20} color="#007AFF" style={styles.remainingBalanceIcon} />
+                </View>
+              </View>
+              <Text style={styles.remainingBalanceHint}>Tap to use full amount</Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Reference Number Input - Only for PWALLET and GCASH */}
-          {(paymentType === 'PWALLET' || paymentType === 'GCASH') && (
-            <>
+
+          {/* Add New Payment Section */}
+          <View style={styles.addPaymentSection}>
+            <Text style={styles.sectionTitle}>New Payment</Text>
+            
+            <View style={styles.paymentOptions}>
+              {(['PWALLET', 'GCASH', 'CASH'] as const).map((type) => (
+                <TouchableOpacity
+                  key={type}
+                  style={[
+                    styles.paymentOption,
+                    paymentType === type && styles.paymentOptionSelected
+                  ]}
+                  onPress={() => {
+                    setPaymentType(type);
+                    if (type === 'PWALLET' || type === 'GCASH') {
+                      setPaymentScanner(true);
+                    }
+                  }}
+                >
+                  <Text style={[
+                    styles.paymentOptionText,
+                    paymentType === type && styles.paymentOptionTextSelected
+                  ]}>{type}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Amount Input */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Amount to Pay</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder={`Enter amount (max: ₱${calculateRemainingBalance().toFixed(2)})`}
+                value={currentPaymentAmount}
+                onChangeText={setCurrentPaymentAmount}
+                keyboardType="numeric"
+              />
+              <TouchableOpacity onPress={() => setCurrentPaymentAmount(calculateRemainingBalance().toFixed(2))}>
+                <Text style={styles.helperText}>
+                  Remaining balance: ₱{calculateRemainingBalance().toFixed(2)} (Tap to use full amount)
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Reference Number Input for PWALLET/GCASH */}
+            {(paymentType === 'PWALLET' || paymentType === 'GCASH') && (
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>{paymentType} Reference Number</Text>
                 <View style={styles.referenceInputRow}>
@@ -735,6 +890,7 @@ export default function CartScreen() {
                     placeholder="Enter reference number"
                     value={referenceNumber}
                     onChangeText={setReferenceNumber}
+                    keyboardType="numeric"
                   />
                   <TouchableOpacity
                     style={styles.scanReferenceButton}
@@ -744,31 +900,8 @@ export default function CartScreen() {
                   </TouchableOpacity>
                 </View>
               </View>
-
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Enter Amount</Text>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Enter Amount"
-                  value={calculateSubtotal().toFixed(2)}
-                  editable={false}
-                />
-              </View>
-            </>
-          )}
-          
-          {/* For CASH payment, show amount only */}
-          {paymentType === 'CASH' && (
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Amount to Collect</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Enter Amount"
-                value={calculateSubtotal().toFixed(2)}
-                editable={false}
-              />
-            </View>
-          )}
+            )}
+          </View>
 
           <View style={styles.modalActions}>
             <TouchableOpacity 
@@ -777,6 +910,7 @@ export default function CartScreen() {
                 setShowPaymentModal(false);
                 setPaymentType(null);
                 setReferenceNumber('');
+                setCurrentPaymentAmount('');
               }}
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -784,38 +918,26 @@ export default function CartScreen() {
 
             <TouchableOpacity 
               style={[
-                styles.processButton, 
-                (!paymentType || ((paymentType === 'PWALLET' || paymentType === 'GCASH') && !referenceNumber)) && styles.processButtonDisabled
+                styles.addPaymentButton,
+                (!paymentType || !currentPaymentAmount || 
+                 ((paymentType === 'PWALLET' || paymentType === 'GCASH') && !referenceNumber)) && 
+                styles.addPaymentButtonDisabled
               ]}
-              disabled={!paymentType || ((paymentType === 'PWALLET' || paymentType === 'GCASH') && !referenceNumber)}
-              onPress={async () => {
-                Alert.alert(
-                  'Payment Confirmation',
-                  // `Process transaction ${orderNo} for $${(calculateSubtotal() * 1.085).toFixed(2)}?`,
-                  `Confirm payment receive of $${calculateSubtotal().toFixed(2)} via ${paymentType} `,
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Complete Transaction',
-                    onPress: () => {
-                      handleCompleteTransaction();
-                    }
-                  }
-                ]);
-                // handleProcessPayment();
-                // Finalize Transaction Logic
-                // showSuccess(`Transaction ${orderNo} completed via ${paymentType}!`);
-                // setCartItems([]);
-                // setOrderNo(null);
-                // setPaymentType(null);
-                // setReferenceNumber('');
-                // setShowPaymentModal(false);
+              disabled={!paymentType || !currentPaymentAmount || 
+                       ((paymentType === 'PWALLET' || paymentType === 'GCASH') && !referenceNumber)}
+              onPress={() => {
+                handleAddPayment();
+                // Close the modal after adding payment
+                setShowPaymentModal(false);
+                setPaymentType(null);
+                setReferenceNumber('');
+                setCurrentPaymentAmount('');
               }}
             >
-              <Text style={styles.processButtonText}>Process Payment</Text>
+              <Text style={styles.addPaymentButtonText}>Add Payment</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </ScrollView>
       </View>
     </Modal>
     </SafeAreaView>
@@ -1055,6 +1177,25 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#007AFF',
   },
+  paymentLabel: {
+    fontSize: 14,
+    color: '#FF3B30',
+    fontStyle: 'italic',
+  },
+  paymentValue: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#FF3B30',
+  },
+  paymentInfoContainer: {
+    flexDirection: 'column',
+  },
+  paymentRefLabel: {
+    fontSize: 12,
+    color: '#666666',
+    marginTop: 2,
+    fontStyle: 'normal',
+  },
     actionButtonsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1098,6 +1239,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#FFD1D1',
   },
+  clearButtonDisabled: {
+    backgroundColor: '#F2F2F7',
+    borderColor: '#E5E5EA',
+  },
   scanButton: {
     backgroundColor: '#007AFF',
   },
@@ -1106,6 +1251,15 @@ const styles = StyleSheet.create({
   },
   checkoutButton: {
     backgroundColor: '#34C759',
+  },
+  checkoutButtonDisabled: {
+    backgroundColor: '#F2F2F7',
+  },
+  postActionButton: {
+    backgroundColor: '#34C759',
+  },
+  postActionButtonDisabled: {
+    backgroundColor: '#E5E5EA',
   },
   modalOverlay: {
     flex: 1,
@@ -1117,7 +1271,151 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 24,
-    paddingBottom: 40,
+    maxHeight: '80%',
+  },
+  balanceContainer: {
+    backgroundColor: '#F8F9FA',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  balanceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  remainingBalanceRow: {
+    marginTop: 8,
+    paddingTop: 12,
+    paddingBottom: 12,
+    paddingHorizontal: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5EA',
+    backgroundColor: '#F0F7FF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+  },
+  balanceLabel: {
+    fontSize: 16,
+    color: '#666666',
+  },
+  balanceValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1D1D1F',
+  },
+  remainingBalanceContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+  },
+  remainingBalanceLabel: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1D1D1F',
+  },
+  remainingBalanceValueContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  remainingBalanceValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#007AFF',
+    marginRight: 8,
+  },
+  remainingBalanceIcon: {
+    marginLeft: 4,
+  },
+  remainingBalanceHint: {
+    fontSize: 12,
+    color: '#007AFF',
+    marginTop: 4,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    width: '100%',
+  },
+  paymentsListContainer: {
+    marginBottom: 20,
+  },
+  paymentsListTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 12,
+    color: '#1D1D1F',
+  },
+  paymentItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F8F9FA',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  paymentItemInfo: {
+    flex: 1,
+  },
+  paymentItemType: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1D1D1F',
+  },
+  paymentItemAmount: {
+    fontSize: 14,
+    color: '#007AFF',
+    marginTop: 4,
+  },
+  paymentItemRef: {
+    fontSize: 12,
+    color: '#666666',
+    marginTop: 2,
+  },
+  removePaymentButton: {
+    padding: 4,
+  },
+  addPaymentSection: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
+    color: '#1D1D1F',
+  },
+  addPaymentButton: {
+    backgroundColor: '#007AFF',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  addPaymentButtonDisabled: {
+    backgroundColor: '#E5E5EA',
+  },
+  addPaymentButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  postPaymentButton: {
+    backgroundColor: '#34C759',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  postPaymentButtonDisabled: {
+    backgroundColor: '#E5E5EA',
+  },
+  postPaymentButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 16,
   },
   modalTitle: {
     fontSize: 20,
@@ -1180,6 +1478,49 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  paymentModeOptions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  paymentModeOption: {
+    flex: 1,
+    paddingVertical: 12,
+    marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  paymentModeOptionSelected: {
+    borderColor: '#007AFF',
+    backgroundColor: '#F0F7FF',
+  },
+  paymentModeOptionText: {
+    fontWeight: '600',
+    color: '#666666',
+  },
+  paymentModeOptionTextSelected: {
+    color: '#007AFF',
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#666666',
+    marginTop: 4,
+    marginLeft: 4,
+  },
+  fullAmountDisplay: {
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    borderRadius: 8,
+    padding: 12,
+    backgroundColor: '#F8F9FA',
+  },
+  fullAmountText: {
+    fontSize: 16,
+    color: '#007AFF',
+    fontWeight: '600',
+  },
   modalActions: {
     flexDirection: 'row',
     gap: 12,
@@ -1203,7 +1544,7 @@ const styles = StyleSheet.create({
   processButtonDisabled: {
     backgroundColor: '#E5E5EA',
   },
-    processButtonText: {
+  processButtonText: {
     color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 16,

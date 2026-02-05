@@ -22,8 +22,8 @@ export const API_ENDPOINTS = {
   },
 
   PRODUCTS: {
-    // SCAN: '/product/scan',
-    SCAN: '/supplier/scan-product',
+    SCAN: '/product/scan',
+    // SCAN: '/supplier/scan-product',
 
     FIND_BY_BARCODE: (barcode: string) => `/products/barcode/${barcode}`,
     SEARCH: '/products/search',
