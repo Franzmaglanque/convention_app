@@ -162,15 +162,20 @@ export default function CartScreen() {
           console.log('Scanned product response:', productData);
           
           // Create a product for the cart with the scanned data
-          const cartProduct = {
+          // The scanned productData should match the Product interface from product.types.ts
+          // We need to extend it with additional fields for our cart
+          const cartProduct: CartItem['product'] = {
+            // Base Product fields from the API response
+            description: productData.description || '',
+            category: productData.category || 'General',
+            price: productData.price,
+            sku: productData.sku || barcodeData,
+            // Additional fields for our cart
             id: Date.now().toString(),
             barcode: barcodeData,
             name: productData.description || `Product ${barcodeData.substring(0, 6)}`,
-            price: productData.price,
             stock: Math.floor(Math.random() * 100) + 1,
-            category: productData.category || 'General',
-            // Include the original product data
-            // ...productData
+            imageUrl: undefined,
           };
 
           // Check if product already exists in cart
