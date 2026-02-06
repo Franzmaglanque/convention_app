@@ -867,12 +867,32 @@ export default function CartScreen() {
             <View style={styles.inputContainer}>
               <Text style={styles.inputLabel}>Amount to Pay</Text>
               <TextInput
-                style={styles.textInput}
+                style={[
+                  styles.textInput,
+                  currentPaymentAmount && parseFloat(currentPaymentAmount) > calculateRemainingBalance() && styles.errorInput
+                ]}
                 placeholder={`Enter amount (max: ₱${calculateRemainingBalance().toFixed(2)})`}
                 value={currentPaymentAmount}
-                onChangeText={setCurrentPaymentAmount}
+                onChangeText={(text) => {
+                  // Allow empty string or valid numbers
+                  if (text === '') {
+                    setCurrentPaymentAmount('');
+                    return;
+                  }
+                  // Check if it's a valid number
+                  const num = parseFloat(text);
+                  if (!isNaN(num)) {
+                    // Only update if it's a valid number
+                    setCurrentPaymentAmount(text);
+                  }
+                }}
                 keyboardType="numeric"
               />
+              {currentPaymentAmount && parseFloat(currentPaymentAmount) > calculateRemainingBalance() && (
+                <Text style={styles.errorText}>
+                  Amount cannot exceed remaining balance of ₱{calculateRemainingBalance().toFixed(2)}
+                </Text>
+              )}
               <TouchableOpacity onPress={() => setCurrentPaymentAmount(calculateRemainingBalance().toFixed(2))}>
                 <Text style={styles.helperText}>
                   Remaining balance: ₱{calculateRemainingBalance().toFixed(2)} (Tap to use full amount)
@@ -886,10 +906,10 @@ export default function CartScreen() {
                 <Text style={styles.inputLabel}>{paymentType} Reference Number</Text>
                 <View style={styles.referenceInputRow}>
                   <TextInput
-                    style={[styles.textInput, styles.flex1]}
-                    placeholder="Enter reference number"
+                    style={[styles.textInput, styles.flex1, styles.disabledInput]}
+                    placeholder="Scan QR code to get reference number"
                     value={referenceNumber}
-                    onChangeText={setReferenceNumber}
+                    editable={false}
                     keyboardType="numeric"
                   />
                   <TouchableOpacity
@@ -899,6 +919,9 @@ export default function CartScreen() {
                     <Ionicons name="barcode-outline" size={24} color="#007AFF" />
                   </TouchableOpacity>
                 </View>
+                <Text style={styles.helperText}>
+                  Reference number can only be set by scanning the payment QR code
+                </Text>
               </View>
             )}
           </View>
@@ -1462,6 +1485,20 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
+  },
+  errorInput: {
+    borderColor: '#FF3B30',
+    backgroundColor: '#FFF5F5',
+  },
+  disabledInput: {
+    backgroundColor: '#F5F5F5',
+    color: '#666666',
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#FF3B30',
+    marginTop: 4,
+    marginLeft: 4,
   },
   flex1: {
     flex: 1,
