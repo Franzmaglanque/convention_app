@@ -7,6 +7,9 @@ import { useScanProduct } from '@/hooks/useProduct';
 import { Product } from '@/types/product.types';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import {
   ActivityIndicator,
   Alert,
@@ -19,6 +22,33 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+
+// Validation schema using Zod
+const paymentSchema = z.object({
+  paymentType: z.enum(['PWALLET', 'GCASH', 'CASH']),
+  amount: z.string()
+    .min(1, 'Amount is required')
+    .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
+      message: 'Please enter a valid amount',
+    }),
+  referenceNumber: z.string().optional(),
+})
+.refine((data) => data.paymentType, {
+  message: 'Payment method is required',
+  path: ['paymentType'],
+})
+.refine((data) => {
+  // Custom validation for reference number based on payment type
+  if (data.paymentType === 'PWALLET' || data.paymentType === 'GCASH') {
+    return data.referenceNumber && data.referenceNumber.trim().length > 0;
+  }
+  return true;
+}, {
+  message: 'Reference number is required for PWALLET and GCASH',
+  path: ['referenceNumber'],
+});
+
+type PaymentFormData = z.infer<typeof paymentSchema>;
 
 interface CartItem {
   product: Product & {
@@ -46,22 +76,39 @@ const orderService = {
 
 export default function CartScreen() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentType, setPaymentType] = useState<'PWALLET' | 'GCASH' | 'CASH' | null>(null);
-  const [referenceNumber, setReferenceNumber] = useState('');
   const [showTransactionTypeModal, setShowTransactionTypeModal] = useState(false);
   const [showCardInputModal, setShowCardInputModal] = useState(false);
   const [customerCardNumber, setCustomerCardNumber] = useState('');
   const [isCardedTransaction, setIsCardedTransaction] = useState(false);
   const [isScanningCard, setIsScanningCard] = useState(false);
-  const [paymentMode, setPaymentMode] = useState<'full' | 'partial'>('full');
-  const [amountToPay, setAmountToPay] = useState('');
   const [payments, setPayments] = useState<Array<{
     type: 'PWALLET' | 'GCASH' | 'CASH';
     amount: number;
     referenceNumber?: string;
   }>>([]);
-  const [currentPaymentAmount, setCurrentPaymentAmount] = useState('');
-  const [currentPaymentMode, setCurrentPaymentMode] = useState<'full' | 'partial'>('full');
+
+  // React Hook Form setup
+  const {
+    control,
+    handleSubmit,
+    formState: { errors, isValid },
+    reset,
+    setValue,
+    watch,
+    trigger,
+  } = useForm<PaymentFormData>({
+    resolver: zodResolver(paymentSchema),
+    defaultValues: {
+      paymentType: undefined as any,
+      amount: '',
+      referenceNumber: '',
+    },
+    mode: 'onChange',
+  });
+
+  const paymentType = watch('paymentType');
+  const amount = watch('amount');
+  const referenceNumber = watch('referenceNumber');
 
   const { user } = useAuth();
   const newOrderMutation = newOrder();
@@ -303,40 +350,39 @@ export default function CartScreen() {
     return calculateTotal() - totalPaid;
   };
 
-  const handleAddPayment = () => {
-    if (!paymentType) {
+  const handleAddPayment = (data: PaymentFormData) => {
+    // Ensure paymentType is defined
+    if (!data.paymentType) {
       showError('Please select a payment method');
       return false;
     }
 
-    const amount = parseFloat(currentPaymentAmount);
+    const amountNum = parseFloat(data.amount);
     const remainingBalance = calculateRemainingBalance();
     
-    if (isNaN(amount) || amount <= 0) {
-      showError('Please enter a valid amount');
-      return false;
-    }
-    
-    if (amount > remainingBalance) {
+    // Additional validation for amount exceeding remaining balance
+    if (amountNum > remainingBalance) {
       showError('Payment amount cannot exceed remaining balance');
       return false;
     }
 
-    // For PWALLET and GCASH, require reference number
-    if ((paymentType === 'PWALLET' || paymentType === 'GCASH') && !referenceNumber.trim()) {
-      showError('Please enter a reference number');
-      return false;
-    }
-
     const newPayment = {
-      type: paymentType,
-      amount: amount,
-      referenceNumber: (paymentType === 'PWALLET' || paymentType === 'GCASH') ? referenceNumber : undefined
+      type: data.paymentType,
+      amount: amountNum,
+      referenceNumber: (data.paymentType === 'PWALLET' || data.paymentType === 'GCASH') ? data.referenceNumber : undefined
     };
 
     setPayments([...payments, newPayment]);
     
-    showSuccess(`Payment of ₱${amount.toFixed(2)} added. Remaining balance: ₱${(remainingBalance - amount).toFixed(2)}`);
+    showSuccess(`Payment of ₱${amountNum.toFixed(2)} added. Remaining balance: ₱${(remainingBalance - amountNum).toFixed(2)}`);
+    
+    // Reset form
+    reset({
+      paymentType: undefined,
+      amount: '',
+      referenceNumber: '',
+    });
+    
     return true;
   };
 
@@ -366,11 +412,12 @@ export default function CartScreen() {
     
     showSuccess(successMessage);
     
-    // Don't reset cart items, order number, etc. Keep them to show in summary
-    // Only reset payment modal related states
-    setPaymentType(null);
-    setReferenceNumber('');
-    setCurrentPaymentAmount('');
+    // Reset the form
+    reset({
+      paymentType: undefined,
+      amount: '',
+      referenceNumber: '',
+    });
   }
 
   const handleRemovePayment = (index: number) => {
@@ -380,9 +427,10 @@ export default function CartScreen() {
   };
 
   const handlePaymentScanned = (barcodeData: string) => {
-    setReferenceNumber(barcodeData);
-    setPaymentScanner(false)
-    console.log('barcodeData',barcodeData);
+    setValue('referenceNumber', barcodeData);
+    trigger('referenceNumber');
+    setPaymentScanner(false);
+    console.log('barcodeData', barcodeData);
   }
 
   return (
@@ -796,10 +844,11 @@ export default function CartScreen() {
       transparent={true}
       onRequestClose={() => {
         setShowPaymentModal(false);
-        setPaymentType(null);
-        setReferenceNumber('');
-        setCurrentPaymentAmount('');
-        setCurrentPaymentMode('full');
+        reset({
+          paymentType: undefined,
+          amount: '',
+          referenceNumber: '',
+        });
       }}
     >
       <View style={styles.modalOverlay}>
@@ -820,7 +869,10 @@ export default function CartScreen() {
             </View>
             <TouchableOpacity 
               style={[styles.balanceRow, styles.remainingBalanceRow]}
-              onPress={() => setCurrentPaymentAmount(calculateRemainingBalance().toFixed(2))}
+              onPress={() => {
+                setValue('amount', calculateRemainingBalance().toFixed(2));
+                trigger('amount');
+              }}
             >
               <View style={styles.remainingBalanceContent}>
                 <Text style={styles.remainingBalanceLabel}>Remaining Balance:</Text>
@@ -840,89 +892,119 @@ export default function CartScreen() {
           <View style={styles.addPaymentSection}>
             <Text style={styles.sectionTitle}>New Payment</Text>
             
-            <View style={styles.paymentOptions}>
-              {(['PWALLET', 'GCASH', 'CASH'] as const).map((type) => (
-                <TouchableOpacity
-                  key={type}
-                  style={[
-                    styles.paymentOption,
-                    paymentType === type && styles.paymentOptionSelected
-                  ]}
-                  onPress={() => {
-                    setPaymentType(type);
-                    if (type === 'PWALLET' || type === 'GCASH') {
-                      setPaymentScanner(true);
-                    }
-                  }}
-                >
-                  <Text style={[
-                    styles.paymentOptionText,
-                    paymentType === type && styles.paymentOptionTextSelected
-                  ]}>{type}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <Controller
+              name="paymentType"
+              control={control}
+              render={({ field: { onChange, value } }) => (
+                <View style={styles.paymentOptions}>
+                  {(['PWALLET', 'GCASH', 'CASH'] as const).map((type) => (
+                    <TouchableOpacity
+                      key={type}
+                      style={[
+                        styles.paymentOption,
+                        value === type && styles.paymentOptionSelected,
+                        errors.paymentType && styles.errorBorder
+                      ]}
+                      onPress={() => {
+                        onChange(type);
+                        if (type === 'PWALLET' || type === 'GCASH') {
+                          setPaymentScanner(true);
+                        }
+                      }}
+                    >
+                      <Text style={[
+                        styles.paymentOptionText,
+                        value === type && styles.paymentOptionTextSelected
+                      ]}>{type}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            />
+            {errors.paymentType && (
+              <Text style={styles.errorText}>{errors.paymentType.message}</Text>
+            )}
 
             {/* Amount Input */}
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Amount to Pay</Text>
-              <TextInput
-                style={[
-                  styles.textInput,
-                  currentPaymentAmount && parseFloat(currentPaymentAmount) > calculateRemainingBalance() && styles.errorInput
-                ]}
-                placeholder={`Enter amount (max: ₱${calculateRemainingBalance().toFixed(2)})`}
-                value={currentPaymentAmount}
-                onChangeText={(text) => {
-                  // Allow empty string or valid numbers
-                  if (text === '') {
-                    setCurrentPaymentAmount('');
-                    return;
-                  }
-                  // Check if it's a valid number
-                  const num = parseFloat(text);
-                  if (!isNaN(num)) {
-                    // Only update if it's a valid number
-                    setCurrentPaymentAmount(text);
-                  }
-                }}
-                keyboardType="numeric"
-              />
-              {currentPaymentAmount && parseFloat(currentPaymentAmount) > calculateRemainingBalance() && (
-                <Text style={styles.errorText}>
-                  Amount cannot exceed remaining balance of ₱{calculateRemainingBalance().toFixed(2)}
-                </Text>
+            <Controller
+              name="amount"
+              control={control}
+              render={({ field: { onChange, value, onBlur } }) => (
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>Amount to Pay</Text>
+                  <TextInput
+                    style={[
+                      styles.textInput,
+                      errors.amount && styles.errorInput,
+                      value && parseFloat(value) > calculateRemainingBalance() && styles.errorInput
+                    ]}
+                    placeholder={`Enter amount (max: ₱${calculateRemainingBalance().toFixed(2)})`}
+                    value={value}
+                    onChangeText={(text) => {
+                      onChange(text);
+                      // Trigger validation
+                      trigger('amount');
+                    }}
+                    onBlur={onBlur}
+                    keyboardType="numeric"
+                  />
+                  {errors.amount && (
+                    <Text style={styles.errorText}>{errors.amount.message}</Text>
+                  )}
+                  {value && parseFloat(value) > calculateRemainingBalance() && (
+                    <Text style={styles.errorText}>
+                      Amount cannot exceed remaining balance of ₱{calculateRemainingBalance().toFixed(2)}
+                    </Text>
+                  )}
+                  <TouchableOpacity onPress={() => {
+                    setValue('amount', calculateRemainingBalance().toFixed(2));
+                    trigger('amount');
+                  }}>
+                    <Text style={styles.helperText}>
+                      Remaining balance: ₱{calculateRemainingBalance().toFixed(2)} (Tap to use full amount)
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               )}
-              <TouchableOpacity onPress={() => setCurrentPaymentAmount(calculateRemainingBalance().toFixed(2))}>
-                <Text style={styles.helperText}>
-                  Remaining balance: ₱{calculateRemainingBalance().toFixed(2)} (Tap to use full amount)
-                </Text>
-              </TouchableOpacity>
-            </View>
+            />
 
             {/* Reference Number Input for PWALLET/GCASH */}
             {(paymentType === 'PWALLET' || paymentType === 'GCASH') && (
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>{paymentType} Reference Number</Text>
-                <View style={styles.referenceInputRow}>
-                  <TextInput
-                    style={[styles.textInput, styles.flex1, styles.disabledInput]}
-                    placeholder="Scan QR code to get reference number"
-                    value={referenceNumber}
-                    editable={false}
-                    keyboardType="numeric"
-                  />
-                  <TouchableOpacity
-                    style={styles.scanReferenceButton}
-                    onPress={() => setPaymentScanner(true)}
-                  >
-                    <Ionicons name="barcode-outline" size={24} color="#007AFF" />
-                  </TouchableOpacity>
-                </View>
-                <Text style={styles.helperText}>
-                  Reference number can only be set by scanning the payment QR code
-                </Text>
-              </View>
+              <Controller
+                name="referenceNumber"
+                control={control}
+                render={({ field: { value } }) => (
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.inputLabel}>{paymentType} Reference Number</Text>
+                    <View style={styles.referenceInputRow}>
+                      <TextInput
+                        style={[
+                          styles.textInput,
+                          styles.flex1,
+                          styles.disabledInput,
+                          errors.referenceNumber && styles.errorInput
+                        ]}
+                        placeholder="Scan QR code to get reference number"
+                        value={value}
+                        editable={false}
+                        keyboardType="numeric"
+                      />
+                      <TouchableOpacity
+                        style={styles.scanReferenceButton}
+                        onPress={() => setPaymentScanner(true)}
+                      >
+                        <Ionicons name="barcode-outline" size={24} color="#007AFF" />
+                      </TouchableOpacity>
+                    </View>
+                    {errors.referenceNumber && (
+                      <Text style={styles.errorText}>{errors.referenceNumber.message}</Text>
+                    )}
+                    <Text style={styles.helperText}>
+                      Reference number can only be set by scanning the payment QR code
+                    </Text>
+                  </View>
+                )}
+              />
             )}
           </View>
 
@@ -931,9 +1013,11 @@ export default function CartScreen() {
               style={styles.cancelButton} 
               onPress={() => {
                 setShowPaymentModal(false);
-                setPaymentType(null);
-                setReferenceNumber('');
-                setCurrentPaymentAmount('');
+                reset({
+                  paymentType: undefined,
+                  amount: '',
+                  referenceNumber: '',
+                });
               }}
             >
               <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -942,20 +1026,27 @@ export default function CartScreen() {
             <TouchableOpacity 
               style={[
                 styles.addPaymentButton,
-                (!paymentType || !currentPaymentAmount || 
-                 ((paymentType === 'PWALLET' || paymentType === 'GCASH') && !referenceNumber)) && 
+                (!paymentType || 
+                 !amount || 
+                 isNaN(parseFloat(amount)) || 
+                 parseFloat(amount) <= 0 || 
+                 parseFloat(amount) > calculateRemainingBalance() || 
+                 ((paymentType === 'PWALLET' || paymentType === 'GCASH') && (!referenceNumber || referenceNumber.trim().length === 0))) && 
                 styles.addPaymentButtonDisabled
               ]}
-              disabled={!paymentType || !currentPaymentAmount || 
-                       ((paymentType === 'PWALLET' || paymentType === 'GCASH') && !referenceNumber)}
-              onPress={() => {
-                handleAddPayment();
-                // Close the modal after adding payment
-                setShowPaymentModal(false);
-                setPaymentType(null);
-                setReferenceNumber('');
-                setCurrentPaymentAmount('');
-              }}
+              disabled={
+                !paymentType || 
+                !amount || 
+                isNaN(parseFloat(amount)) || 
+                parseFloat(amount) <= 0 || 
+                parseFloat(amount) > calculateRemainingBalance() || 
+                ((paymentType === 'PWALLET' || paymentType === 'GCASH') && (!referenceNumber || referenceNumber.trim().length === 0))
+              }
+              onPress={handleSubmit((data) => {
+                if (handleAddPayment(data)) {
+                  setShowPaymentModal(false);
+                }
+              })}
             >
               <Text style={styles.addPaymentButtonText}>Add Payment</Text>
             </TouchableOpacity>
@@ -1489,6 +1580,9 @@ const styles = StyleSheet.create({
   errorInput: {
     borderColor: '#FF3B30',
     backgroundColor: '#FFF5F5',
+  },
+  errorBorder: {
+    borderColor: '#FF3B30',
   },
   disabledInput: {
     backgroundColor: '#F5F5F5',
