@@ -466,6 +466,9 @@ export default function CartScreen() {
       amount: '',
       referenceNumber: '',
     });
+    setPayments([]);
+    setCartItems([]);
+    setOrderNo(null);
   }
 
   const handlePaymentScanned = (barcodeData: string) => {
