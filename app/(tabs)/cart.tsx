@@ -32,11 +32,8 @@ const paymentSchema = z.object({
       message: 'Please enter a valid amount',
     }),
   referenceNumber: z.string().optional(),
-  cashBill:z.string()
-    .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
-        message: 'Please enter a valid amount',
-      }),
-  cashChange:z.string()
+  cashBill: z.string().optional(),
+  cashChange: z.string().optional()
 })
 .refine((data) => data.paymentType, {
   message: 'Payment method is required',
@@ -54,13 +51,27 @@ const paymentSchema = z.object({
 })
 .refine((data)=> {
   if(data.paymentType === 'CASH'){
-    const cashBill = parseFloat(data.cashBill || '0');
+    // For CASH payments, cashBill is required and must be valid
+    if (!data.cashBill || isNaN(parseFloat(data.cashBill)) || parseFloat(data.cashBill) <= 0) {
+      return false;
+    }
+    const cashBill = parseFloat(data.cashBill);
     const amount = parseFloat(data.amount || '0');
     return cashBill >= amount;
   }
   return true;
 }, {
   message: 'Cash bill must be greater than or equal to the amount',
+  path: ['cashBill'],
+})
+.refine((data)=> {
+  if(data.paymentType === 'CASH'){
+    // For CASH payments, cashBill must be present and valid
+    return data.cashBill && !isNaN(parseFloat(data.cashBill)) && parseFloat(data.cashBill) > 0;
+  }
+  return true;
+}, {
+  message: 'Please enter a valid cash bill amount',
   path: ['cashBill'],
 });
 
@@ -121,6 +132,8 @@ export default function CartScreen() {
       paymentType: undefined as any,
       amount: '',
       referenceNumber: '',
+      cashBill: '',
+      cashChange: '0.00'
     },
     mode: 'onChange',
   });
@@ -371,28 +384,38 @@ export default function CartScreen() {
 
   const handleAddPayment = (data: PaymentFormData) => {
     console.log('handle add payment data', data);
+    
     // Ensure paymentType is defined
     if (!data.paymentType) {
       showError('Please select a payment method');
       return false;
     }
 
+    // Validate reference number for PWALLET/GCASH
+    if ((data.paymentType === 'PWALLET' || data.paymentType === 'GCASH') && 
+        (!data.referenceNumber || data.referenceNumber.trim().length === 0)) {
+      showError('Reference number is required for PWALLET and GCASH');
+      return false;
+    }
+
     const amountNum = parseFloat(data.amount);
     const remainingBalance = calculateRemainingBalance();
-    console.log('amountNum',amountNum);
-    console.log('remainingBalance',remainingBalance);
+    console.log('amountNum', amountNum);
+    console.log('remainingBalance', remainingBalance);
 
-    
     // Additional validation for amount exceeding remaining balance
     if (amountNum > remainingBalance) {
       showError('Payment amount cannot exceed remaining balance');
       return false;
     }
 
+    // For CASH payments, include cashBill and cashChange
     const newPayment = {
       type: data.paymentType,
       amount: amountNum,
-      referenceNumber: (data.paymentType === 'PWALLET' || data.paymentType === 'GCASH') ? data.referenceNumber : undefined
+      referenceNumber: (data.paymentType === 'PWALLET' || data.paymentType === 'GCASH') ? data.referenceNumber : undefined,
+      cashBill: data.paymentType === 'CASH' ? parseFloat(data.cashBill || '0') : undefined,
+      cashChange: data.paymentType === 'CASH' ? parseFloat(data.cashChange || '0') : undefined
     };
 
     setPayments([...payments, newPayment]);
@@ -404,6 +427,8 @@ export default function CartScreen() {
       paymentType: undefined,
       amount: '',
       referenceNumber: '',
+      cashBill: '',
+      cashChange: '0.00'
     });
     
     return true;
@@ -1171,7 +1196,8 @@ export default function CartScreen() {
                  isNaN(parseFloat(amount)) || 
                  parseFloat(amount) <= 0 || 
                  parseFloat(amount) > calculateRemainingBalance() || 
-                 ((paymentType === 'PWALLET' || paymentType === 'GCASH') && (!referenceNumber || referenceNumber.trim().length === 0))) && 
+                 ((paymentType === 'PWALLET' || paymentType === 'GCASH') && (!referenceNumber || referenceNumber.trim().length === 0)) ||
+                 (paymentType === 'CASH' && (!watch('cashBill') || isNaN(parseFloat(watch('cashBill') || '0')) || parseFloat(watch('cashBill') || '0') < parseFloat(amount || '0')))) && 
                 styles.addPaymentButtonDisabled
               ]}
               disabled={
@@ -1180,14 +1206,27 @@ export default function CartScreen() {
                 isNaN(parseFloat(amount)) || 
                 parseFloat(amount) <= 0 || 
                 parseFloat(amount) > calculateRemainingBalance() || 
-                ((paymentType === 'PWALLET' || paymentType === 'GCASH') && (!referenceNumber || referenceNumber.trim().length === 0))
+                ((paymentType === 'PWALLET' || paymentType === 'GCASH') && (!referenceNumber || referenceNumber.trim().length === 0)) ||
+                (paymentType === 'CASH' && (!watch('cashBill') || isNaN(parseFloat(watch('cashBill') || '0')) || parseFloat(watch('cashBill') || '0') < parseFloat(amount || '0')))
               }
-              onPress={handleSubmit((data) => {
-                console.log('handle add payment data',data);
-                if (handleAddPayment(data)) {
-                  setShowPaymentModal(false);
-                }
-              })}
+              onPress={() => {
+                console.log('Button pressed - paymentType:', paymentType, 'amount:', amount, 'referenceNumber:', referenceNumber, 'cashBill:', watch('cashBill'));
+                // Check form validity first
+                trigger().then((isValid) => {
+                  console.log('Form is valid:', isValid);
+                  console.log('Form errors:', errors);
+                  if (isValid) {
+                    handleSubmit((data) => {
+                      console.log('handle add payment data', data);
+                      if (handleAddPayment(data)) {
+                        setShowPaymentModal(false);
+                      }
+                    })();
+                  } else {
+                    console.log('Form has validation errors');
+                  }
+                });
+              }}
             >
               <Text style={styles.addPaymentButtonText}>Add Payment</Text>
             </TouchableOpacity>
