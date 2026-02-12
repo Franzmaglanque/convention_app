@@ -370,6 +370,7 @@ export default function CartScreen() {
   };
 
   const handleAddPayment = (data: PaymentFormData) => {
+    console.log('handle add payment data', data);
     // Ensure paymentType is defined
     if (!data.paymentType) {
       showError('Please select a payment method');
@@ -378,6 +379,9 @@ export default function CartScreen() {
 
     const amountNum = parseFloat(data.amount);
     const remainingBalance = calculateRemainingBalance();
+    console.log('amountNum',amountNum);
+    console.log('remainingBalance',remainingBalance);
+
     
     // Additional validation for amount exceeding remaining balance
     if (amountNum > remainingBalance) {
@@ -943,10 +947,19 @@ export default function CartScreen() {
                         errors.paymentType && styles.errorBorder
                       ]}
                       onPress={() => {
-                        onChange(type);
-                        if (type === 'PWALLET' || type === 'GCASH') {
-                          // setPaymentScanner(true);
+                        // Clear reference number and amount when payment type changes
+                        // But only if the new type is different from the current value
+                        if (value !== type) {
+                          // Reset amount and reference number fields
+                          setValue('amount', '');
+                          setValue('referenceNumber', '');
+                          setValue('cashBill', '');
+                          setValue('cashChange', '0.00');
+                          // Trigger validation to clear any errors
+                          trigger(['amount', 'referenceNumber', 'cashBill', 'cashChange']);
                         }
+                        // Set the new payment type
+                        onChange(type);
                       }}
                     >
                       <Text style={[
@@ -1170,6 +1183,7 @@ export default function CartScreen() {
                 ((paymentType === 'PWALLET' || paymentType === 'GCASH') && (!referenceNumber || referenceNumber.trim().length === 0))
               }
               onPress={handleSubmit((data) => {
+                console.log('handle add payment data',data);
                 if (handleAddPayment(data)) {
                   setShowPaymentModal(false);
                 }
