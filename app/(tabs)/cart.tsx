@@ -6,10 +6,9 @@ import { newOrder } from '@/hooks/useOrder';
 import { useScanProduct } from '@/hooks/useProduct';
 import { Product } from '@/types/product.types';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import React, { useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
   Alert,
@@ -22,6 +21,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { z } from 'zod';
 
 // Validation schema using Zod
 const paymentSchema = z.object({
@@ -32,6 +32,11 @@ const paymentSchema = z.object({
       message: 'Please enter a valid amount',
     }),
   referenceNumber: z.string().optional(),
+  cashBill:z.string()
+    .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
+        message: 'Please enter a valid amount',
+      }),
+  cashChange:z.string()
 })
 .refine((data) => data.paymentType, {
   message: 'Payment method is required',
@@ -85,9 +90,10 @@ export default function CartScreen() {
     type: 'PWALLET' | 'GCASH' | 'CASH';
     amount: number;
     referenceNumber?: string;
+    cashBill?:number;
+    cashChange?: number;
   }>>([]);
 
-  // React Hook Form setup
   const {
     control,
     handleSubmit,
@@ -431,6 +437,10 @@ export default function CartScreen() {
     trigger('referenceNumber');
     setPaymentScanner(false);
     console.log('barcodeData', barcodeData);
+  }
+
+  const computeChange = () => {
+    console.log('payment',payments); 
   }
 
   return (
@@ -908,7 +918,7 @@ export default function CartScreen() {
                       onPress={() => {
                         onChange(type);
                         if (type === 'PWALLET' || type === 'GCASH') {
-                          setPaymentScanner(true);
+                          // setPaymentScanner(true);
                         }
                       }}
                     >
@@ -924,49 +934,6 @@ export default function CartScreen() {
             {errors.paymentType && (
               <Text style={styles.errorText}>{errors.paymentType.message}</Text>
             )}
-
-            {/* Amount Input */}
-            <Controller
-              name="amount"
-              control={control}
-              render={({ field: { onChange, value, onBlur } }) => (
-                <View style={styles.inputContainer}>
-                  <Text style={styles.inputLabel}>Amount to Pay</Text>
-                  <TextInput
-                    style={[
-                      styles.textInput,
-                      errors.amount && styles.errorInput,
-                      value && parseFloat(value) > calculateRemainingBalance() && styles.errorInput
-                    ]}
-                    placeholder={`Enter amount (max: ₱${calculateRemainingBalance().toFixed(2)})`}
-                    value={value}
-                    onChangeText={(text) => {
-                      onChange(text);
-                      // Trigger validation
-                      trigger('amount');
-                    }}
-                    onBlur={onBlur}
-                    keyboardType="numeric"
-                  />
-                  {errors.amount && (
-                    <Text style={styles.errorText}>{errors.amount.message}</Text>
-                  )}
-                  {value && parseFloat(value) > calculateRemainingBalance() && (
-                    <Text style={styles.errorText}>
-                      Amount cannot exceed remaining balance of ₱{calculateRemainingBalance().toFixed(2)}
-                    </Text>
-                  )}
-                  <TouchableOpacity onPress={() => {
-                    setValue('amount', calculateRemainingBalance().toFixed(2));
-                    trigger('amount');
-                  }}>
-                    <Text style={styles.helperText}>
-                      Remaining balance: ₱{calculateRemainingBalance().toFixed(2)} (Tap to use full amount)
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            />
 
             {/* Reference Number Input for PWALLET/GCASH */}
             {(paymentType === 'PWALLET' || paymentType === 'GCASH') && (
@@ -1006,6 +973,108 @@ export default function CartScreen() {
                 )}
               />
             )}
+
+            {(paymentType == 'CASH') && (
+              <Controller
+                name="cashBill"
+                control={control}
+                render={({ field: { onChange, value, onBlur } }) => (
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.inputLabel}>Enter Bill</Text>
+                    <TextInput
+                      style={[
+                        styles.textInput,
+                        errors.cashBill && styles.errorInput,
+                        value && parseFloat(value) > calculateRemainingBalance() && styles.errorInput
+                      ]}
+                      placeholder={``}
+                      value={value}
+                      onChangeText={(text) => {
+                        onChange(text);
+                        // Trigger validation
+                        trigger('cashBill');
+                      }}
+                      onBlur={onBlur}
+                      keyboardType="numeric"
+                    />
+                    {errors.cashBill && (
+                      <Text style={styles.errorText}>{errors.cashBill.message}</Text>
+                    )}
+       
+                  </View>
+                )}
+              />
+            )}
+
+            {/* Amount Input */}
+            <Controller
+              name="amount"
+              control={control}
+              render={({ field: { onChange, value, onBlur } }) => (
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>Amount to Pay</Text>
+                  <TextInput
+                    style={[
+                      styles.textInput,
+                      errors.amount && styles.errorInput,
+                      value && parseFloat(value) > calculateRemainingBalance() && styles.errorInput
+                    ]}
+                    placeholder={`Enter amount (max: ₱${calculateRemainingBalance().toFixed(2)})`}
+                    value={value}
+                    onChangeText={(text) => {
+                     
+                      onChange(text);
+                      if(paymentType == 'CASH'){
+                        computeChange()
+                      }
+                      // Trigger validation
+                      trigger('amount');
+                    }}
+                    onBlur={onBlur}
+                    keyboardType="numeric"
+                  />
+                  {errors.amount && (
+                    <Text style={styles.errorText}>{errors.amount.message}</Text>
+                  )}
+                  {value && parseFloat(value) > calculateRemainingBalance() && (
+                    <Text style={styles.errorText}>
+                      Amount cannot exceed remaining balance of ₱{calculateRemainingBalance().toFixed(2)}
+                    </Text>
+                  )}
+                  <TouchableOpacity onPress={() => {
+                    setValue('amount', calculateRemainingBalance().toFixed(2));
+                    trigger('amount');
+                  }}>
+                    <Text style={styles.helperText}>
+                      Remaining balance: ₱{calculateRemainingBalance().toFixed(2)} (Tap to use full amount)
+                    </Text>
+                  </TouchableOpacity>"paymentType" | "amount" | "referenceNumber"
+                </View>
+              )}
+            />
+            
+            {(paymentType == 'CASH') && (
+              <Controller
+                name="cashChange"
+                control={control}
+                render={({ field: { onChange, value, onBlur } }) => (
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.inputLabel}>Cash Change</Text>
+                    <TextInput
+                      style={[
+                        styles.textInput,
+                        styles.disabledInput,
+                      ]}
+                      placeholder={``}
+                      value={value}
+                      onBlur={onBlur}
+                      editable={false}
+                    />
+                  </View>
+                )}
+              />
+            )}
+            
           </View>
 
           <View style={styles.modalActions}>
