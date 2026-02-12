@@ -7,7 +7,7 @@ import { useScanProduct } from '@/hooks/useProduct';
 import { Product } from '@/types/product.types';
 import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
-import React, { useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
@@ -51,6 +51,17 @@ const paymentSchema = z.object({
 }, {
   message: 'Reference number is required for PWALLET and GCASH',
   path: ['referenceNumber'],
+})
+.refine((data)=> {
+  if(data.paymentType === 'CASH'){
+    const cashBill = parseFloat(data.cashBill || '0');
+    const amount = parseFloat(data.amount || '0');
+    return cashBill >= amount;
+  }
+  return true;
+}, {
+  message: 'Cash bill must be greater than or equal to the amount',
+  path: ['cashBill'],
 });
 
 type PaymentFormData = z.infer<typeof paymentSchema>;
@@ -66,18 +77,20 @@ interface CartItem {
   quantity: number;
 }
 
-// Mock API service - replace with your actual API calls
-const orderService = {
-  createNewTransaction: async (): Promise<{ orderNo: string }> => {
-    // Mock API call
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const orderNo = `ORD-${Date.now().toString().slice(-8)}`;
-        resolve({ orderNo });
-      }, 500);
-    });
-  }
-};
+// Debounce function
+function useDebounce(callback: Function, delay: number) {
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  return useCallback((...args: any[]) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    timeoutRef.current = setTimeout(() => {
+      callback(...args);
+    }, delay);
+  }, [callback, delay]);
+}
 
 export default function CartScreen() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -426,12 +439,6 @@ export default function CartScreen() {
     });
   }
 
-  const handleRemovePayment = (index: number) => {
-    const updatedPayments = [...payments];
-    updatedPayments.splice(index, 1);
-    setPayments(updatedPayments);
-  };
-
   const handlePaymentScanned = (barcodeData: string) => {
     setValue('referenceNumber', barcodeData);
     trigger('referenceNumber');
@@ -439,9 +446,29 @@ export default function CartScreen() {
     console.log('barcodeData', barcodeData);
   }
 
-  const computeChange = () => {
-    console.log('payment',payments); 
-  }
+  // Create a debounced version of computeChange
+  const computeChange = useCallback(() => {
+    const cashBill = parseFloat(watch('cashBill') || '0');
+    const amount = parseFloat(watch('amount') || '0');
+    
+    if (cashBill > 0 && amount > 0) {
+      if (cashBill >= amount) {
+        const change = cashBill - amount;
+        setValue('cashChange', change.toFixed(2));
+        console.log('Change calculated:', change);
+      } else {
+        // If cashBill is less than amount, set change to 0 or negative
+        const change = cashBill - amount;
+        setValue('cashChange', change.toFixed(2));
+        console.log('Change calculated (negative):', change);
+      }
+    } else {
+      setValue('cashChange', '0.00');
+    }
+  }, [watch, setValue]);
+
+  // Create debounced function with 500ms delay
+  const debouncedComputeChange = useDebounce(computeChange, 500);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -974,38 +1001,6 @@ export default function CartScreen() {
               />
             )}
 
-            {(paymentType == 'CASH') && (
-              <Controller
-                name="cashBill"
-                control={control}
-                render={({ field: { onChange, value, onBlur } }) => (
-                  <View style={styles.inputContainer}>
-                    <Text style={styles.inputLabel}>Enter Bill</Text>
-                    <TextInput
-                      style={[
-                        styles.textInput,
-                        errors.cashBill && styles.errorInput,
-                        value && parseFloat(value) > calculateRemainingBalance() && styles.errorInput
-                      ]}
-                      placeholder={``}
-                      value={value}
-                      onChangeText={(text) => {
-                        onChange(text);
-                        // Trigger validation
-                        trigger('cashBill');
-                      }}
-                      onBlur={onBlur}
-                      keyboardType="numeric"
-                    />
-                    {errors.cashBill && (
-                      <Text style={styles.errorText}>{errors.cashBill.message}</Text>
-                    )}
-       
-                  </View>
-                )}
-              />
-            )}
-
             {/* Amount Input */}
             <Controller
               name="amount"
@@ -1022,15 +1017,20 @@ export default function CartScreen() {
                     placeholder={`Enter amount (max: ₱${calculateRemainingBalance().toFixed(2)})`}
                     value={value}
                     onChangeText={(text) => {
-                     
                       onChange(text);
-                      if(paymentType == 'CASH'){
-                        computeChange()
-                      }
                       // Trigger validation
                       trigger('amount');
+                      if(paymentType == 'CASH'){
+                        debouncedComputeChange();
+                      }
                     }}
-                    onBlur={onBlur}
+                    onBlur={() => {
+                      onBlur();
+                      // Also compute change when user leaves the field
+                      if(paymentType == 'CASH'){
+                        computeChange();
+                      }
+                    }}
                     keyboardType="numeric"
                   />
                   {errors.amount && (
@@ -1044,14 +1044,72 @@ export default function CartScreen() {
                   <TouchableOpacity onPress={() => {
                     setValue('amount', calculateRemainingBalance().toFixed(2));
                     trigger('amount');
+                    if(paymentType == 'CASH'){
+                      computeChange();
+                    }
                   }}>
                     <Text style={styles.helperText}>
                       Remaining balance: ₱{calculateRemainingBalance().toFixed(2)} (Tap to use full amount)
                     </Text>
-                  </TouchableOpacity>"paymentType" | "amount" | "referenceNumber"
+                  </TouchableOpacity>
                 </View>
               )}
             />
+
+            {/* CASH BILL */}
+              {(paymentType == 'CASH') && (
+              <Controller
+                name="cashBill"
+                control={control}
+                render={({ field: { onChange, value, onBlur } }) => {
+                  const cashBillNum = parseFloat(value || '0');
+                  const amountNum = parseFloat(watch('amount') || '0');
+                  const isCashBillLessThanAmount = cashBillNum > 0 && amountNum > 0 && cashBillNum < amountNum;
+                  
+                  return (
+                    <View style={styles.inputContainer}>
+                      <Text style={styles.inputLabel}>Enter Bill</Text>
+                      <TextInput
+                        style={[
+                          styles.textInput,
+                          errors.cashBill && styles.errorInput,
+                          isCashBillLessThanAmount && styles.errorInput
+                        ]}
+                        placeholder={`Minimum: ₱${parseFloat(watch('amount') || '0').toFixed(2)}`}
+                        value={value}
+                        onChangeText={(text) => {
+                          onChange(text);
+                          // Trigger validation
+                          trigger('cashBill');
+                          if(paymentType == 'CASH'){
+                            debouncedComputeChange();
+                          }
+                        }}
+                        onBlur={() => {
+                          onBlur();
+                          // Also compute change when user leaves the field
+                          if(paymentType == 'CASH'){
+                            computeChange();
+                          }
+                        }}
+                        keyboardType="numeric"
+                      />
+                      {errors.cashBill && (
+                        <Text style={styles.errorText}>{errors.cashBill.message}</Text>
+                      )}
+                      {isCashBillLessThanAmount && !errors.cashBill && (
+                        <Text style={styles.errorText}>
+                          Cash bill must be at least ₱{amountNum.toFixed(2)}
+                        </Text>
+                      )}
+                      <Text style={styles.helperText}>
+                        Enter the cash amount received from customer
+                      </Text>
+                    </View>
+                  );
+                }}
+              />
+            )}
             
             {(paymentType == 'CASH') && (
               <Controller
