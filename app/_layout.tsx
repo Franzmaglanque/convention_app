@@ -3,23 +3,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
 import LoadingSpinner from '@/components/LoadingSpinner';
 
 export default function RootLayout() {
     const [queryClient] = useState(() => new QueryClient());
-    const { isAuthenticated, isLoading } = useAuth();
-
-    // Show loading spinner while checking authentication
-    if (isLoading) {
-        return (
-            <QueryClientProvider client={queryClient}>
-                <ToastProvider>
-                    <LoadingSpinner visible={true} />
-                </ToastProvider>
-            </QueryClientProvider>
-        );
-    }
 
     return (
         <QueryClientProvider client={queryClient}>
@@ -36,19 +23,14 @@ export default function RootLayout() {
                         },
                     }}
                 >
-                    {!isAuthenticated ? (
-                        // If not authenticated, only show auth screens
-                        <>
-                            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-                            <Stack.Screen name="+not-found" />
-                        </>
-                    ) : (
-                        // If authenticated, show protected screens
-                        <>
-                            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                            <Stack.Screen name="+not-found" />
-                        </>
-                    )}
+                    {/* Always include index screen - it will handle redirection */}
+                    <Stack.Screen name="index" options={{ headerShown: false }} />
+                    {/* Always include auth screens */}
+                    <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+                    {/* Always include tabs screens */}
+                    <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                    {/* Always include not-found */}
+                    <Stack.Screen name="+not-found" />
                 </Stack>
             </ToastProvider>
         </QueryClientProvider>
