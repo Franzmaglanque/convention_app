@@ -17,13 +17,16 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     }
   }, [isAuthenticated, isLoading]);
 
+  // Show loading while checking authentication
   if (isLoading) {
     return <LoadingSpinner visible={true} />;
   }
 
+  // If not authenticated, show loading (will redirect via useEffect)
   if (!isAuthenticated) {
     return <LoadingSpinner visible={true} />;
   }
 
+  // User is authenticated, render children
   return <>{children}</>;
 }
