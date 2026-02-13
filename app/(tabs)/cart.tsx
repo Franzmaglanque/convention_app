@@ -676,7 +676,7 @@ export default function CartScreen() {
               cartItems.length === 0 && styles.clearButtonDisabled
             ]}
             onPress={clearCart}
-            disabled={cartItems.length === 0}
+            disabled={cartItems.length === 0 || payments.length > 0}
           >
             <Ionicons 
               name="trash-outline" 
@@ -685,7 +685,7 @@ export default function CartScreen() {
             />
             <Text style={[
               styles.buttonLabel,
-              cartItems.length === 0 && styles.buttonLabelDisabled
+              (cartItems.length === 0 || payments.length > 0 ) && styles.buttonLabelDisabled
             ]}>Clear</Text>
           </TouchableOpacity>
         </View>
