@@ -1,20 +1,25 @@
 import React from 'react';
 import {
-    FlatList,
-    Image,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  FlatList,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
+import { Ionicons } from '@expo/vector-icons';
 
 interface Product {
   id: string;
   name: string;
   price: number;
   imageUrl?: string;
+}
+
+interface ItemListProps {
+  visible: boolean;
+  onClose: () => void;
+  onProductSelect?: (product: Product) => void;
 }
 
 // Sample data for demonstration
@@ -32,18 +37,9 @@ const sampleProducts: Product[] = [
 ];
 
 // Product item component
-const ProductItem: React.FC<{ product: Product }> = ({ product }) => {
+const ProductItem: React.FC<{ product: Product; onPress: () => void }> = ({ product, onPress }) => {
   return (
-    <TouchableOpacity style={styles.productItem} onPress={() => {}}>
-      <View style={styles.productImageContainer}>
-        {product.imageUrl ? (
-          <Image source={{ uri: product.imageUrl }} style={styles.productImage} />
-        ) : (
-          <View style={styles.placeholderImage}>
-            <Text style={styles.placeholderText}>No Image</Text>
-          </View>
-        )}
-      </View>
+    <View style={styles.productItem}>
       <View style={styles.productInfo}>
         <Text style={styles.productName} numberOfLines={2}>
           {product.name}
@@ -52,53 +48,108 @@ const ProductItem: React.FC<{ product: Product }> = ({ product }) => {
           ₱{product.price.toFixed(2)}
         </Text>
       </View>
-    </TouchableOpacity>
+      <TouchableOpacity 
+        style={styles.addButton}
+        onPress={onPress}
+      >
+        <Ionicons name="add-circle-outline" size={24} color="#FFFFFF" />
+        <Text style={styles.addButtonText}>Add</Text>
+      </TouchableOpacity>
+    </View>
   );
 };
 
 // Main component
-const ItemList: React.FC = () => {
+const ItemList: React.FC<ItemListProps> = ({ visible, onClose, onProductSelect }) => {
+  const handleProductPress = (product: Product) => {
+    if (onProductSelect) {
+      onProductSelect(product);
+    }
+    onClose();
+  };
+
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Products</Text>
-        <Text style={styles.productCount}>{sampleProducts.length} items</Text>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={onClose}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.headerTitle}>Products</Text>
+            <Text style={styles.productCount}>{sampleProducts.length} items</Text>
+            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+              <Text style={styles.closeButtonText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <FlatList
+            data={sampleProducts}
+            renderItem={({ item }) => (
+              <ProductItem 
+                product={item} 
+                onPress={() => handleProductPress(item)} 
+              />
+            )}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            ItemSeparatorComponent={() => <View style={styles.separator} />}
+          />
+        </View>
       </View>
-      
-      <FlatList
-        data={sampleProducts}
-        renderItem={({ item }) => <ProductItem product={item} />}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
-      />
-    </SafeAreaView>
+    </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  modalOverlay: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  header: {
+  modalContainer: {
+    width: '90%',
+    maxHeight: '80%',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalHeader: {
     paddingHorizontal: 16,
     paddingTop: 20,
     paddingBottom: 12,
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
     color: '#212529',
   },
   productCount: {
     fontSize: 14,
     color: '#6c757d',
-    marginTop: 4,
+  },
+  closeButton: {
+    padding: 4,
+  },
+  closeButtonText: {
+    fontSize: 20,
+    color: '#6c757d',
+    fontWeight: 'bold',
   },
   listContent: {
     paddingHorizontal: 16,
@@ -109,37 +160,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: '#ffffff',
     borderRadius: 12,
-    padding: 12,
+    padding: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 2,
-  },
-  productImageContainer: {
-    marginRight: 12,
-  },
-  productImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    backgroundColor: '#e9ecef',
-  },
-  placeholderImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    backgroundColor: '#e9ecef',
-    justifyContent: 'center',
     alignItems: 'center',
-  },
-  placeholderText: {
-    fontSize: 10,
-    color: '#6c757d',
+    justifyContent: 'space-between',
   },
   productInfo: {
     flex: 1,
-    justifyContent: 'center',
+    marginRight: 16,
   },
   productName: {
     fontSize: 16,
@@ -152,6 +184,21 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: '#0066cc',
+  },
+  addButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 80,
+  },
+  addButtonText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '600',
+    marginTop: 4,
   },
   separator: {
     height: 12,
