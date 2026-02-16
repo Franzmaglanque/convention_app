@@ -27,6 +27,11 @@ export const API_ENDPOINTS = {
 
     FIND_BY_BARCODE: (barcode: string) => `/products/barcode/${barcode}`,
     SEARCH: '/products/search',
+  },
+
+  PAYMENTS:{
+    PWALLET_PARSE_QR: 'payment/pwallet/qrparse',
+    PWALLET_DEBIT: 'payment/pwallet/debit',
   }
 
 } as const;
