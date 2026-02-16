@@ -2,14 +2,14 @@ import React from 'react';
 import {
     FlatList,
     Image,
-    SafeAreaView,
     StyleSheet,
     Text,
     TouchableOpacity,
     View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Define the Product interface
+
 interface Product {
   id: string;
   name: string;
@@ -59,7 +59,7 @@ const ProductItem: React.FC<{ product: Product }> = ({ product }) => {
 // Main component
 const ItemList: React.FC = () => {
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Products</Text>
         <Text style={styles.productCount}>{sampleProducts.length} items</Text>
