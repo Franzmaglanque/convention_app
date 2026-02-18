@@ -81,11 +81,7 @@ type PaymentFormData = z.infer<typeof paymentSchema>;
 
 interface CartItem {
   product: Product & {
-    id: string;
     barcode: string;
-    name: string;
-    stock: number;
-    imageUrl?: string;
   };
   quantity: number;
 }
@@ -265,11 +261,8 @@ export default function CartScreen() {
             price: productData.price,
             sku: productData.sku || barcodeData,
             // Additional fields for our cart
-            id: Date.now().toString(),
-            barcode: barcodeData,
-            name: productData.description || `Product ${barcodeData.substring(0, 6)}`,
-            stock: Math.floor(Math.random() * 100) + 1,
-            imageUrl: undefined,
+            id: productData.id,
+            barcode: barcodeData
           };
 
           // Check if product already exists in cart
@@ -282,7 +275,7 @@ export default function CartScreen() {
             const updatedItems = [...cartItems];
             updatedItems[existingItemIndex].quantity += 1;
             setCartItems(updatedItems);
-            showSuccess(`Added another ${cartProduct.name} to cart`);
+            showSuccess(`Added another ${cartProduct.description} to cart`);
           } else {
             // Add new product to cart
             const newItem: CartItem = {
@@ -290,7 +283,7 @@ export default function CartScreen() {
               quantity: 1
             };
             setCartItems([...cartItems, newItem]);
-            showSuccess(`Added ${cartProduct.name} to cart`);
+            showSuccess(`Added ${cartProduct.description} to cart`);
           }
 
           setShowScanner(false);
@@ -313,7 +306,7 @@ export default function CartScreen() {
     );
   };
 
-  const updateQuantity = (itemId: string, newQuantity: number) => {
+  const updateQuantity = (itemId: number, newQuantity: number) => {
     if (newQuantity < 1) {
       removeItem(itemId);
       return;
@@ -328,7 +321,7 @@ export default function CartScreen() {
     );
   };
 
-  const removeItem = (itemId: string) => {
+  const removeItem = (itemId: number) => {
     Alert.alert(
       'Remove Item',
       'Are you sure you want to remove this item from the cart?',
@@ -370,7 +363,7 @@ export default function CartScreen() {
 
   const calculateSubtotal = () => {
     return cartItems.reduce(
-      (total, item) => total + (item.product.price * item.quantity),
+      (total, item) => total + (parseFloat(item.product.price) * item.quantity),
       0
     );
   };
@@ -415,22 +408,37 @@ export default function CartScreen() {
       return false;
     }
 
-    if(data.paymentType === 'PWALLET'){
-      await pwalletDebitMutation.mutate({
-              reference_no: data.referenceNumber,
-              amount:amountNum,
-              store_code:901
-      },{
-        onSuccess: (response) => {
-          console.log('pwalletDebitMutation',response);
-        },
-        onError: () => {
-            showError('Failed to create new transaction. Please try again.');
-        },
-        onSettled: () => {
+    // if(data.paymentType === 'PWALLET'){
+    //   await pwalletDebitMutation.mutate({
+    //           reference_no: data?.referenceNumber ?? "",
+    //           amount:amountNum.toString(),
+    //           store_code:"901"
+    //   },{
+    //     onSuccess: (response) => {
+    //       console.log('pwalletDebitMutation',response);
+    //     },
+    //     onError: () => {
+    //         showError('Failed to create new transaction. Please try again.');
+    //     },
+    //     onSettled: () => {
       
-        }
-      });
+    //     }
+    //   });
+    // }
+    if (data.paymentType === 'PWALLET') {
+      try {
+        // Use mutateAsync to wait for the API response
+        await pwalletDebitMutation.mutateAsync({
+          reference_no: data?.referenceNumber ?? "",
+          amount: amountNum.toString(),
+          store_code: "901"
+        });
+        // If we reach here, mutation was successful
+      } catch (error) {
+        // If mutation fails, it throws an error here
+        showError('Debit failed. Please try again.');
+        return false; 
+      }
     }
     
 
@@ -502,7 +510,7 @@ export default function CartScreen() {
             QrCode: barcodeData,
         },{
         onSuccess: (response) => {
-          console.log('scanPwalletQrMutation',response.data.reference_no);
+          console.log('scanPwalletQrMutation',response);
           setValue('referenceNumber', (response.data.reference_no).toString());
           trigger('referenceNumber');
           setPaymentScanner(false);
@@ -629,7 +637,7 @@ export default function CartScreen() {
           cartItems.map((item) => (
             <View key={item.product.id} style={styles.cartItem}>
               <View style={styles.cartItemInfo}>
-                <Text style={styles.productName}>{item.product.name}</Text>
+                <Text style={styles.productName}>{item.product.description}</Text>
                 <Text style={styles.productDetails}>
                   Barcode: {item.product.barcode}
                 </Text>
@@ -663,7 +671,7 @@ export default function CartScreen() {
                 </View>
 
                 <Text style={styles.itemTotal}>
-                  ₱{(item.product.price * item.quantity).toFixed(2)}
+                  ₱{(parseFloat(item.product.price) * item.quantity).toFixed(2)}
                 </Text>
 
                 <TouchableOpacity
@@ -829,7 +837,7 @@ export default function CartScreen() {
             <Text style={[
               styles.buttonLabel,
               (cartItems.length === 0 || payments.length === 0 || calculateRemainingBalance() > 0.01) && styles.buttonLabelDisabled
-            ]}>Post</Text>
+            ]}>Postsasadasds</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -849,9 +857,6 @@ export default function CartScreen() {
           createNewTransaction(true, barcodeData);
           setCustomerCardNumber('');
           setIsScanningCard(false);
-          // setCustomerCardNumber(barcodeData);
-          // setIsScanningCard(false);
-          // showSuccess(`Card scanned: ${barcodeData}`);
         }}
         onClose={() => setIsScanningCard(false)}
         scanDelay={1000}
@@ -1287,14 +1292,15 @@ export default function CartScreen() {
                 }
                 onPress={() => {
                   console.log('Button pressed - paymentType:', paymentType, 'amount:', amount, 'referenceNumber:', referenceNumber, 'cashBill:', watch('cashBill'));
-                  // Check form validity first
-                  trigger().then((isValid) => {
-                    console.log('Form is valid:', isValid);
+
+                  trigger().then(async (isValid) => {
                     console.log('Form errors:', errors);
                     if (isValid) {
-                      handleSubmit((data) => {
+                      await handleSubmit(async (data) => {
                         console.log('handle add payment data', data);
-                        if (handleAddPayment(data)) {
+                        const success = await handleAddPayment(data);
+
+                        if (success) {
                           setShowPaymentModal(false);
                         }
                       })();
@@ -1315,10 +1321,9 @@ export default function CartScreen() {
         visible={showItemList}
         onClose={() => setShowItemList(false)}
         onProductSelect={(product) => {
-          // Handle product selection
-          // For now, just show a message
-          console.log('product',product);
-          showInfo(`Selected: ${product.name}`);
+
+          console.log('product selected',product);
+          showInfo(`Selected: ${product.description}`);
         }}
       />
     </SafeAreaView>

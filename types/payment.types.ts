@@ -1,5 +1,8 @@
 export interface ScanPwalletQrResponse {
-  reference_no: String;
+  data:{
+    reference_no: number;
+    pwallet_number:string;
+  }
 }
 
 export interface pwalletDebitResponse {

@@ -4,7 +4,6 @@
  */
 
 export const API_ENDPOINTS = {
-  // Authentication
   AUTH: {
     LOGIN: '/supplier/login',
     LOGOUT: '/auth/logout',
@@ -23,10 +22,7 @@ export const API_ENDPOINTS = {
 
   PRODUCTS: {
     SCAN: '/product/scan',
-    // SCAN: '/supplier/scan-product',
-
-    FIND_BY_BARCODE: (barcode: string) => `/products/barcode/${barcode}`,
-    SEARCH: '/products/search',
+    PRODUCT_LIST: '/product/fetch-list',
   },
 
   PAYMENTS:{
@@ -36,5 +32,4 @@ export const API_ENDPOINTS = {
 
 } as const;
 
-// Helper type to extract endpoint return types
 export type Endpoints = typeof API_ENDPOINTS;

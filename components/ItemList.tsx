@@ -1,19 +1,21 @@
+import { useFetchProductList } from '@/hooks/useProduct';
+import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Modal,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
 interface Product {
-  id: string;
-  name: string;
-  price: number;
-  imageUrl?: string;
+  id: number;
+  description: string;
+  price: string;
+  sku: string;
 }
 
 interface ItemListProps {
@@ -22,30 +24,15 @@ interface ItemListProps {
   onProductSelect?: (product: Product) => void;
 }
 
-// Sample data for demonstration
-const sampleProducts: Product[] = [
-  { id: '1', name: 'Premium Coffee Beans', price: 12.99, imageUrl: 'https://via.placeholder.com/60' },
-  { id: '2', name: 'Organic Green Tea', price: 8.50, imageUrl: 'https://via.placeholder.com/60' },
-  { id: '3', name: 'Wireless Headphones', price: 89.99, imageUrl: 'https://via.placeholder.com/60' },
-  { id: '4', name: 'Yoga Mat', price: 24.95, imageUrl: 'https://via.placeholder.com/60' },
-  { id: '5', name: 'Smartphone Case', price: 15.75, imageUrl: 'https://via.placeholder.com/60' },
-  { id: '6', name: 'Laptop Stand', price: 32.49, imageUrl: 'https://via.placeholder.com/60' },
-  { id: '7', name: 'Desk Lamp', price: 28.00, imageUrl: 'https://via.placeholder.com/60' },
-  { id: '8', name: 'Water Bottle', price: 18.99, imageUrl: 'https://via.placeholder.com/60' },
-  { id: '9', name: 'Running Shoes', price: 65.00, imageUrl: 'https://via.placeholder.com/60' },
-  { id: '10', name: 'Backpack', price: 45.25, imageUrl: 'https://via.placeholder.com/60' },
-];
-
-// Product item component
 const ProductItem: React.FC<{ product: Product; onPress: () => void }> = ({ product, onPress }) => {
   return (
     <View style={styles.productItem}>
       <View style={styles.productInfo}>
         <Text style={styles.productName} numberOfLines={2}>
-          {product.name}
+          {product.description}
         </Text>
         <Text style={styles.productPrice}>
-          ₱{product.price.toFixed(2)}
+          ₱{parseFloat(product.price).toFixed(2)}
         </Text>
       </View>
       <TouchableOpacity 
@@ -59,14 +46,37 @@ const ProductItem: React.FC<{ product: Product; onPress: () => void }> = ({ prod
   );
 };
 
-// Main component
+const EmptyListComponent = () => (
+  <View style={styles.emptyContainer}>
+    <Ionicons name="search-outline" size={48} color="#CCC" />
+    <Text style={styles.emptyText}>No products found.</Text>
+    <Text style={styles.emptySubText}>Try refreshing or check back later.</Text>
+  </View>
+);
+
 const ItemList: React.FC<ItemListProps> = ({ visible, onClose, onProductSelect }) => {
+  const {
+    data: products,
+    isLoading,
+    isError,
+    refetch
+  } = useFetchProductList();
+
   const handleProductPress = (product: Product) => {
     if (onProductSelect) {
       onProductSelect(product);
     }
     onClose();
   };
+
+  if(isLoading){
+    return(
+       <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color="#0000ff" />
+          <Text>Loading products...</Text>
+        </View>
+    )
+  }
 
   return (
     <Modal
@@ -79,25 +89,40 @@ const ItemList: React.FC<ItemListProps> = ({ visible, onClose, onProductSelect }
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.headerTitle}>Products</Text>
-            <Text style={styles.productCount}>{sampleProducts.length} items</Text>
+            {/* <Text style={styles.productCount}>{products.length || 0} items</Text> */}
             <TouchableOpacity style={styles.closeButton} onPress={onClose}>
               <Text style={styles.closeButtonText}>✕</Text>
             </TouchableOpacity>
           </View>
           
-          <FlatList
-            data={sampleProducts}
-            renderItem={({ item }) => (
-              <ProductItem 
-                product={item} 
-                onPress={() => handleProductPress(item)} 
-              />
-            )}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-            ItemSeparatorComponent={() => <View style={styles.separator} />}
-          />
+          { isError ? (
+            <View style={styles.centerContainer}>
+              <Text>Failed to load products.</Text>
+              <TouchableOpacity onPress={() => refetch()} style={styles.retryButton}>
+                <Text style={{ color: 'white' }}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <FlatList<Product>
+              data={products?.data ?? []} 
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={({ item }) => (
+                <ProductItem 
+                  product={item} 
+                  onPress={() => handleProductPress(item)} 
+                />
+              )}
+             ListEmptyComponent={EmptyListComponent}
+              contentContainerStyle={[
+                styles.listContent,
+                products?.data?.length === 0 && { flex: 1, justifyContent: 'center' }
+              ]}
+              ItemSeparatorComponent={() => <View style={styles.separator} />}
+              showsVerticalScrollIndicator={false}
+              onRefresh={refetch}
+              refreshing={isLoading}
+            />
+          )}
         </View>
       </View>
     </Modal>
@@ -202,6 +227,35 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: 12,
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  retryButton: {
+    marginTop: 10,
+    backgroundColor: '#007AFF',
+    padding: 10,
+    borderRadius: 5,
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 50,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 10,
+  },
+  emptySubText: {
+    fontSize: 14,
+    color: '#888',
+    marginTop: 5,
   },
 });
 

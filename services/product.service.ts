@@ -1,6 +1,6 @@
 import { apiClient } from '@/lib/api/client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
-import { Product, ScanProductParams, ScanProductResponse } from '@/types/product.types';
+import { ProductListReponse, ScanProductParams, ScanProductResponse } from '@/types/product.types';
 import { AxiosResponse } from 'axios';
 
 class ProductService {
@@ -14,12 +14,14 @@ class ProductService {
         return response.data;
     }
 
-    async findProductByBarcode(barcode: string): Promise<Product> {
-        const response: AxiosResponse<Product> = await apiClient.get(
-            API_ENDPOINTS.PRODUCTS.FIND_BY_BARCODE(barcode)
+    async fetchProductList(): Promise<ProductListReponse> {
+        const response: AxiosResponse<ProductListReponse> = await apiClient.get(
+            API_ENDPOINTS.PRODUCTS.PRODUCT_LIST,
         );
+        console.log('PRODUCT LIST:', response.data);
         return response.data;
     }
+
 }
 
 export const productService = new ProductService();
