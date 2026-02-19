@@ -408,33 +408,18 @@ export default function CartScreen() {
       return false;
     }
 
-    // if(data.paymentType === 'PWALLET'){
-    //   await pwalletDebitMutation.mutate({
-    //           reference_no: data?.referenceNumber ?? "",
-    //           amount:amountNum.toString(),
-    //           store_code:"901"
-    //   },{
-    //     onSuccess: (response) => {
-    //       console.log('pwalletDebitMutation',response);
-    //     },
-    //     onError: () => {
-    //         showError('Failed to create new transaction. Please try again.');
-    //     },
-    //     onSettled: () => {
-      
-    //     }
-    //   });
-    // }
     if (data.paymentType === 'PWALLET') {
       try {
         // Use mutateAsync to wait for the API response
-        await pwalletDebitMutation.mutateAsync({
+        const foo = await pwalletDebitMutation.mutateAsync({
           reference_no: data?.referenceNumber ?? "",
-          amount: amountNum.toString(),
-          store_code: "901"
+          amount: amountNum,
+          store_code: 901
         });
+   
         // If we reach here, mutation was successful
       } catch (error) {
+        console.log('debit error',error);
         // If mutation fails, it throws an error here
         showError('Debit failed. Please try again.');
         return false; 
@@ -550,9 +535,49 @@ export default function CartScreen() {
   // Create debounced function with 500ms delay
   const debouncedComputeChange = useDebounce(computeChange, 500);
 
-  const handleBrowseItems = async() => {
-    console.log('show items');
-    // This is now handled by setShowItemList(true)
+  const handleBrowseItems = async(product:any) => {
+
+    showInfo(`Selected: ${product.description}`);
+
+
+    const cartProduct: CartItem['product'] = {
+      // Base Product fields from the API response
+      description: product.description || '',
+      category: product.category || 'General',
+      price: product.price,
+      sku: product.sku,
+      id: product.id,
+      barcode: product.barcode
+    };
+
+
+    // console.log('cartProduct',cartProduct);
+
+    const existingItemIndex = cartItems.findIndex(
+      item => item.product.barcode === product.barcode
+    );
+
+
+    if (existingItemIndex >= 0) {
+      
+      const updatedItems = [...cartItems];
+      updatedItems[existingItemIndex].quantity += 1;
+      setCartItems(updatedItems);
+      showSuccess(`Added another ${product.description} to cart`);
+
+    }else{
+
+      const newItem: CartItem = {
+        product: cartProduct,
+        quantity: 1
+      };
+      setCartItems([...cartItems, newItem]);
+      showSuccess(`Added ${cartProduct.description} to cart`);
+
+    }
+
+    console.log('existingItemIndex',existingItemIndex);
+
   }
 
   return (
@@ -726,7 +751,7 @@ export default function CartScreen() {
             style={[
               styles.iconButton, 
               styles.clearButton,
-              cartItems.length === 0 && styles.clearButtonDisabled
+              (cartItems.length === 0 || payments.length > 0 ) && styles.clearButtonDisabled
             ]}
             onPress={clearCart}
             disabled={cartItems.length === 0 || payments.length > 0}
@@ -734,7 +759,7 @@ export default function CartScreen() {
             <Ionicons 
               name="trash-outline" 
               size={24} 
-              color={cartItems.length === 0 ? "#CCCCCC" : "#FF3B30"} 
+              color={(cartItems.length === 0 || payments.length > 0 ) ? "#CCCCCC" : "#FF3B30"} 
             />
             <Text style={[
               styles.buttonLabel,
@@ -745,7 +770,11 @@ export default function CartScreen() {
 
         <View style={styles.buttonGroup}>
           <TouchableOpacity
-            style={[styles.iconButton, styles.scanButton, !orderNo && styles.scanButtonDisabled]}
+            style={[
+              styles.iconButton,
+              styles.scanButton,
+              (!orderNo || payments.length > 0 ) && styles.scanButtonDisabled
+            ]}
             onPress={() => {
               if (!orderNo) {
                 showError('Please start a transaction first');
@@ -753,14 +782,18 @@ export default function CartScreen() {
               }
               setShowScanner(true);
             }}
-            disabled={!orderNo}
+            disabled={!orderNo || payments.length > 0}
           >
             <Ionicons 
               name="barcode-outline" 
               size={28} 
-              color={orderNo ? "#FFFFFF" : "#CCCCCC"} 
+              color={(!orderNo|| payments.length > 0 ) ? "#CCCCCC"  : "#FFFFFF"} 
             />
-            <Text style={[styles.buttonLabel, orderNo ? styles.buttonLabelActive : styles.buttonLabelDisabled]}>
+            <Text style={[
+              styles.buttonLabel,
+              //  orderNo ? styles.buttonLabelActive : styles.buttonLabelDisabled
+              (orderNo || cartItems.length === 0 || payments.length > 0 ) ? styles.buttonLabelDisabled : styles.buttonLabelActive
+              ]}>
               Scan
             </Text>
           </TouchableOpacity>
@@ -771,7 +804,7 @@ export default function CartScreen() {
             style={[
               styles.iconButton, 
               styles.browseButton,
-              !orderNo && styles.browseButtonDisabled
+              (!orderNo || payments.length > 0 ) && styles.scanButtonDisabled
             ]}
             onPress={() => {
               if (!orderNo) {
@@ -785,11 +818,11 @@ export default function CartScreen() {
             <Ionicons 
               name="list-outline" 
               size={28} 
-              color={orderNo ? "#FFFFFF" : "#CCCCCC"} 
+              color={(!orderNo|| payments.length > 0 ) ? "#CCCCCC"  : "#FFFFFF"} 
             />
             <Text style={[
               styles.buttonLabel,
-              orderNo ? styles.buttonLabelActive : styles.buttonLabelDisabled
+              (!orderNo|| payments.length > 0 ) ? styles.buttonLabelDisabled : styles.buttonLabelActive
             ]}>Browse</Text>
           </TouchableOpacity>
         </View>
@@ -837,7 +870,7 @@ export default function CartScreen() {
             <Text style={[
               styles.buttonLabel,
               (cartItems.length === 0 || payments.length === 0 || calculateRemainingBalance() > 0.01) && styles.buttonLabelDisabled
-            ]}>Postsasadasds</Text>
+            ]}>Post</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -1321,9 +1354,7 @@ export default function CartScreen() {
         visible={showItemList}
         onClose={() => setShowItemList(false)}
         onProductSelect={(product) => {
-
-          console.log('product selected',product);
-          showInfo(`Selected: ${product.description}`);
+          handleBrowseItems(product);
         }}
       />
     </SafeAreaView>
@@ -1584,8 +1615,8 @@ const styles = StyleSheet.create({
   },
     actionButtonsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 24,
+    justifyContent: 'space-around',
+    paddingHorizontal: 8,
     paddingVertical: 16,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
@@ -1593,12 +1624,13 @@ const styles = StyleSheet.create({
   },
   buttonGroup: {
     alignItems: 'center',
-    minWidth: 80,
+    flex: 1,
+    minWidth: 0,
   },
   iconButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -1609,10 +1641,11 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   buttonLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '500',
     color: '#666666',
     marginTop: 4,
+    textAlign: 'center',
   },
   buttonLabelActive: {
     color: '#007AFF',

@@ -16,6 +16,7 @@ interface Product {
   description: string;
   price: string;
   sku: string;
+  barcode?: string;
 }
 
 interface ItemListProps {
@@ -28,9 +29,23 @@ const ProductItem: React.FC<{ product: Product; onPress: () => void }> = ({ prod
   return (
     <View style={styles.productItem}>
       <View style={styles.productInfo}>
-        <Text style={styles.productName} numberOfLines={2}>
+        <Text style={styles.productName} numberOfLines={3}>
           {product.description}
         </Text>
+        <View style={styles.productDetailsContainer}>
+          <View style={styles.detailRow}>
+            <Ionicons name="barcode-outline" size={14} color="#666666" />
+            <Text style={styles.productDetailText} numberOfLines={1}>
+              Barcode: {product.barcode || product.sku || 'N/A'}
+            </Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Ionicons name="pricetag-outline" size={14} color="#666666" />
+            <Text style={styles.productDetailText} numberOfLines={1}>
+              SKU: {product.sku || 'N/A'}
+            </Text>
+          </View>
+        </View>
         <Text style={styles.productPrice}>
           ₱{parseFloat(product.price).toFixed(2)}
         </Text>
@@ -191,24 +206,43 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 2,
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
   },
   productInfo: {
     flex: 1,
     marginRight: 16,
+    minHeight: 100,
   },
   productName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#212529',
-    marginBottom: 4,
+    marginBottom: 8,
     lineHeight: 20,
+    flexShrink: 1,
+  },
+  productDetailsContainer: {
+    marginBottom: 8,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+    flexShrink: 1,
+  },
+  productDetailText: {
+    fontSize: 12,
+    color: '#666666',
+    marginLeft: 6,
+    flexShrink: 1,
+    flex: 1,
   },
   productPrice: {
     fontSize: 18,
     fontWeight: '700',
     color: '#0066cc',
+    marginTop: 4,
   },
   addButton: {
     backgroundColor: '#007AFF',
@@ -218,6 +252,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 80,
+    marginTop: 8,
   },
   addButtonText: {
     fontSize: 14,

@@ -11,6 +11,6 @@ export interface pwalletDebitResponse {
 
 export interface pwalletDebitParams {
   reference_no: string;
-  amount:String;
-  store_code:String;
+  amount:number;
+  store_code:number;
 }
