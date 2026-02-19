@@ -587,16 +587,27 @@ export default function CartScreen() {
                 <View style={styles.headerTopRow}>
           <Text style={styles.headerTitle}>Convention Cart</Text>
           <TouchableOpacity
-            style={[styles.newTransactionButton, !orderNo && styles.activeTransactionButton]}
+            style={[
+              styles.newTransactionButton, 
+              !orderNo && styles.activeTransactionButton,
+              (orderNo && payments.length > 0) && styles.cancelOrderButtonDisabled
+            ]}
             onPress={orderNo ? handleCancelOrder : handleNewTransaction}
-            disabled={isCreatingTransaction}
+            disabled={isCreatingTransaction || !!(orderNo && payments.length > 0)}
           >
             {isCreatingTransaction ? (
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
               <>
-                <Ionicons name={orderNo ? "close-circle-outline" : "receipt-outline"} size={20} color="#FFFFFF" />
-                <Text style={styles.newTransactionButtonText}>
+                <Ionicons 
+                  name={orderNo ? "close-circle-outline" : "receipt-outline"} 
+                  size={20} 
+                  color={(orderNo && payments.length > 0) ? "#CCCCCC" : "#FFFFFF"} 
+                />
+                <Text style={[
+                  styles.newTransactionButtonText,
+                  (orderNo && payments.length > 0) && styles.cancelOrderButtonTextDisabled
+                ]}>
                   {orderNo ? 'Cancel Order' : 'Start Transaction'}
                 </Text>
               </>
@@ -1032,7 +1043,7 @@ export default function CartScreen() {
         }}
       >
         <View style={styles.modalOverlay}>
-          <ScrollView style={styles.paymentModalContent}>
+          <ScrollView style={[styles.paymentModalContent,{ maxHeight: '90%' } ]}>
             <Text style={styles.modalTitle}>Add Payment</Text>
             
             {/* Total and Remaining Balance */}
@@ -1067,10 +1078,9 @@ export default function CartScreen() {
               </TouchableOpacity>
             </View>
 
-
             {/* Add New Payment Section */}
             <View style={styles.addPaymentSection}>
-              <Text style={styles.sectionTitle}>New Payment</Text>
+              <Text style={styles.sectionTitle}>Payment Methods</Text>
               
               <Controller
                 name="paymentType"
@@ -1390,10 +1400,18 @@ const styles = StyleSheet.create({
   activeTransactionButton: {
     backgroundColor: '#FF3B30',
   },
+  cancelOrderButtonDisabled: {
+    backgroundColor: '#F2F2F7',
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+  },
   newTransactionButtonText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  cancelOrderButtonTextDisabled: {
+    color: '#CCCCCC',
   },
     orderInfoContainer: {
     flexDirection: 'row',
