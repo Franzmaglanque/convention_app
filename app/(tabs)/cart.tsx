@@ -688,33 +688,74 @@ export default function CartScreen() {
               <View style={styles.cartItemControls}>
                 <View style={styles.quantityControls}>
                   <TouchableOpacity
-                    style={styles.quantityButton}
-                    onPress={() => updateQuantity(item.product.id, item.quantity - 1)}
+                    style={[
+                      styles.quantityButton,
+                      payments.length > 0 && styles.quantityButtonDisabled
+                    ]}
+                    onPress={() => {
+                      if (payments.length > 0) return;
+                      updateQuantity(item.product.id, item.quantity - 1);
+                    }}
+                    disabled={payments.length > 0}
                   >
-                    <Ionicons name="remove" size={20} color="#007AFF" />
+                    <Ionicons 
+                      name="remove" 
+                      size={20} 
+                      color={payments.length > 0 ? "#CCCCCC" : "#007AFF"} 
+                    />
                   </TouchableOpacity>
                   
                   <View style={styles.quantityDisplay}>
-                    <Text style={styles.quantityText}>{item.quantity}</Text>
+                    <Text style={[
+                      styles.quantityText,
+                      payments.length > 0 && styles.quantityTextDisabled
+                    ]}>
+                      {item.quantity}
+                    </Text>
                   </View>
                   
                   <TouchableOpacity
-                    style={styles.quantityButton}
-                    onPress={() => updateQuantity(item.product.id, item.quantity + 1)}
+                    style={[
+                      styles.quantityButton,
+                      payments.length > 0 && styles.quantityButtonDisabled
+                    ]}
+                    onPress={() => {
+                      if (payments.length > 0) return;
+                      updateQuantity(item.product.id, item.quantity + 1);
+                    }}
+                    disabled={payments.length > 0}
                   >
-                    <Ionicons name="add" size={20} color="#007AFF" />
+                    <Ionicons 
+                      name="add" 
+                      size={20} 
+                      color={payments.length > 0 ? "#CCCCCC" : "#007AFF"} 
+                    />
                   </TouchableOpacity>
                 </View>
 
-                <Text style={styles.itemTotal}>
+                <Text style={[
+                  styles.itemTotal,
+                  payments.length > 0 && styles.itemTotalDisabled
+                ]}>
                   ₱{(parseFloat(item.product.price) * item.quantity).toFixed(2)}
                 </Text>
 
                 <TouchableOpacity
-                  style={styles.removeButton}
-                  onPress={() => removeItem(item.product.id)}
+                  style={[
+                    styles.removeButton,
+                    payments.length > 0 && styles.removeButtonDisabled
+                  ]}
+                  onPress={() => {
+                    if (payments.length > 0) return;
+                    removeItem(item.product.id);
+                  }}
+                  disabled={payments.length > 0}
                 >
-                  <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+                  <Ionicons 
+                    name="trash-outline" 
+                    size={20} 
+                    color={payments.length > 0 ? "#CCCCCC" : "#FF3B30"} 
+                  />
                 </TouchableOpacity>
               </View>
             </View>
@@ -1549,6 +1590,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E5EA',
   },
+  quantityButtonDisabled: {
+    backgroundColor: '#F5F5F5',
+    borderColor: '#E5E5EA',
+  },
   quantityDisplay: {
     minWidth: 40,
     alignItems: 'center',
@@ -1559,14 +1604,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1D1D1F',
   },
+  quantityTextDisabled: {
+    color: '#CCCCCC',
+  },
   itemTotal: {
     fontSize: 16,
     fontWeight: '700',
     color: '#1D1D1F',
     marginVertical: 8,
   },
+  itemTotalDisabled: {
+    color: '#CCCCCC',
+  },
   removeButton: {
     padding: 6,
+  },
+  removeButtonDisabled: {
+    opacity: 0.5,
   },
   summaryContainer: {
     backgroundColor: '#FFFFFF',
