@@ -832,22 +832,22 @@ export default function CartScreen() {
             style={[
               styles.iconButton, 
               styles.checkoutButton,
-              cartItems.length === 0 && styles.checkoutButtonDisabled
+              (cartItems.length === 0 || calculateRemainingBalance() <= 0.01) && styles.checkoutButtonDisabled
             ]}
             onPress={() => {
-              if (cartItems.length === 0) return;
+              if (cartItems.length === 0 || calculateRemainingBalance() <= 0.01) return;
               setShowPaymentModal(true);
             }}
-            disabled={cartItems.length === 0}
+            disabled={cartItems.length === 0 || calculateRemainingBalance() <= 0.01}
           >
             <Ionicons 
               name="checkmark-circle-outline" 
               size={28} 
-              color={cartItems.length === 0 ? "#CCCCCC" : "#FFFFFF"} 
+              color={(cartItems.length === 0 || calculateRemainingBalance() <= 0.01) ? "#CCCCCC" : "#FFFFFF"} 
             />
             <Text style={[
               styles.buttonLabel,
-              cartItems.length === 0 && styles.buttonLabelDisabled
+              (cartItems.length === 0 || calculateRemainingBalance() <= 0.01) && styles.buttonLabelDisabled
             ]}>Pay</Text>
           </TouchableOpacity>
         </View>
@@ -1164,7 +1164,6 @@ export default function CartScreen() {
                       style={[
                         styles.textInput,
                         errors.amount && styles.errorInput,
-                        value && parseFloat(value) > calculateRemainingBalance() && styles.errorInput
                       ]}
                       placeholder={`Enter amount (max: ₱${calculateRemainingBalance().toFixed(2)})`}
                       value={value}
@@ -1187,11 +1186,6 @@ export default function CartScreen() {
                     />
                     {errors.amount && (
                       <Text style={styles.errorText}>{errors.amount.message}</Text>
-                    )}
-                    {value && parseFloat(value) > calculateRemainingBalance() && (
-                      <Text style={styles.errorText}>
-                        Amount cannot exceed remaining balance of ₱{calculateRemainingBalance().toFixed(2)}
-                      </Text>
                     )}
                     <TouchableOpacity onPress={() => {
                       setValue('amount', calculateRemainingBalance().toFixed(2));
@@ -1309,7 +1303,6 @@ export default function CartScreen() {
                   !amount || 
                   isNaN(parseFloat(amount)) || 
                   parseFloat(amount) <= 0 || 
-                  parseFloat(amount) > calculateRemainingBalance() || 
                   ((paymentType === 'PWALLET' || paymentType === 'GCASH') && (!referenceNumber || referenceNumber.trim().length === 0)) ||
                   (paymentType === 'CASH' && (!watch('cashBill') || isNaN(parseFloat(watch('cashBill') || '0')) || parseFloat(watch('cashBill') || '0') < parseFloat(amount || '0')))) && 
                   styles.addPaymentButtonDisabled
@@ -1319,7 +1312,6 @@ export default function CartScreen() {
                   !amount || 
                   isNaN(parseFloat(amount)) || 
                   parseFloat(amount) <= 0 || 
-                  parseFloat(amount) > calculateRemainingBalance() || 
                   ((paymentType === 'PWALLET' || paymentType === 'GCASH') && (!referenceNumber || referenceNumber.trim().length === 0)) ||
                   (paymentType === 'CASH' && (!watch('cashBill') || isNaN(parseFloat(watch('cashBill') || '0')) || parseFloat(watch('cashBill') || '0') < parseFloat(amount || '0')))
                 }
