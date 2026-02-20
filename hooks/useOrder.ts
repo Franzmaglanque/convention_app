@@ -14,3 +14,19 @@ export function newOrder() {
   })
 }
 
+export function useUpdateOrderItem() {
+    return useMutation({
+        mutationKey: ['update-order-item'],
+        mutationFn: (params: { order_no: string; product_id: number; quantity: number }) =>
+            orderService.updateOrderItem(params),
+    });
+}
+
+export function useRemoveOrderItem() {
+    return useMutation({
+        mutationKey: ['remove-order-item'],
+        mutationFn: (params: { order_no: string; product_id: number }) =>
+            orderService.removeOrderItem(params),
+    });
+}
+

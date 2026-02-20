@@ -11,6 +11,16 @@ class OrderService {
         );
         return response.data;
     }
+
+    async updateOrderItem(params: { order_no: string; product_id: number; quantity: number }) {
+        const response = await apiClient.patch(API_ENDPOINTS.ORDER.UPDATE_ITEM, params);
+        return response.data;
+    }
+
+    async removeOrderItem(params: { order_no: string; product_id: number }) {
+        const response = await apiClient.delete(API_ENDPOINTS.ORDER.REMOVE_ITEM, { data: params });
+        return response.data;
+    }
 }
 
 export const orderService = new OrderService();

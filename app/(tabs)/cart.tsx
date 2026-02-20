@@ -3,7 +3,7 @@ import BarcodeScanner from '@/components/BarcodeScanner';
 import ItemList from '@/components/ItemList';
 import { useToast } from '@/components/ToastProvider';
 import { useAuth } from '@/hooks/useAuth';
-import { newOrder } from '@/hooks/useOrder';
+import { newOrder, useRemoveOrderItem, useUpdateOrderItem } from '@/hooks/useOrder';
 import { usePwalletDebit, useScanPwalletQr } from '@/hooks/usePayment';
 import { useScanProduct } from '@/hooks/useProduct';
 import { Ionicons } from '@expo/vector-icons';
@@ -149,6 +149,8 @@ export default function CartScreen() {
   const scanProductMutation = useScanProduct();
   const scanPwalletQrMutation = useScanPwalletQr();
   const pwalletDebitMutation = usePwalletDebit();
+  const updateOrderItemMutation = useUpdateOrderItem();
+  const removeOrderItemMutation = useRemoveOrderItem();
 
   const [showScanner, setShowScanner] = useState(false);
   const [paymentScanner, setPaymentScanner] = useState(false);
@@ -246,7 +248,7 @@ export default function CartScreen() {
     }
 
     scanProductMutation.mutate(
-      { barcode: barcodeData },
+      { barcode: barcodeData,order_no:orderNo },
       {
         onSuccess: (response) => {
           // The response should match ScanProductResponse from product.types.ts
@@ -308,39 +310,59 @@ export default function CartScreen() {
     );
   };
 
-  const updateQuantity = (itemId: number, newQuantity: number) => {
-    if (newQuantity < 1) {
-      removeItem(itemId);
-      return;
+  const updateQuantity = (item: CartItem, newQuantity: number) => {
+    console.log('updateQuantity',item);
+      if (newQuantity < 1) {
+        removeItem(item);
+        return;
     }
-
-    setCartItems(prevItems =>
-      prevItems.map(item =>
-        item.product.id === itemId
-          ? { ...item, quantity: newQuantity }
-          : item
-      )
+    updateOrderItemMutation.mutate(
+        { 
+            order_no: orderNo!, 
+            product_id: item.product.id, 
+            quantity: newQuantity 
+        },
+        {
+            onSuccess: () => {
+                setCartItems(prev =>
+                    prev.map(i =>
+                        i.product.id === item.product.id
+                            ? { ...i, quantity: newQuantity }
+                            : i
+                    )
+                );
+            },
+            onError: () => {
+                showError('Failed to update quantity. Please try again.');
+            }
+        }
     );
   };
 
-  const removeItem = (itemId: number) => {
-    Alert.alert(
-      'Remove Item',
-      'Are you sure you want to remove this item from the cart?',
-      [
+  const removeItem = (item: CartItem) => {
+    Alert.alert('Remove Item', 'Remove this item from the cart?', [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () => {
-            setCartItems(prevItems =>
-              prevItems.filter(item => item.product.id !== itemId)
-            );
-            showInfo('Item removed from cart');
-          }
+            text: 'Remove',
+            style: 'destructive',
+            onPress: () => {
+                removeOrderItemMutation.mutate(
+                    { order_no: orderNo!, product_id: item.product.id },
+                    {
+                        onSuccess: () => {
+                            setCartItems(prev =>
+                                prev.filter(i => i.product.id !== item.product.id)
+                            );
+                            showInfo('Item removed');
+                        },
+                        onError: () => {
+                            showError('Failed to remove item. Please try again.');
+                        }
+                    }
+                );
+            }
         }
-      ]
-    );
+    ]);
   };
 
   const clearCart = () => {
@@ -692,7 +714,7 @@ export default function CartScreen() {
                     ]}
                     onPress={() => {
                       if (payments.length > 0) return;
-                      updateQuantity(item.product.id, item.quantity - 1);
+                      updateQuantity(item, item.quantity - 1);
                     }}
                     disabled={payments.length > 0}
                   >
@@ -719,7 +741,7 @@ export default function CartScreen() {
                     ]}
                     onPress={() => {
                       if (payments.length > 0) return;
-                      updateQuantity(item.product.id, item.quantity + 1);
+                      updateQuantity(item, item.quantity + 1);
                     }}
                     disabled={payments.length > 0}
                   >
@@ -745,7 +767,7 @@ export default function CartScreen() {
                   ]}
                   onPress={() => {
                     if (payments.length > 0) return;
-                    removeItem(item.product.id);
+                    removeItem(item);
                   }}
                   disabled={payments.length > 0}
                 >

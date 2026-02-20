@@ -3,6 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 
 export interface ScanProductParams {
   barcode: string;
+  order_no:string;
 }
 
 export function useScanProduct() {
