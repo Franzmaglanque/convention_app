@@ -3,7 +3,7 @@ import BarcodeScanner from '@/components/BarcodeScanner';
 import ItemList from '@/components/ItemList';
 import { useToast } from '@/components/ToastProvider';
 import { useAuth } from '@/hooks/useAuth';
-import { newOrder, useRemoveOrderItem, useUpdateOrderItem } from '@/hooks/useOrder';
+import { newOrder, useAddItemToOrder, useRemoveOrderItem, useUpdateOrderItem } from '@/hooks/useOrder';
 import { usePwalletDebit, useScanPwalletQr } from '@/hooks/usePayment';
 import { useScanProduct } from '@/hooks/useProduct';
 import { Ionicons } from '@expo/vector-icons';
@@ -151,6 +151,7 @@ export default function CartScreen() {
   const pwalletDebitMutation = usePwalletDebit();
   const updateOrderItemMutation = useUpdateOrderItem();
   const removeOrderItemMutation = useRemoveOrderItem();
+  const addItemToOrderMutation = useAddItemToOrder();
 
   const [showScanner, setShowScanner] = useState(false);
   const [paymentScanner, setPaymentScanner] = useState(false);
@@ -561,11 +562,7 @@ export default function CartScreen() {
 
   const handleBrowseItems = async(product:any) => {
 
-    showInfo(`Selected: ${product.description}`);
-
-
     const cartProduct: CartItem['product'] = {
-      // Base Product fields from the API response
       description: product.description || '',
       price: product.price,
       sku: product.sku,
@@ -573,34 +570,63 @@ export default function CartScreen() {
       barcode: product.barcode
     };
 
+    addItemToOrderMutation.mutate(
+        {
+            order_no: orderNo!,
+            product_id: product.id,
+            sku: product.sku,
+            barcode: product.barcode,
+            description: product.description,
+            price: product.price,
+        },
+        {
+            onSuccess: () => {
+                const existingItemIndex = cartItems.findIndex(
+                    i => i.product.id === product.id
+                );
 
-    // console.log('cartProduct',cartProduct);
+                if (existingItemIndex >= 0) {
+                    const updatedItems = [...cartItems];
+                    updatedItems[existingItemIndex].quantity += 1;
+                    setCartItems(updatedItems);
+                    showSuccess(`Added another ${product.description} to cart`);
+                } else {
+                    setCartItems(prev => [...prev, {
+                        product: cartProduct,
+                        quantity: 1
+                    }]);
+                    showSuccess(`Added ${product.description} to cart`);
+                }
+            },
+            onError: () => {
+                showError('Failed to add item. Please try again.');
+            }
+        }
+    );
 
     const existingItemIndex = cartItems.findIndex(
       item => item.product.barcode === product.barcode
     );
 
-
-    if (existingItemIndex >= 0) {
+    // if (existingItemIndex >= 0) {
       
-      const updatedItems = [...cartItems];
-      updatedItems[existingItemIndex].quantity += 1;
-      setCartItems(updatedItems);
-      showSuccess(`Added another ${product.description} to cart`);
+    //   const updatedItems = [...cartItems];
+    //   updatedItems[existingItemIndex].quantity += 1;
+    //   setCartItems(updatedItems);
+    //   showSuccess(`Added another ${product.description} to cart`);
 
-    }else{
+    // }else{
 
-      const newItem: CartItem = {
-        product: cartProduct,
-        quantity: 1
-      };
-      setCartItems([...cartItems, newItem]);
-      showSuccess(`Added ${cartProduct.description} to cart`);
+    //   const newItem: CartItem = {
+    //     product: cartProduct,
+    //     quantity: 1
+    //   };
+    //   setCartItems([...cartItems, newItem]);
+    //   showSuccess(`Added ${cartProduct.description} to cart`);
 
-    }
+    // }
 
-    console.log('existingItemIndex',existingItemIndex);
-
+    // console.log('existingItemIndex',existingItemIndex);
   }
 
   return (
