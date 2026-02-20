@@ -6,7 +6,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { newOrder } from '@/hooks/useOrder';
 import { usePwalletDebit, useScanPwalletQr } from '@/hooks/usePayment';
 import { useScanProduct } from '@/hooks/useProduct';
-import { Product } from '@/types/product.types';
 import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import React, { useCallback, useRef, useState } from 'react';
@@ -80,7 +79,11 @@ const paymentSchema = z.object({
 type PaymentFormData = z.infer<typeof paymentSchema>;
 
 interface CartItem {
-  product: Product & {
+  product: {
+    id: number;
+    description: string;
+    price: string;
+    sku: string;
     barcode: string;
   };
   quantity: number;
@@ -257,7 +260,6 @@ export default function CartScreen() {
           const cartProduct: CartItem['product'] = {
             // Base Product fields from the API response
             description: productData.description || '',
-            category: productData.category || 'General',
             price: productData.price,
             sku: productData.sku || barcodeData,
             // Additional fields for our cart
@@ -543,7 +545,6 @@ export default function CartScreen() {
     const cartProduct: CartItem['product'] = {
       // Base Product fields from the API response
       description: product.description || '',
-      category: product.category || 'General',
       price: product.price,
       sku: product.sku,
       id: product.id,
@@ -676,9 +677,6 @@ export default function CartScreen() {
                 <Text style={styles.productName}>{item.product.description}</Text>
                 <Text style={styles.productDetails}>
                   Barcode: {item.product.barcode}
-                </Text>
-                <Text style={styles.productDetails}>
-                  Category: {item.product.category}
                 </Text>
                 <Text style={styles.productPrice}>
                   ₱{item.product.price} each
