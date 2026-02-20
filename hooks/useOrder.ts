@@ -30,3 +30,17 @@ export function useRemoveOrderItem() {
     });
 }
 
+export function useAddItemToOrder(){
+  return useMutation({
+    mutationKey: ['add-item-to-oder'],
+    mutationFn: (params: {
+            order_no: string;
+            product_id: number;
+            sku: string;
+            barcode?: string;
+            description: string;
+            price: string;
+    }) => orderService.addItemToOrder(params),
+  })
+}
+
