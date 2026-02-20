@@ -18,6 +18,9 @@ export const API_ENDPOINTS = {
 
   ORDER: {
     NEW_ORDER: '/supplier/new-order',
+    ADD_ITEM: '/supplier/order/add-item',
+    UPDATE_ITEM: '/supplier/order/item',
+    REMOVE_ITEM: '/supplier/order/item',
   },
 
   PRODUCTS: {
