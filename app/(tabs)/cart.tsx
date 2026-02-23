@@ -227,8 +227,9 @@ export default function CartScreen() {
             showError('Failed to get order number from response');
           }
         },
-        onError: () => {
-           showError('Failed to create new transaction. Please try again.');
+        onError: (error) => {
+            console.log('error',error.message)
+            showError('Failed to create new transaction. Please try again.');
         },
         onSettled: () => {
           setIsCreatingTransaction(false);
