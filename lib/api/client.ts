@@ -2,6 +2,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { router } from 'expo-router';
 
+
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 const API_TIMEOUT = 15000;
 
@@ -48,9 +49,9 @@ apiClient.interceptors.response.use(
     }
 
     if(status === 401){
-      useAuthStore.getState().logout();
-      router.replace('/');
-
+      // useAuthStore.getState().logout();
+      useAuthStore.getState().logout('Your session has expired. Please log in again.');
+      router.replace('/(auth)/login');
     }
     return Promise.reject(error);
   }
