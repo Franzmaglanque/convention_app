@@ -434,40 +434,22 @@ export default function CartScreen() {
       showError('Payment amount cannot exceed remaining balance');
       return false;
     }
-
-    if (data.paymentType === 'PWALLET') {
-      try {
-        // Use mutateAsync to wait for the API response
-        const foo = await pwalletDebitMutation.mutateAsync({
-          reference_no: data?.referenceNumber ?? "",
-          amount: amountNum,
-          store_code: 901
-        });
-   
-        // If we reach here, mutation was successful
-      } catch (error) {
-        console.log('debit error',error);
-        // If mutation fails, it throws an error here
-        showError('Debit failed. Please try again.');
-        return false; 
-      }
-    }
-
     
     switch (data.paymentType){
       case 'PWALLET':
         try {
-          // Use mutateAsync to wait for the API response
-          const foo = await pwalletDebitMutation.mutateAsync({
+          await pwalletDebitMutation.mutateAsync({
             reference_no: data?.referenceNumber ?? "",
             amount: amountNum,
-            store_code: 901
+            store_code: 901,
+            order_no:orderNo!,
+            payment_method:data.paymentType
           });
+
+
     
-          // If we reach here, mutation was successful
         } catch (error) {
           console.log('debit error',error);
-          // If mutation fails, it throws an error here
           showError('Debit failed. Please try again.');
           return false; 
         }
@@ -475,10 +457,10 @@ export default function CartScreen() {
       
       case 'CASH':
         try {
-          const response = await cashPaymentMutation.mutateAsync({
+          await cashPaymentMutation.mutateAsync({
             cash_bill:data.cashBill!,
             cash_change:data.cashChange!,
-            amount:data.amount,
+            amount:amountNum,
             payment_method:data.paymentType,
             order_no:orderNo!,
 
@@ -487,11 +469,8 @@ export default function CartScreen() {
           showError('Cash Payment Failed.');
           return false; 
         }
-
-
     }
     
-
     // For CASH payments, include cashBill and cashChange
     const newPayment = {
       type: data.paymentType,
