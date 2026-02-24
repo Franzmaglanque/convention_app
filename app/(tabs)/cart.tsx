@@ -4,7 +4,7 @@ import ItemList from '@/components/ItemList';
 import { useToast } from '@/components/ToastProvider';
 import { useAuth } from '@/hooks/useAuth';
 import { newOrder, useAddItemToOrder, useRemoveOrderItem, useUpdateOrderItem } from '@/hooks/useOrder';
-import { usePwalletDebit, useScanPwalletQr } from '@/hooks/usePayment';
+import { usePwalletDebit, useSaveCashPayment, useScanPwalletQr } from '@/hooks/usePayment';
 import { useScanProduct } from '@/hooks/useProduct';
 import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -152,6 +152,7 @@ export default function CartScreen() {
   const updateOrderItemMutation = useUpdateOrderItem();
   const removeOrderItemMutation = useRemoveOrderItem();
   const addItemToOrderMutation = useAddItemToOrder();
+  const cashPaymentMutation = useSaveCashPayment()
 
   const [showScanner, setShowScanner] = useState(false);
   const [paymentScanner, setPaymentScanner] = useState(false);
@@ -450,6 +451,44 @@ export default function CartScreen() {
         showError('Debit failed. Please try again.');
         return false; 
       }
+    }
+
+    
+    switch (data.paymentType){
+      case 'PWALLET':
+        try {
+          // Use mutateAsync to wait for the API response
+          const foo = await pwalletDebitMutation.mutateAsync({
+            reference_no: data?.referenceNumber ?? "",
+            amount: amountNum,
+            store_code: 901
+          });
+    
+          // If we reach here, mutation was successful
+        } catch (error) {
+          console.log('debit error',error);
+          // If mutation fails, it throws an error here
+          showError('Debit failed. Please try again.');
+          return false; 
+        }
+        break;
+      
+      case 'CASH':
+        try {
+          const response = await cashPaymentMutation.mutateAsync({
+            cash_bill:data.cashBill!,
+            cash_change:data.cashChange!,
+            amount:data.amount,
+            payment_method:data.paymentType,
+            order_no:orderNo!,
+
+          });
+        } catch (error) {
+          showError('Cash Payment Failed.');
+          return false; 
+        }
+
+
     }
     
 

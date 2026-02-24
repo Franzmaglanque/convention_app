@@ -1,6 +1,6 @@
 import { apiClient } from '@/lib/api/client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
-import { ScanPwalletQrResponse, pwalletDebitResponse } from '@/types/payment.types';
+import { ScanPwalletQrResponse, cashPaymentResponse, pwalletDebitResponse } from '@/types/payment.types';
 import { AxiosResponse } from 'axios';
 
 class PaymentService {
@@ -21,6 +21,14 @@ class PaymentService {
         );
      
         return response.data;
+    }
+
+    async saveCashPayment(params:any): Promise<cashPaymentResponse>{
+        const response: AxiosResponse<cashPaymentResponse> = await apiClient.post(
+            API_ENDPOINTS.PAYMENTS.SAVE_CASH,
+            params
+        );
+        return response.data
     }
 
 }
