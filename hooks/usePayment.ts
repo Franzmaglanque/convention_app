@@ -1,6 +1,6 @@
 import { paymentService } from '@/services/payment.service';
+import { cashPaymentParams, pwalletDebitParams } from '@/types/payment.types';
 import { useMutation } from '@tanstack/react-query';
-import { pwalletDebitParams } from '@/types/payment.types';
 
 
 export interface ScanPwalletQrParams {
@@ -30,5 +30,12 @@ export function usePwalletDebit() {
         onError: (error) => {
         
         }
+    })
+}
+
+export function useSaveCashPayment(){
+    return useMutation({
+        mutationKey: ['save_cash_payment'],
+        mutationFn: (params:cashPaymentParams) => paymentService.saveCashPayment(params),
     })
 }
