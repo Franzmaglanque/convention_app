@@ -12,6 +12,14 @@ class OrderService {
         return response.data;
     }
 
+    async completeOrder(params:any){
+        const response = await apiClient.post(
+            API_ENDPOINTS.ORDER.COMPLETE_ORDER,
+            params
+        )
+        return response.data;
+    }
+
     async updateOrderItem(params: { order_no: string; product_id: number; quantity: number }) {
         const response = await apiClient.patch(API_ENDPOINTS.ORDER.UPDATE_ITEM, params);
         return response.data;
@@ -35,6 +43,7 @@ class OrderService {
         const response = await apiClient.post(API_ENDPOINTS.ORDER.ADD_ITEM,params);
         return response.data;
     }
+    
 }
 
 export const orderService = new OrderService();

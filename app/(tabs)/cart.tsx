@@ -3,7 +3,7 @@ import BarcodeScanner from '@/components/BarcodeScanner';
 import ItemList from '@/components/ItemList';
 import { useToast } from '@/components/ToastProvider';
 import { useAuth } from '@/hooks/useAuth';
-import { newOrder, useAddItemToOrder, useRemoveOrderItem, useUpdateOrderItem } from '@/hooks/useOrder';
+import { newOrder, useAddItemToOrder, useCompleteOrder, useRemoveOrderItem, useUpdateOrderItem } from '@/hooks/useOrder';
 import { usePwalletDebit, useSaveCashPayment, useScanPwalletQr } from '@/hooks/usePayment';
 import { useScanProduct } from '@/hooks/useProduct';
 import { Ionicons } from '@expo/vector-icons';
@@ -152,7 +152,8 @@ export default function CartScreen() {
   const updateOrderItemMutation = useUpdateOrderItem();
   const removeOrderItemMutation = useRemoveOrderItem();
   const addItemToOrderMutation = useAddItemToOrder();
-  const cashPaymentMutation = useSaveCashPayment()
+  const cashPaymentMutation = useSaveCashPayment();
+  const completeOrderMutation = useCompleteOrder();
 
   const [showScanner, setShowScanner] = useState(false);
   const [paymentScanner, setPaymentScanner] = useState(false);
@@ -496,41 +497,57 @@ export default function CartScreen() {
     return true;
   };
 
-  const handleCompleteTransaction = () => {
-    const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
-    const totalAmount = calculateTotal();
+  const handleCompleteTransaction = async() => {
+    // const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
+    // const totalAmount = calculateTotal();
     
-    console.log('Processing payment with details:');
-    console.log('Payments:', payments);
-    console.log('Total Paid:', totalPaid);
-    console.log('Total Amount:', totalAmount);
-    console.log('Order No:', orderNo);
-    console.log('Carded Transaction:', isCardedTransaction);
+    // console.log('Processing payment with details:');
+    // console.log('Payments:', payments);
+    // console.log('Total Paid:', totalPaid);
+    // console.log('Total Amount:', totalAmount);
+    // console.log('Order No:', orderNo);
+    // console.log('Carded Transaction:', isCardedTransaction);
 
-    setShowPaymentModal(false);
+    // setShowPaymentModal(false);
     
-    let successMessage = `Transaction ${orderNo} completed!`;
-    if (payments.length > 1) {
-      successMessage += ` (Multi-tender: ${payments.map(p => `${p.type}: ₱${p.amount.toFixed(2)}`).join(', ')})`;
-    } else if (payments.length === 1) {
-      successMessage += ` via ${payments[0].type}`;
-    }
+    // let successMessage = `Transaction ${orderNo} completed!`;
+    // if (payments.length > 1) {
+    //   successMessage += ` (Multi-tender: ${payments.map(p => `${p.type}: ₱${p.amount.toFixed(2)}`).join(', ')})`;
+    // } else if (payments.length === 1) {
+    //   successMessage += ` via ${payments[0].type}`;
+    // }
     
-    if (isCardedTransaction) {
-      successMessage += ' (Carded)';
-    }
+    // if (isCardedTransaction) {
+    //   successMessage += ' (Carded)';
+    // }
     
-    showSuccess(successMessage);
+    // showSuccess(successMessage);
     
-    // Reset the form
-    reset({
-      paymentType: undefined,
-      amount: '',
-      referenceNumber: '',
-    });
-    setPayments([]);
-    setCartItems([]);
-    setOrderNo(null);
+    await completeOrderMutation.mutate({
+      order_no:orderNo
+    },{
+      onSuccess: (response) => {
+        // Reset the form
+        reset({
+          paymentType: undefined,
+          amount: '',
+          referenceNumber: '',
+        });
+        setPayments([]);
+        setCartItems([]);
+        setOrderNo(null);
+        showSuccess(`Order # ${orderNo} has been completed`);
+      },
+      onError: () => {
+          showError('Failed to complete transaction. Please seek assistance for this issue.');
+      },
+      onSettled: () => {
+    
+      }
+    })
+
+
+    
   }
 
   const handlePaymentScanned = async (barcodeData: string) => {

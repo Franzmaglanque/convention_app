@@ -6,10 +6,22 @@ export function newOrder() {
     mutationKey: ['new-order'],
     mutationFn: (params: any) => orderService.newOrder(params),  // ← Accept params here
     onSuccess: (response) => {
-      console.log('Login successful:', response);
+
     },
     onError: (error) => {
-      console.log('Login failed:', error);
+    }
+  })
+}
+
+export function useCompleteOrder() {
+  return useMutation({
+    mutationKey: ['complete-order'],
+    mutationFn: (params: any) => orderService.completeOrder(params),  // ← Accept params here
+    onSuccess: (response) => {
+
+    },
+    onError: (error) => {
+
     }
   })
 }
