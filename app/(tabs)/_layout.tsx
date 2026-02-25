@@ -1,7 +1,7 @@
+import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth } from '@/hooks/useAuth';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import ProtectedRoute from '@/components/ProtectedRoute';
 
 export default function TabsLayout() {
   const { user } = useAuth();
@@ -64,6 +64,7 @@ export default function TabsLayout() {
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="receipt-outline" size={size} color={color} />
             ),
+            href: isSupplierManager ? '/transactions' : null,
           }}
         />
       </Tabs>
