@@ -3,7 +3,7 @@ import BarcodeScanner from '@/components/BarcodeScanner';
 import ItemList from '@/components/ItemList';
 import { useToast } from '@/components/ToastProvider';
 import { useAuth } from '@/hooks/useAuth';
-import { newOrder, useAddItemToOrder, useCompleteOrder, useRemoveOrderItem, useUpdateOrderItem } from '@/hooks/useOrder';
+import { newOrder, useAddItemToOrder, useCancelOrder, useCompleteOrder, useRemoveOrderItem, useUpdateOrderItem } from '@/hooks/useOrder';
 import { usePwalletDebit, useSaveCashPayment, useScanPwalletQr } from '@/hooks/usePayment';
 import { useScanProduct } from '@/hooks/useProduct';
 import { Ionicons } from '@expo/vector-icons';
@@ -154,6 +154,8 @@ export default function CartScreen() {
   const addItemToOrderMutation = useAddItemToOrder();
   const cashPaymentMutation = useSaveCashPayment();
   const completeOrderMutation = useCompleteOrder();
+  const cancelOrderMutation = useCancelOrder();
+
 
   const [showScanner, setShowScanner] = useState(false);
   const [paymentScanner, setPaymentScanner] = useState(false);
@@ -192,9 +194,22 @@ export default function CartScreen() {
           text: 'Cancel Order',
           style: 'destructive',
           onPress: () => {
-            setCartItems([]);
-            setOrderNo(null);
-            showInfo('Order cancelled successfully');
+            cancelOrderMutation.mutate(
+              { order_no:orderNo }, 
+              {
+                onSuccess: () => {
+                  setCartItems([]);
+                  setOrderNo(null);
+                  showSuccess('Order cancelled successfully');
+                },
+                onError: (error) => {
+                  showError('Failed to cancel order on server');
+                }
+              }
+            );
+            // setCartItems([]);
+            // setOrderNo(null);
+            // showInfo('Order cancelled successfully');
           }
         }
       ]
@@ -367,26 +382,6 @@ export default function CartScreen() {
             }
         }
     ]);
-  };
-
-  const clearCart = () => {
-    if (cartItems.length === 0) return;
-    
-    Alert.alert(
-      'Clear Cart',
-      'Are you sure you want to remove all items from the cart?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear All',
-          style: 'destructive',
-          onPress: () => {
-            setCartItems([]);
-            showInfo('Cart cleared');
-          }
-        }
-      ]
-    );
   };
 
   const calculateSubtotal = () => {
@@ -882,28 +877,6 @@ export default function CartScreen() {
 
       {/* Action Buttons - Neatly Aligned */}
       <View style={styles.actionButtonsContainer}>
-        <View style={styles.buttonGroup}>
-          <TouchableOpacity
-            style={[
-              styles.iconButton, 
-              styles.clearButton,
-              (cartItems.length === 0 || payments.length > 0 ) && styles.clearButtonDisabled
-            ]}
-            onPress={clearCart}
-            disabled={cartItems.length === 0 || payments.length > 0}
-          >
-            <Ionicons 
-              name="trash-outline" 
-              size={24} 
-              color={(cartItems.length === 0 || payments.length > 0 ) ? "#CCCCCC" : "#FF3B30"} 
-            />
-            <Text style={[
-              styles.buttonLabel,
-              (cartItems.length === 0 || payments.length > 0 ) && styles.buttonLabelDisabled
-            ]}>Clear</Text>
-          </TouchableOpacity>
-        </View>
-
         <View style={styles.buttonGroup}>
           <TouchableOpacity
             style={[
