@@ -303,7 +303,7 @@ export default function CartScreen() {
           
           // Check if it's a "not found" error
           if (error.response?.status === 404 || error.message?.includes('not found')) {
-            showError('Product not found. Please try manual entry.');
+            showError('Product not found.');
           } else if (error.response?.status === 401) {
             showError('Session expired. Please login again.');
           } else {
@@ -562,7 +562,9 @@ export default function CartScreen() {
           setPaymentScanner(false);
         },
         onError: () => {
-           showError('Failed to create new transaction. Please try again.');
+          setPaymentScanner(false);
+
+           showError('Invalid Pwallet Qr Code');
         },
         onSettled: () => {
       
