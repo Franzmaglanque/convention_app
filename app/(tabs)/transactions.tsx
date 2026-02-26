@@ -1,20 +1,19 @@
-import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '@/constants/payment';
-import { TRANSACTION_STATUS, TRANSACTION_STATUS_COLORS, TRANSACTION_STATUS_LABELS } from '@/constants/transaction';
-import { useAuth } from '@/hooks/useAuth';
+import { PAYMENT_METHODS } from '@/constants/payment';
+import { TRANSACTION_STATUS, TRANSACTION_STATUS_COLORS } from '@/constants/transaction';
+import { fetchSupplierOrders } from '@/hooks/useOrder';
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-// Mock transaction data type - replace with actual API types
+// Updated transaction data type to support multi-tender and card numbers
 interface Transaction {
   id: string;
   orderNo: string;
   totalAmount: number;
-  paymentMethod: string;
+  paymentMethods: string[]; // Array to support multi-tender payments
   status: string;
   createdAt: string;
   itemsCount: number;
-  customerName?: string;
+  cardNumber?: string; // Replaced customerName with cardNumber
 }
 
 // Mock transaction data - replace with actual API call
@@ -23,96 +22,71 @@ const mockTransactions: Transaction[] = [
     id: '1',
     orderNo: 'ORD-2024-001',
     totalAmount: 1250.75,
-    paymentMethod: PAYMENT_METHODS.PWALLET,
+    paymentMethods: [PAYMENT_METHODS.PWALLET],
     status: TRANSACTION_STATUS.COMPLETED,
     createdAt: '2024-01-15T10:30:00Z',
     itemsCount: 5,
-    customerName: 'John Doe'
+    cardNumber: 'CARD-10029384'
   },
   {
     id: '2',
     orderNo: 'ORD-2024-002',
     totalAmount: 850.50,
-    paymentMethod: PAYMENT_METHODS.GCASH,
+    paymentMethods: [PAYMENT_METHODS.GCASH, PAYMENT_METHODS.CASH], // Multi-tender example
     status: TRANSACTION_STATUS.COMPLETED,
     createdAt: '2024-01-15T11:15:00Z',
     itemsCount: 3,
-    customerName: 'Jane Smith'
+    cardNumber: 'CARD-99384712'
   },
   {
     id: '3',
     orderNo: 'ORD-2024-003',
     totalAmount: 2250.25,
-    paymentMethod: PAYMENT_METHODS.CASH,
+    paymentMethods: [PAYMENT_METHODS.CASH],
     status: TRANSACTION_STATUS.PENDING,
     createdAt: '2024-01-15T12:45:00Z',
     itemsCount: 8,
-    customerName: 'Robert Johnson'
+    cardNumber: 'CARD-55482910'
   },
   {
     id: '4',
     orderNo: 'ORD-2024-004',
     totalAmount: 450.00,
-    paymentMethod: PAYMENT_METHODS.PWALLET,
+    paymentMethods: [PAYMENT_METHODS.PWALLET],
     status: TRANSACTION_STATUS.COMPLETED,
     createdAt: '2024-01-14T09:20:00Z',
     itemsCount: 2,
-    customerName: 'Maria Garcia'
+    cardNumber: 'CARD-11223344'
   },
   {
     id: '5',
     orderNo: 'ORD-2024-005',
     totalAmount: 1750.00,
-    paymentMethod: PAYMENT_METHODS.GCASH,
+    paymentMethods: [PAYMENT_METHODS.GCASH],
     status: TRANSACTION_STATUS.CANCELLED,
     createdAt: '2024-01-14T14:10:00Z',
     itemsCount: 6,
-    customerName: 'David Wilson'
+    cardNumber: 'CARD-99887766'
   },
   {
     id: '6',
     orderNo: 'ORD-2024-006',
     totalAmount: 3200.00,
-    paymentMethod: PAYMENT_METHODS.CASH,
+    paymentMethods: [PAYMENT_METHODS.CASH, PAYMENT_METHODS.PWALLET], // Multi-tender example
     status: TRANSACTION_STATUS.COMPLETED,
     createdAt: '2024-01-13T16:30:00Z',
     itemsCount: 12,
-    customerName: 'Sarah Miller'
+    cardNumber: 'CARD-44556677'
   },
 ];
 
 export default function TransactionsScreen() {
-  const { user, isAuthenticated } = useAuth();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<string>('all'); // 'all', 'completed', 'pending', 'cancelled'
-
-  useEffect(() => {
-    // Simulate API call
-    const fetchTransactions = async () => {
-      setLoading(true);
-      // TODO: Replace with actual API call
-      // const response = await transactionService.getUserTransactions(user?.id);
-      // setTransactions(response.data);
-      
-      // Using mock data for now
-      setTimeout(() => {
-        setTransactions(mockTransactions);
-        setLoading(false);
-      }, 1000);
-    };
-
-    if (isAuthenticated) {
-      fetchTransactions();
-    } else {
-      setTransactions([]);
-      setLoading(false);
-    }
-  }, [isAuthenticated]);
-
-  const filteredTransactions = filter === 'all' 
-    ? transactions 
-    : transactions.filter(t => t.status === filter);
+  const {
+      data: transactions,
+      isLoading,
+      isError,
+      refetch
+  } = fetchSupplierOrders();
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -132,33 +106,15 @@ export default function TransactionsScreen() {
     })}`;
   };
 
-  const getPaymentMethodIcon = (method: string) => {
-    switch (method) {
-      case PAYMENT_METHODS.PWALLET:
-        return 'wallet-outline';
-      case PAYMENT_METHODS.GCASH:
-        return 'phone-portrait-outline';
-      case PAYMENT_METHODS.CASH:
-        return 'cash-outline';
-      default:
-        return 'card-outline';
-    }
-  };
-
-  if (!isAuthenticated) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.authRequiredContainer}>
-          <Ionicons name="lock-closed-outline" size={64} color="#CCCCCC" />
-          <Text style={styles.authRequiredTitle}>Authentication Required</Text>
-          <Text style={styles.authRequiredText}>
-            Please log in to view your transaction history
-          </Text>
+  if(isLoading){
+    return(
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#0066cc" />
+          <Text style={styles.loadingText}>Loading transactions...</Text>
         </View>
-      </View>
-    );
+    )
   }
-
+  // console.log('dhsjadjhas',transactions);
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -168,80 +124,42 @@ export default function TransactionsScreen() {
         </Text>
       </View>
 
-      {/* Filter Buttons */}
-      {/* <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterContainer}
-      >
-        <Pressable
-          style={[styles.filterButton, filter === 'all' && styles.filterButtonActive]}
-          onPress={() => setFilter('all')}
-        >
-          <Text style={[styles.filterButtonText, filter === 'all' && styles.filterButtonTextActive]}>
-            All Transactions
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.filterButton, filter === TRANSACTION_STATUS.COMPLETED && styles.filterButtonActive]}
-          onPress={() => setFilter(TRANSACTION_STATUS.COMPLETED)}
-        >
-          <View style={[styles.statusDot, { backgroundColor: TRANSACTION_STATUS_COLORS[TRANSACTION_STATUS.COMPLETED] }]} />
-          <Text style={[styles.filterButtonText, filter === TRANSACTION_STATUS.COMPLETED && styles.filterButtonTextActive]}>
-            Completed
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.filterButton, filter === TRANSACTION_STATUS.PENDING && styles.filterButtonActive]}
-          onPress={() => setFilter(TRANSACTION_STATUS.PENDING)}
-        >
-          <View style={[styles.statusDot, { backgroundColor: TRANSACTION_STATUS_COLORS[TRANSACTION_STATUS.PENDING] }]} />
-          <Text style={[styles.filterButtonText, filter === TRANSACTION_STATUS.PENDING && styles.filterButtonTextActive]}>
-            Pending
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.filterButton, filter === TRANSACTION_STATUS.CANCELLED && styles.filterButtonActive]}
-          onPress={() => setFilter(TRANSACTION_STATUS.CANCELLED)}
-        >
-          <View style={[styles.statusDot, { backgroundColor: TRANSACTION_STATUS_COLORS[TRANSACTION_STATUS.CANCELLED] }]} />
-          <Text style={[styles.filterButtonText, filter === TRANSACTION_STATUS.CANCELLED && styles.filterButtonTextActive]}>
-            Cancelled
-          </Text>
-        </Pressable>
-      </ScrollView> */}
-
       {/* Transactions List */}
       <ScrollView style={styles.transactionsList}>
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#0066cc" />
-            <Text style={styles.loadingText}>Loading transactions...</Text>
-          </View>
-        ) : filteredTransactions.length === 0 ? (
+        {transactions.data.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="receipt-outline" size={64} color="#CCCCCC" />
             <Text style={styles.emptyText}>No transactions found</Text>
             <Text style={styles.emptySubtext}>
-              {filter === 'all' 
-                ? 'You haven\'t made any transactions yet' 
-                : `No ${filter} transactions found`}
+              You have not made any transactions yet
             </Text>
           </View>
-        ) : (
-          filteredTransactions.map((transaction) => (
+        ) :  (
+          transactions.data.map((transaction:any) => (
             <View key={transaction.id} style={styles.transactionCard}>
               <View style={styles.transactionHeader}>
                 <View style={styles.orderInfo}>
-                  <Text style={styles.orderNumber}>{transaction.orderNo}</Text>
-                  <View style={[styles.statusBadge, { backgroundColor: TRANSACTION_STATUS_COLORS[transaction.status as keyof typeof TRANSACTION_STATUS_COLORS] }]}>
+                  <Text style={styles.orderNumber}>Order # {transaction.order_no}</Text>
+                  {/* <View style={[styles.statusBadge, { backgroundColor: TRANSACTION_STATUS_COLORS[transaction.order_status as TRANSACTION_STATUS] }]}> */}
+                  {/* <View style={[
+                    styles.statusBadge, 
+                    { backgroundColor: TRANSACTION_STATUS_COLORS[transaction.order_status as TransactionStatus] }
+                  ]}> */}
+                  <View style={[
+                    styles.statusBadge, 
+                    { 
+                      backgroundColor: TRANSACTION_STATUS_COLORS[transaction.order_status as keyof typeof TRANSACTION_STATUS_COLORS] 
+                    }
+                  ]}>
                     <Text style={styles.statusText}>
-                      {TRANSACTION_STATUS_LABELS[transaction.status as keyof typeof TRANSACTION_STATUS_LABELS]}
+                      {/* {TRANSACTION_STATUS_LABELS[transaction.status as keyof typeof TRANSACTION_STATUS_LABELS]} */}
+                      {transaction.order_status}
+               
                     </Text>
                   </View>
                 </View>
                 <Text style={styles.transactionDate}>
-                  {formatDate(transaction.createdAt)}
+                  {formatDate(transaction.created_at)}
                 </Text>
               </View>
 
@@ -251,17 +169,7 @@ export default function TransactionsScreen() {
                     <Ionicons name="cash-outline" size={16} color="#666" />
                     <Text style={styles.detailLabel}>Total Amount:</Text>
                   </View>
-                  <Text style={styles.detailValue}>{formatCurrency(transaction.totalAmount)}</Text>
-                </View>
-
-                <View style={styles.detailRow}>
-                  <View style={styles.detailLabelContainer}>
-                    <Ionicons name={getPaymentMethodIcon(transaction.paymentMethod)} size={16} color="#666" />
-                    <Text style={styles.detailLabel}>Payment Method:</Text>
-                  </View>
-                  <Text style={styles.detailValue}>
-                    {PAYMENT_METHOD_LABELS[transaction.paymentMethod as keyof typeof PAYMENT_METHOD_LABELS] || transaction.paymentMethod}
-                  </Text>
+                  <Text style={styles.detailValue}>{formatCurrency(transaction.total)}</Text>
                 </View>
 
                 <View style={styles.detailRow}>
@@ -269,28 +177,28 @@ export default function TransactionsScreen() {
                     <Ionicons name="cube-outline" size={16} color="#666" />
                     <Text style={styles.detailLabel}>Items:</Text>
                   </View>
-                  <Text style={styles.detailValue}>{transaction.itemsCount} items</Text>
+                  <Text style={styles.detailValue}>{transaction.item_count} items</Text>
                 </View>
 
-                {transaction.customerName && (
+                {transaction.cardNumber && (
                   <View style={styles.detailRow}>
                     <View style={styles.detailLabelContainer}>
-                      <Ionicons name="person-outline" size={16} color="#666" />
-                      <Text style={styles.detailLabel}>Customer:</Text>
+                      <Ionicons name="card-outline" size={16} color="#666" />
+                      <Text style={styles.detailLabel}>Card Number:</Text>
                     </View>
-                    <Text style={styles.detailValue}>{transaction.customerName}</Text>
+                    <Text style={styles.detailValue}>{transaction.cardNumber}</Text>
                   </View>
                 )}
               </View>
 
               <View style={styles.transactionActions}>
                 <Pressable style={styles.actionButton}>
-                  <Ionicons name="eye-outline" size={18} color="#0066cc" />
-                  <Text style={styles.actionButtonText}>View Details</Text>
+                  <Ionicons name="list-outline" size={18} color="#0066cc" />
+                  <Text style={styles.actionButtonText}>View Items</Text>
                 </Pressable>
                 <Pressable style={styles.actionButton}>
-                  <Ionicons name="print-outline" size={18} color="#666" />
-                  <Text style={[styles.actionButtonText, styles.actionButtonTextSecondary]}>Print Receipt</Text>
+                  <Ionicons name="receipt-outline" size={18} color="#666" />
+                  <Text style={[styles.actionButtonText, styles.actionButtonTextSecondary]}>View Payments</Text>
                 </Pressable>
               </View>
             </View>
@@ -346,33 +254,28 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     height: 60,
   },
-  
   filterButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
-    height: 40, // Fixed button height
+    height: 40,
     borderRadius: 20,
     backgroundColor: '#f0f0f0',
     marginRight: 10,
-    marginTop: 10, // Position from top (60-40=20, so 10 from top leaves 10 at bottom)
+    marginTop: 10,
   },
-  
   filterButtonActive: {
     backgroundColor: '#0066cc',
   },
-  
   filterButtonText: {
     fontSize: 14,
     color: '#666',
     fontWeight: '500',
   },
-  
   filterButtonTextActive: {
     color: '#fff',
   },
-  
   statusDot: {
     width: 8,
     height: 8,

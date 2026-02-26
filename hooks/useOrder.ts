@@ -1,5 +1,5 @@
 import { orderService } from '@/services/order.service';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 
 export function newOrder() {
   return useMutation({
@@ -54,5 +54,12 @@ export function useAddItemToOrder(){
             price: string;
     }) => orderService.addItemToOrder(params),
   })
+}
+
+export function fetchSupplierOrders(){
+  return useQuery({
+    queryKey: ['fetch-supplier-orders'],
+    queryFn: () => orderService.fetchSupplierOrderList()
+  });
 }
 
