@@ -40,8 +40,12 @@ class OrderService {
     }){
         console.log('addItemToOrder',params);
 
-        const response = await apiClient.post(API_ENDPOINTS.ORDER.ADD_ITEM,params);
+        const response = await apiClient.post(API_ENDPOINTS.ORDER.SUPPLIER_ORDER_LIST,params);
         return response.data;
+    }
+
+    async fetchSupplierOrderList(){
+        const response = await apiClient.get(API_ENDPOINTS.ORDER.SUPPLIER_ORDER_LIST)
     }
     
 }
