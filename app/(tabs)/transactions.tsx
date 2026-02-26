@@ -1,8 +1,7 @@
-import { PAYMENT_METHODS } from '@/constants/payment';
-import { TRANSACTION_STATUS, TRANSACTION_STATUS_COLORS } from '@/constants/transaction';
+import { TRANSACTION_STATUS_COLORS } from '@/constants/transaction';
 import { fetchSupplierOrders } from '@/hooks/useOrder';
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 // Updated transaction data type to support multi-tender and card numbers
 interface Transaction {
@@ -16,76 +15,13 @@ interface Transaction {
   cardNumber?: string; // Replaced customerName with cardNumber
 }
 
-// Mock transaction data - replace with actual API call
-const mockTransactions: Transaction[] = [
-  {
-    id: '1',
-    orderNo: 'ORD-2024-001',
-    totalAmount: 1250.75,
-    paymentMethods: [PAYMENT_METHODS.PWALLET],
-    status: TRANSACTION_STATUS.COMPLETED,
-    createdAt: '2024-01-15T10:30:00Z',
-    itemsCount: 5,
-    cardNumber: 'CARD-10029384'
-  },
-  {
-    id: '2',
-    orderNo: 'ORD-2024-002',
-    totalAmount: 850.50,
-    paymentMethods: [PAYMENT_METHODS.GCASH, PAYMENT_METHODS.CASH], // Multi-tender example
-    status: TRANSACTION_STATUS.COMPLETED,
-    createdAt: '2024-01-15T11:15:00Z',
-    itemsCount: 3,
-    cardNumber: 'CARD-99384712'
-  },
-  {
-    id: '3',
-    orderNo: 'ORD-2024-003',
-    totalAmount: 2250.25,
-    paymentMethods: [PAYMENT_METHODS.CASH],
-    status: TRANSACTION_STATUS.PENDING,
-    createdAt: '2024-01-15T12:45:00Z',
-    itemsCount: 8,
-    cardNumber: 'CARD-55482910'
-  },
-  {
-    id: '4',
-    orderNo: 'ORD-2024-004',
-    totalAmount: 450.00,
-    paymentMethods: [PAYMENT_METHODS.PWALLET],
-    status: TRANSACTION_STATUS.COMPLETED,
-    createdAt: '2024-01-14T09:20:00Z',
-    itemsCount: 2,
-    cardNumber: 'CARD-11223344'
-  },
-  {
-    id: '5',
-    orderNo: 'ORD-2024-005',
-    totalAmount: 1750.00,
-    paymentMethods: [PAYMENT_METHODS.GCASH],
-    status: TRANSACTION_STATUS.CANCELLED,
-    createdAt: '2024-01-14T14:10:00Z',
-    itemsCount: 6,
-    cardNumber: 'CARD-99887766'
-  },
-  {
-    id: '6',
-    orderNo: 'ORD-2024-006',
-    totalAmount: 3200.00,
-    paymentMethods: [PAYMENT_METHODS.CASH, PAYMENT_METHODS.PWALLET], // Multi-tender example
-    status: TRANSACTION_STATUS.COMPLETED,
-    createdAt: '2024-01-13T16:30:00Z',
-    itemsCount: 12,
-    cardNumber: 'CARD-44556677'
-  },
-];
-
 export default function TransactionsScreen() {
   const {
       data: transactions,
       isLoading,
       isError,
-      refetch
+      refetch,
+      isRefetching
   } = fetchSupplierOrders();
 
   const formatDate = (dateString: string) => {
@@ -114,7 +50,7 @@ export default function TransactionsScreen() {
         </View>
     )
   }
-  // console.log('dhsjadjhas',transactions);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -125,7 +61,17 @@ export default function TransactionsScreen() {
       </View>
 
       {/* Transactions List */}
-      <ScrollView style={styles.transactionsList}>
+      <ScrollView 
+        style={styles.transactionsList}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching} // Spinner visible while refetching
+            onRefresh={refetch}        // Calls the hook's refetch function
+            colors={['#0066cc']}      // Spinner color (Android)
+            tintColor={'#0066cc'}     // Spinner color (iOS)
+          />
+        }  
+      >
         {transactions.data.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="receipt-outline" size={64} color="#CCCCCC" />
@@ -180,15 +126,13 @@ export default function TransactionsScreen() {
                   <Text style={styles.detailValue}>{transaction.item_count} items</Text>
                 </View>
 
-                {transaction.cardNumber && (
-                  <View style={styles.detailRow}>
+                <View style={styles.detailRow}>
                     <View style={styles.detailLabelContainer}>
                       <Ionicons name="card-outline" size={16} color="#666" />
                       <Text style={styles.detailLabel}>Card Number:</Text>
                     </View>
-                    <Text style={styles.detailValue}>{transaction.cardNumber}</Text>
+                    <Text style={styles.detailValue}>{transaction.customer_card_no}</Text>
                   </View>
-                )}
               </View>
 
               <View style={styles.transactionActions}>

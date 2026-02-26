@@ -493,30 +493,6 @@ export default function CartScreen() {
   };
 
   const handleCompleteTransaction = async() => {
-    // const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
-    // const totalAmount = calculateTotal();
-    
-    // console.log('Processing payment with details:');
-    // console.log('Payments:', payments);
-    // console.log('Total Paid:', totalPaid);
-    // console.log('Total Amount:', totalAmount);
-    // console.log('Order No:', orderNo);
-    // console.log('Carded Transaction:', isCardedTransaction);
-
-    // setShowPaymentModal(false);
-    
-    // let successMessage = `Transaction ${orderNo} completed!`;
-    // if (payments.length > 1) {
-    //   successMessage += ` (Multi-tender: ${payments.map(p => `${p.type}: ₱${p.amount.toFixed(2)}`).join(', ')})`;
-    // } else if (payments.length === 1) {
-    //   successMessage += ` via ${payments[0].type}`;
-    // }
-    
-    // if (isCardedTransaction) {
-    //   successMessage += ' (Carded)';
-    // }
-    
-    // showSuccess(successMessage);
     
     await completeOrderMutation.mutate({
       order_no:orderNo
