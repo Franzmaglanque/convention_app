@@ -4,7 +4,6 @@
  */
 
 export const API_ENDPOINTS = {
-  // Authentication
   AUTH: {
     LOGIN: '/supplier/login',
     LOGOUT: '/auth/logout',
@@ -19,17 +18,25 @@ export const API_ENDPOINTS = {
 
   ORDER: {
     NEW_ORDER: '/supplier/new-order',
+    ADD_ITEM: '/supplier/order/add-item',
+    UPDATE_ITEM: '/supplier/order/item',
+    REMOVE_ITEM: '/supplier/order/item',
+    COMPLETE_ORDER: '/supplier/complete-order',
+    SUPPLIER_ORDER_LIST: '/supplier/order-list',
+
   },
 
   PRODUCTS: {
     SCAN: '/product/scan',
-    // SCAN: '/supplier/scan-product',
+    PRODUCT_LIST: '/product/fetch-list',
+  },
 
-    FIND_BY_BARCODE: (barcode: string) => `/products/barcode/${barcode}`,
-    SEARCH: '/products/search',
+  PAYMENTS:{
+    PWALLET_PARSE_QR: 'payment/pwallet/qrparse',
+    PWALLET_DEBIT: 'payment/pwallet/debit',
+    SAVE_CASH: 'payment/cash/save'
   }
 
 } as const;
 
-// Helper type to extract endpoint return types
 export type Endpoints = typeof API_ENDPOINTS;

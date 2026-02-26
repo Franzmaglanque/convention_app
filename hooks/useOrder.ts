@@ -6,11 +6,53 @@ export function newOrder() {
     mutationKey: ['new-order'],
     mutationFn: (params: any) => orderService.newOrder(params),  // ← Accept params here
     onSuccess: (response) => {
-      console.log('Login successful:', response);
+
     },
     onError: (error) => {
-      console.log('Login failed:', error);
     }
+  })
+}
+
+export function useCompleteOrder() {
+  return useMutation({
+    mutationKey: ['complete-order'],
+    mutationFn: (params: any) => orderService.completeOrder(params),  // ← Accept params here
+    onSuccess: (response) => {
+
+    },
+    onError: (error) => {
+
+    }
+  })
+}
+
+export function useUpdateOrderItem() {
+    return useMutation({
+        mutationKey: ['update-order-item'],
+        mutationFn: (params: { order_no: string; product_id: number; quantity: number }) =>
+            orderService.updateOrderItem(params),
+    });
+}
+
+export function useRemoveOrderItem() {
+    return useMutation({
+        mutationKey: ['remove-order-item'],
+        mutationFn: (params: { order_no: string; product_id: number }) =>
+            orderService.removeOrderItem(params),
+    });
+}
+
+export function useAddItemToOrder(){
+  return useMutation({
+    mutationKey: ['add-item-to-oder'],
+    mutationFn: (params: {
+            order_no: string;
+            product_id: number;
+            sku: string;
+            barcode?: string;
+            description: string;
+            price: string;
+    }) => orderService.addItemToOrder(params),
   })
 }
 

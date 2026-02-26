@@ -21,12 +21,15 @@ interface AuthState {
   token: string | null;
   user: User | null;
   isAuthenticated: boolean;
+  sessionMessage: string | null;
   
   // Actions
   login: (response: AuthResponse) => void;
-  logout: () => void;
+  // logout: () => void;
+  logout: (message?: string) => void;
   setToken: (token: string) => void;
   setUser: (user: User) => void;
+  clearSessionMessage: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -35,6 +38,7 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       user: null,
       isAuthenticated: false,
+      sessionMessage: null,
       
       login: (response: AuthResponse) => {
         console.log('Storing login data in auth store:', response);
@@ -42,14 +46,16 @@ export const useAuthStore = create<AuthState>()(
           token: response.token,
           user: response.user,
           isAuthenticated: true,
+          sessionMessage: null
         });
       },
       
-      logout: () => {
+      logout: (message?: string) => {
         set({
           token: null,
           user: null,
           isAuthenticated: false,
+          sessionMessage : message ?? null
         });
       },
       
@@ -60,6 +66,7 @@ export const useAuthStore = create<AuthState>()(
       setUser: (user: User) => {
         set({ user });
       },
+      clearSessionMessage: () => set({ sessionMessage: null }),
     }),
     {
       name: 'auth-storage', // unique name for the storage key

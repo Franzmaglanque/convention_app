@@ -1,19 +1,25 @@
-import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-// use the useLogin hook here when implementing login functionality
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { useToast } from '@/components/ToastProvider';
 import { useLogin } from '@/hooks/useAuth';
 import { useAuthStore } from '@/stores/auth.store';
-import { Redirect } from 'expo-router';
-import { useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { Redirect, router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 export default function LoginScreen() {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, sessionMessage, clearSessionMessage } = useAuthStore();
+
+   // Clear the message after showing it
+  useEffect(() => {
+    return () => {
+      if (sessionMessage) clearSessionMessage();
+    };
+  }, []);
+
   const {
       showSuccess,
       showError,
-      hideToast,
     } = useToast();
   const [loginForm, setLoginForm] = useState({
     email: '',
@@ -45,6 +51,14 @@ export default function LoginScreen() {
   return (
     <View style={styles.container}>
       <LoadingSpinner visible={loginMutation.isPending} />
+
+       {/* Session expired message */}
+      {sessionMessage && (
+        <View style={styles.sessionBanner}>
+          <Ionicons name="information-circle-outline" size={18} color="#1D4ED8" />
+          <Text style={styles.sessionMessage}>{sessionMessage}</Text>
+        </View>
+      )}
 
       <Text style={styles.title}>Login</Text>
 
@@ -115,5 +129,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 20,
     fontSize: 14,
+  },
+  sessionBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#EFF6FF',
+    borderColor: '#BFDBFE',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 20,
+  },
+  sessionMessage: {
+    color: '#1D4ED8',
+    fontSize: 14,
+    flex: 1,
   },
 });
