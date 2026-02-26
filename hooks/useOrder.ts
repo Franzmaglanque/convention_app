@@ -26,6 +26,19 @@ export function useCompleteOrder() {
   })
 }
 
+export function useCancelOrder() {
+  return useMutation({
+    mutationKey: ['cancel-order'],
+    mutationFn: (params: any) => orderService.cancelOrder(params),  // ← Accept params here
+    onSuccess: (response) => {
+
+    },
+    onError: (error) => {
+
+    }
+  })
+}
+
 export function useUpdateOrderItem() {
     return useMutation({
         mutationKey: ['update-order-item'],

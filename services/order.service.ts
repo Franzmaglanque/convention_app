@@ -20,6 +20,14 @@ class OrderService {
         return response.data;
     }
 
+    async cancelOrder(params:any){
+        const response = await apiClient.post(
+            API_ENDPOINTS.ORDER.CANCEL_ORDER,
+            params
+        )
+        return response.data;
+    }
+
     async updateOrderItem(params: { order_no: string; product_id: number; quantity: number }) {
         const response = await apiClient.patch(API_ENDPOINTS.ORDER.UPDATE_ITEM, params);
         return response.data;

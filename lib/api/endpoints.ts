@@ -22,8 +22,8 @@ export const API_ENDPOINTS = {
     UPDATE_ITEM: '/supplier/order/item',
     REMOVE_ITEM: '/supplier/order/item',
     COMPLETE_ORDER: '/supplier/complete-order',
+    CANCEL_ORDER: '/supplier/cancel-order',
     SUPPLIER_ORDER_LIST: '/supplier/order-list',
-
   },
 
   PRODUCTS: {
