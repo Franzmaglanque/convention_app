@@ -17,14 +17,15 @@ export const API_ENDPOINTS = {
   },
 
   ORDER: {
-    NEW_ORDER: '/supplier/new-order',
-    ADD_ITEM: '/supplier/order/add-item',
-    UPDATE_ITEM: '/supplier/order/item',
-    REMOVE_ITEM: '/supplier/order/item',
-    COMPLETE_ORDER: '/supplier/complete-order',
-    CANCEL_ORDER: '/supplier/cancel-order',
-    SUPPLIER_ORDER_LIST: '/supplier/order-list',
-    ORDER_ITEM_LIST: (order_no:string) => `supplier/order-items-list/${order_no}`
+    NEW_ORDER: '/order/new',
+    ADD_ITEM: '/order/add-item',
+    UPDATE_ITEM: '/order/item',
+    REMOVE_ITEM: '/order/item',
+    COMPLETE_ORDER: '/order/complete',
+    CANCEL_ORDER: '/order/cancel',
+    SUPPLIER_ORDER_LIST: '/order/list',
+    ORDER_ITEM_LIST: (order_no:string) => `order/items-list/${order_no}`,
+    ORDER_PAYMENT_LIST: (order_no:string) => `order/payments-list/${order_no}`
   },
 
   PRODUCTS: {

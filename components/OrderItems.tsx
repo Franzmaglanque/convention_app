@@ -2,13 +2,14 @@ import { useFetchOrderItems } from '@/hooks/useOrder';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
-    ActivityIndicator,
-    FlatList,
-    Modal,
-    Pressable,
-    StyleSheet,
-    Text,
-    View
+  ActivityIndicator,
+  FlatList,
+  Modal,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View
 } from 'react-native';
 
 interface OrderItem {
@@ -100,7 +101,8 @@ const OrderItemList: React.FC<OrderItemListProps> = ({ order_no,visible, onClose
         data: order_items,
         isLoading,
         isError,
-        refetch
+        refetch,
+        isRefetching
     } = useFetchOrderItems(order_no);
 
   if(isLoading){
@@ -149,6 +151,14 @@ const OrderItemList: React.FC<OrderItemListProps> = ({ order_no,visible, onClose
                         <Ionicons name="cube-outline" size={48} color="#CCCCCC" />
                         <Text style={styles.emptyItemsText}>No items found</Text>
                         </View>
+                    }
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={isRefetching}
+                            onRefresh={refetch}
+                            colors={['#0066cc']}
+                            tintColor={'#0066cc'}
+                        />
                     }
                 />
             </View>

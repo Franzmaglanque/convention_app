@@ -1,31 +1,10 @@
 import OrderItemList from '@/components/OrderItems';
+import OrderPaymentList from '@/components/OrderPayments';
 import { TRANSACTION_STATUS_COLORS } from '@/constants/transaction';
 import { fetchSupplierOrders } from '@/hooks/useOrder';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-
-// Updated transaction data type to support multi-tender and card numbers
-interface Transaction {
-  id: string;
-  orderNo: string;
-  totalAmount: number;
-  paymentMethods: string[]; // Array to support multi-tender payments
-  status: string;
-  createdAt: string;
-  itemsCount: number;
-  cardNumber?: string; // Replaced customerName with cardNumber
-}
-
-// Mock data for order items
-const MOCK_ORDER_ITEMS = [
-  { id: 1, description: 'BUY 8 PCS OF ANY NAGARAYA PRETZEL 30G FOR ONLY P50.00', sku: 'CB-001', barcode: '8901234567890', price: 450.00, quantity: 2 },
-  { id: 2, description: 'Organic Green Tea', sku: 'GT-002', barcode: '8901234567891', price: 320.50, quantity: 1 },
-  { id: 3, description: 'Chocolate Chip Cookies', sku: 'CC-003', barcode: '8901234567892', price: 180.75, quantity: 3 },
-  { id: 4, description: 'Stainless Steel Tumbler', sku: 'ST-004', barcode: '8901234567893', price: 890.00, quantity: 1 },
-  { id: 5, description: 'Gourmet Popcorn', sku: 'GP-005', barcode: '8901234567894', price: 240.25, quantity: 2 },
-  { id: 6, description: 'BUY 8 PCS OF ANY NAGARAYA PRETZEL 30G FOR ONLY P50.00', sku: 'NP-006', barcode: '8901234567895', price: 50.00, quantity: 8 },
-];
 
 export default function TransactionsScreen() {
   const {
@@ -38,12 +17,17 @@ export default function TransactionsScreen() {
 
   // State for modal visibility and selected order
   const [isItemsModalVisible, setIsItemsModalVisible] = useState(false);
+  const [isPaymentsModalVisible, setIsPaymentsModalVisible] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
 
   const handleViewItems = (transaction: any) => {
-    // console.log('handleViewItems',transaction.order_no);
     setSelectedOrder(transaction.order_no);
     setIsItemsModalVisible(true);
+  };
+
+  const handleViewPayments = (transaction: any) => {
+    setSelectedOrder(transaction.order_no);
+    setIsPaymentsModalVisible(true);
   };
 
   const formatDate = (dateString: string) => {
@@ -55,71 +39,6 @@ export default function TransactionsScreen() {
       hour: '2-digit',
       minute: '2-digit'
     });
-  };
-
-  // Render each item in the modal
-  const renderOrderItem = ({ item }: { item: any }) => (
-    <View style={styles.itemCard}>
-      {/* Description only in header */}
-      <View style={styles.itemHeader}>
-        <Text 
-          style={styles.itemDescription}
-          numberOfLines={2}
-          ellipsizeMode="tail"
-        >
-          {item.description}
-        </Text>
-      </View>
-      
-      {/* SKU and barcode information */}
-      <View style={styles.itemCodesContainer}>
-        <View style={styles.codeRow}>
-          <View style={styles.codeItem}>
-            <Ionicons name="pricetag-outline" size={14} color="#666" />
-            <Text style={styles.codeLabel}>SKU:</Text>
-            <Text style={styles.codeValue} numberOfLines={1} ellipsizeMode="tail">
-              {item.sku}
-            </Text>
-          </View>
-          <View style={styles.codeItem}>
-            <Ionicons name="barcode-outline" size={14} color="#666" />
-            <Text style={styles.codeLabel}>Barcode:</Text>
-            <Text style={styles.codeValue} numberOfLines={1} ellipsizeMode="tail">
-              {item.barcode}
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Quantity, price, and subtotal */}
-      <View style={styles.itemDetails}>
-        <View style={styles.quantityPriceContainer}>
-          <View style={styles.quantitySection}>
-            <View style={styles.quantityInfo}>
-              <Ionicons name="cube-outline" size={16} color="#0066cc" />
-              <Text style={styles.quantityLabel}>Quantity:</Text>
-              <Text style={styles.quantityValue}>{item.quantity}</Text>
-            </View>
-            <View style={styles.priceInfo}>
-              <Ionicons name="pricetag" size={16} color="#28a745" />
-              <Text style={styles.priceLabel}>Price:</Text>
-              <Text style={styles.priceValue}>₱{item.price.toFixed(2)}</Text>
-            </View>
-          </View>
-          <View style={styles.subtotalContainer}>
-            <Text style={styles.subtotalLabel}>Subtotal:</Text>
-            <Text style={styles.subtotalValue}>₱{(item.price * item.quantity).toFixed(2)}</Text>
-          </View>
-        </View>
-      </View>
-    </View>
-  );
-
-  const formatCurrency = (amount: number) => {
-    return `₱${amount.toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    })}`;
   };
 
   if(isLoading){
@@ -166,11 +85,6 @@ export default function TransactionsScreen() {
               <View style={styles.transactionHeader}>
                 <View style={styles.orderInfo}>
                   <Text style={styles.orderNumber}>Order # {transaction.order_no}</Text>
-                  {/* <View style={[styles.statusBadge, { backgroundColor: TRANSACTION_STATUS_COLORS[transaction.order_status as TRANSACTION_STATUS] }]}> */}
-                  {/* <View style={[
-                    styles.statusBadge, 
-                    { backgroundColor: TRANSACTION_STATUS_COLORS[transaction.order_status as TransactionStatus] }
-                  ]}> */}
                   <View style={[
                     styles.statusBadge, 
                     { 
@@ -195,7 +109,6 @@ export default function TransactionsScreen() {
                     <Ionicons name="cash-outline" size={16} color="#666" />
                     <Text style={styles.detailLabel}>Total Amount:</Text>
                   </View>
-                  {/* <Text style={styles.detailValue}>{formatCurrency(transaction.total)}</Text> */}
                   <Text style={styles.detailValue}>{transaction.total}</Text>
 
                 </View>
@@ -225,7 +138,10 @@ export default function TransactionsScreen() {
                   <Ionicons name="list-outline" size={18} color="#0066cc" />
                   <Text style={styles.actionButtonText}>View Items</Text>
                 </Pressable>
-                <Pressable style={styles.actionButton}>
+                <Pressable 
+                  style={styles.actionButton}
+                  onPress={() => handleViewPayments(transaction)}
+                >
                   <Ionicons name="receipt-outline" size={18} color="#666" />
                   <Text style={[styles.actionButtonText, styles.actionButtonTextSecondary]}>View Payments</Text>
                 </Pressable>
@@ -235,13 +151,16 @@ export default function TransactionsScreen() {
         )}
       </ScrollView>
 
-      {/* Modal for displaying order items */}
-      
-
       <OrderItemList 
         order_no={selectedOrder}
         visible={isItemsModalVisible}
         onClose={() => setIsItemsModalVisible(false)}
+      />
+
+      <OrderPaymentList
+        order_no={selectedOrder}
+        visible={isPaymentsModalVisible}
+        onClose={() => setIsPaymentsModalVisible(false)}
       />
     </View>
   );
