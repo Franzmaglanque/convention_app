@@ -56,6 +56,11 @@ class OrderService {
         const response = await apiClient.get(API_ENDPOINTS.ORDER.SUPPLIER_ORDER_LIST)
         return response.data;
     }
+
+    async fetchOrderItemsList(order_no:string){
+        const response = await apiClient.get(API_ENDPOINTS.ORDER.ORDER_ITEM_LIST(order_no))
+        return response.data;
+    }
     
 }
 

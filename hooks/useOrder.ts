@@ -76,3 +76,13 @@ export function fetchSupplierOrders(){
   });
 }
 
+export function useFetchOrderItems(orderNo: string) {
+  // console.log('useFetchOrderItems',orderNo)
+  return useQuery({
+    // Important: Include orderNo in the key so the cache is unique per order
+    queryKey: ['order-items', orderNo], 
+    queryFn: () => orderService.fetchOrderItemsList(orderNo),
+    enabled: !!orderNo, // Only run the query if orderNo is not null/undefined
+  });
+}
+
