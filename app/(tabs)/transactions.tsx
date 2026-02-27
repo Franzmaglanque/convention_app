@@ -1,6 +1,8 @@
+import OrderItemList from '@/components/OrderItems';
 import { TRANSACTION_STATUS_COLORS } from '@/constants/transaction';
 import { fetchSupplierOrders } from '@/hooks/useOrder';
 import { Ionicons } from '@expo/vector-icons';
+import { useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 // Updated transaction data type to support multi-tender and card numbers
@@ -15,6 +17,16 @@ interface Transaction {
   cardNumber?: string; // Replaced customerName with cardNumber
 }
 
+// Mock data for order items
+const MOCK_ORDER_ITEMS = [
+  { id: 1, description: 'BUY 8 PCS OF ANY NAGARAYA PRETZEL 30G FOR ONLY P50.00', sku: 'CB-001', barcode: '8901234567890', price: 450.00, quantity: 2 },
+  { id: 2, description: 'Organic Green Tea', sku: 'GT-002', barcode: '8901234567891', price: 320.50, quantity: 1 },
+  { id: 3, description: 'Chocolate Chip Cookies', sku: 'CC-003', barcode: '8901234567892', price: 180.75, quantity: 3 },
+  { id: 4, description: 'Stainless Steel Tumbler', sku: 'ST-004', barcode: '8901234567893', price: 890.00, quantity: 1 },
+  { id: 5, description: 'Gourmet Popcorn', sku: 'GP-005', barcode: '8901234567894', price: 240.25, quantity: 2 },
+  { id: 6, description: 'BUY 8 PCS OF ANY NAGARAYA PRETZEL 30G FOR ONLY P50.00', sku: 'NP-006', barcode: '8901234567895', price: 50.00, quantity: 8 },
+];
+
 export default function TransactionsScreen() {
   const {
       data: transactions,
@@ -23,6 +35,16 @@ export default function TransactionsScreen() {
       refetch,
       isRefetching
   } = fetchSupplierOrders();
+
+  // State for modal visibility and selected order
+  const [isItemsModalVisible, setIsItemsModalVisible] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+
+  const handleViewItems = (transaction: any) => {
+    // console.log('handleViewItems',transaction.order_no);
+    setSelectedOrder(transaction.order_no);
+    setIsItemsModalVisible(true);
+  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -34,6 +56,64 @@ export default function TransactionsScreen() {
       minute: '2-digit'
     });
   };
+
+  // Render each item in the modal
+  const renderOrderItem = ({ item }: { item: any }) => (
+    <View style={styles.itemCard}>
+      {/* Description only in header */}
+      <View style={styles.itemHeader}>
+        <Text 
+          style={styles.itemDescription}
+          numberOfLines={2}
+          ellipsizeMode="tail"
+        >
+          {item.description}
+        </Text>
+      </View>
+      
+      {/* SKU and barcode information */}
+      <View style={styles.itemCodesContainer}>
+        <View style={styles.codeRow}>
+          <View style={styles.codeItem}>
+            <Ionicons name="pricetag-outline" size={14} color="#666" />
+            <Text style={styles.codeLabel}>SKU:</Text>
+            <Text style={styles.codeValue} numberOfLines={1} ellipsizeMode="tail">
+              {item.sku}
+            </Text>
+          </View>
+          <View style={styles.codeItem}>
+            <Ionicons name="barcode-outline" size={14} color="#666" />
+            <Text style={styles.codeLabel}>Barcode:</Text>
+            <Text style={styles.codeValue} numberOfLines={1} ellipsizeMode="tail">
+              {item.barcode}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Quantity, price, and subtotal */}
+      <View style={styles.itemDetails}>
+        <View style={styles.quantityPriceContainer}>
+          <View style={styles.quantitySection}>
+            <View style={styles.quantityInfo}>
+              <Ionicons name="cube-outline" size={16} color="#0066cc" />
+              <Text style={styles.quantityLabel}>Quantity:</Text>
+              <Text style={styles.quantityValue}>{item.quantity}</Text>
+            </View>
+            <View style={styles.priceInfo}>
+              <Ionicons name="pricetag" size={16} color="#28a745" />
+              <Text style={styles.priceLabel}>Price:</Text>
+              <Text style={styles.priceValue}>₱{item.price.toFixed(2)}</Text>
+            </View>
+          </View>
+          <View style={styles.subtotalContainer}>
+            <Text style={styles.subtotalLabel}>Subtotal:</Text>
+            <Text style={styles.subtotalValue}>₱{(item.price * item.quantity).toFixed(2)}</Text>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
 
   const formatCurrency = (amount: number) => {
     return `₱${amount.toLocaleString('en-US', {
@@ -115,7 +195,9 @@ export default function TransactionsScreen() {
                     <Ionicons name="cash-outline" size={16} color="#666" />
                     <Text style={styles.detailLabel}>Total Amount:</Text>
                   </View>
-                  <Text style={styles.detailValue}>{formatCurrency(transaction.total)}</Text>
+                  {/* <Text style={styles.detailValue}>{formatCurrency(transaction.total)}</Text> */}
+                  <Text style={styles.detailValue}>{transaction.total}</Text>
+
                 </View>
 
                 <View style={styles.detailRow}>
@@ -136,7 +218,10 @@ export default function TransactionsScreen() {
               </View>
 
               <View style={styles.transactionActions}>
-                <Pressable style={styles.actionButton}>
+                <Pressable 
+                  style={styles.actionButton}
+                  onPress={() => handleViewItems(transaction)}
+                >
                   <Ionicons name="list-outline" size={18} color="#0066cc" />
                   <Text style={styles.actionButtonText}>View Items</Text>
                 </Pressable>
@@ -149,6 +234,15 @@ export default function TransactionsScreen() {
           ))
         )}
       </ScrollView>
+
+      {/* Modal for displaying order items */}
+      
+
+      <OrderItemList 
+        order_no={selectedOrder}
+        visible={isItemsModalVisible}
+        onClose={() => setIsItemsModalVisible(false)}
+      />
     </View>
   );
 }
@@ -346,5 +440,175 @@ const styles = StyleSheet.create({
   },
   actionButtonTextSecondary: {
     color: '#666',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: '90%',
+    maxHeight: '80%',
+    backgroundColor: 'white',
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  modalContent: {
+    padding: 16,
+    maxHeight: '70%',
+  },
+  itemCard: {
+    backgroundColor: '#f9f9f9',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  itemHeader: {
+    marginBottom: 8,
+  },
+  itemDescription: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    flexWrap: 'wrap',
+  },
+  itemSku: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 8,
+  },
+  itemDetails: {
+    marginTop: 8,
+  },
+  quantityPriceContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  quantitySection: {
+    flex: 1,
+  },
+  quantityInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  quantityLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 6,
+    marginRight: 4,
+  },
+  quantityValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  priceInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  priceLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 6,
+    marginRight: 4,
+  },
+  priceValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#28a745',
+  },
+  itemCodesContainer: {
+    marginTop: 8,
+    backgroundColor: '#f8f9fa',
+    padding: 10,
+    borderRadius: 8,
+  },
+  codeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  codeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  codeLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 4,
+    marginRight: 4,
+  },
+  codeValue: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#333',
+  },
+  subtotalContainer: {
+    alignItems: 'flex-end',
+  },
+  subtotalLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 2,
+  },
+  subtotalValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#0066cc',
+  },
+  emptyItemsContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  emptyItemsText: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 12,
+  },
+  modalFooter: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    backgroundColor: '#f9f9f9',
+  },
+  footerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  footerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  footerLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 6,
+    marginRight: 4,
+  },
+  footerValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#0066cc',
   },
 });
