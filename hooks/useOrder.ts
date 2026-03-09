@@ -76,3 +76,19 @@ export function fetchSupplierOrders(){
   });
 }
 
+export function useFetchOrderItems(orderNo: string) {
+  return useQuery({
+    queryKey: ['order-items', orderNo], 
+    queryFn: () => orderService.fetchOrderItemsList(orderNo),
+    enabled: !!orderNo,
+  });
+}
+
+export function useFetchOrderPayments(orderNo: string) {
+  return useQuery({
+    queryKey: ['order-payments', orderNo], 
+    queryFn: () => orderService.fetchOrderPaymentsList(orderNo),
+    enabled: !!orderNo,
+  });
+}
+

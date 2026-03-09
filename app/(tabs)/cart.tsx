@@ -13,7 +13,9 @@ import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -1102,7 +1104,7 @@ export default function CartScreen() {
         </View>
       </Modal>
 
-        {/* Payment Selection Modal */}
+      {/* Payment Selection Modal */}
       <Modal
         visible={showPaymentModal}
         animationType="slide"
@@ -1116,256 +1118,266 @@ export default function CartScreen() {
           });
         }}
       >
-        <View style={styles.modalOverlay}>
-          <ScrollView style={[styles.paymentModalContent,{ maxHeight: '90%' } ]}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <View style={[styles.paymentModalContent, { maxHeight: '90%', paddingBottom: 0 }]}>
             <Text style={styles.modalTitle}>Add Payment</Text>
             
-            {/* Total and Remaining Balance */}
-            <View style={styles.balanceContainer}>
-              <View style={styles.balanceRow}>
-                <Text style={styles.balanceLabel}>Total Amount:</Text>
-                <Text style={styles.balanceValue}>₱{calculateTotal().toFixed(2)}</Text>
-              </View>
-              <View style={styles.balanceRow}>
-                <Text style={styles.balanceLabel}>Total Paid:</Text>
-                <Text style={styles.balanceValue}>
-                  ₱{payments.reduce((sum, p) => sum + p.amount, 0).toFixed(2)}
-                </Text>
-              </View>
-              <TouchableOpacity 
-                style={[styles.balanceRow, styles.remainingBalanceRow]}
-                onPress={() => {
-                  setValue('amount', calculateRemainingBalance().toFixed(2));
-                  trigger('amount');
-                }}
-              >
-                <View style={styles.remainingBalanceContent}>
-                  <Text style={styles.remainingBalanceLabel}>Remaining Balance:</Text>
-                  <View style={styles.remainingBalanceValueContainer}>
-                    <Text style={styles.remainingBalanceValue}>
-                      ₱{calculateRemainingBalance().toFixed(2)}
-                    </Text>
-                    <Ionicons name="arrow-forward-circle" size={20} color="#007AFF" style={styles.remainingBalanceIcon} />
-                  </View>
+            <ScrollView 
+              style={{ flexShrink: 1 }} 
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 20 }}
+            >
+              {/* Total and Remaining Balance */}
+              <View style={styles.balanceContainer}>
+                <View style={styles.balanceRow}>
+                  <Text style={styles.balanceLabel}>Total Amount:</Text>
+                  <Text style={styles.balanceValue}>₱{calculateTotal().toFixed(2)}</Text>
                 </View>
-                <Text style={styles.remainingBalanceHint}>Tap to use full amount</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Add New Payment Section */}
-            <View style={styles.addPaymentSection}>
-              <Text style={styles.sectionTitle}>Payment Methods</Text>
-              
-              <Controller
-                name="paymentType"
-                control={control}
-                render={({ field: { onChange, value } }) => (
-                  <View style={styles.paymentOptions}>
-                    {(['PWALLET', 'GCASH', 'CASH'] as const).map((type) => (
-                      <TouchableOpacity
-                        key={type}
-                        style={[
-                          styles.paymentOption,
-                          value === type && styles.paymentOptionSelected,
-                          errors.paymentType && styles.errorBorder
-                        ]}
-                        onPress={() => {
-                          // Clear reference number and amount when payment type changes
-                          // But only if the new type is different from the current value
-                          if (value !== type) {
-                            // Reset amount and reference number fields
-                            setValue('amount', '');
-                            setValue('referenceNumber', '');
-                            setValue('cashBill', '');
-                            setValue('cashChange', '0.00');
-                            // Trigger validation to clear any errors
-                            trigger(['amount', 'referenceNumber', 'cashBill', 'cashChange']);
-                          }
-                          // Set the new payment type
-                          onChange(type);
-                        }}
-                      >
-                        <Text style={[
-                          styles.paymentOptionText,
-                          value === type && styles.paymentOptionTextSelected
-                        ]}>{type}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-              />
-              {errors.paymentType && (
-                <Text style={styles.errorText}>{errors.paymentType.message}</Text>
-              )}
-
-              {/* Reference Number Input for PWALLET/GCASH */}
-              {(paymentType === 'PWALLET' || paymentType === 'GCASH') && (
-                <Controller
-                  name="referenceNumber"
-                  control={control}
-                  render={({ field: { value } }) => (
-                    <View style={styles.inputContainer}>
-                      <Text style={styles.inputLabel}>{paymentType} Reference Number</Text>
-                      <View style={styles.referenceInputRow}>
-                        <TextInput
-                          style={[
-                            styles.textInput,
-                            styles.flex1,
-                            styles.disabledInput,
-                            errors.referenceNumber && styles.errorInput
-                          ]}
-                          placeholder="Scan QR code to get reference number"
-                          value={value}
-                          editable={false}
-                          keyboardType="numeric"
-                        />
-                        <TouchableOpacity
-                          style={styles.scanReferenceButton}
-                          onPress={() => setPaymentScanner(true)}
-                        >
-                          <Ionicons name="barcode-outline" size={24} color="#007AFF" />
-                        </TouchableOpacity>
-                      </View>
-                      {errors.referenceNumber && (
-                        <Text style={styles.errorText}>{errors.referenceNumber.message}</Text>
-                      )}
-                      <Text style={styles.helperText}>
-                        Reference number can only be set by scanning the payment QR code
+                <View style={styles.balanceRow}>
+                  <Text style={styles.balanceLabel}>Total Paid:</Text>
+                  <Text style={styles.balanceValue}>
+                    ₱{payments.reduce((sum, p) => sum + p.amount, 0).toFixed(2)}
+                  </Text>
+                </View>
+                <TouchableOpacity 
+                  style={[styles.balanceRow, styles.remainingBalanceRow]}
+                  onPress={() => {
+                    setValue('amount', calculateRemainingBalance().toFixed(2));
+                    trigger('amount');
+                  }}
+                >
+                  <View style={styles.remainingBalanceContent}>
+                    <Text style={styles.remainingBalanceLabel}>Remaining Balance:</Text>
+                    <View style={styles.remainingBalanceValueContainer}>
+                      <Text style={styles.remainingBalanceValue}>
+                        ₱{calculateRemainingBalance().toFixed(2)}
                       </Text>
+                      <Ionicons name="arrow-forward-circle" size={20} color="#007AFF" style={styles.remainingBalanceIcon} />
+                    </View>
+                  </View>
+                  <Text style={styles.remainingBalanceHint}>Tap to use full amount</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Add New Payment Section */}
+              <View style={styles.addPaymentSection}>
+                <Text style={styles.sectionTitle}>Payment Methods</Text>
+                
+                <Controller
+                  name="paymentType"
+                  control={control}
+                  render={({ field: { onChange, value } }) => (
+                    <View style={styles.paymentOptions}>
+                      {(['PWALLET', 'GCASH', 'CASH'] as const).map((type) => (
+                        <TouchableOpacity
+                          key={type}
+                          style={[
+                            styles.paymentOption,
+                            value === type && styles.paymentOptionSelected,
+                            errors.paymentType && styles.errorBorder
+                          ]}
+                          onPress={() => {
+                            // Clear reference number and amount when payment type changes
+                            // But only if the new type is different from the current value
+                            if (value !== type) {
+                              // Reset amount and reference number fields
+                              setValue('amount', '');
+                              setValue('referenceNumber', '');
+                              setValue('cashBill', '');
+                              setValue('cashChange', '0.00');
+                              // Trigger validation to clear any errors
+                              trigger(['amount', 'referenceNumber', 'cashBill', 'cashChange']);
+                            }
+                            // Set the new payment type
+                            onChange(type);
+                          }}
+                        >
+                          <Text style={[
+                            styles.paymentOptionText,
+                            value === type && styles.paymentOptionTextSelected
+                          ]}>{type}</Text>
+                        </TouchableOpacity>
+                      ))}
                     </View>
                   )}
                 />
-              )}
-
-              {/* Amount Input */}
-              <Controller
-                name="amount"
-                control={control}
-                render={({ field: { onChange, value, onBlur } }) => (
-                  <View style={styles.inputContainer}>
-                    <Text style={styles.inputLabel}>Amount to Pay</Text>
-                    <TextInput
-                      style={[
-                        styles.textInput,
-                        errors.amount && styles.errorInput,
-                      ]}
-                      placeholder={`Enter amount (max: ₱${calculateRemainingBalance().toFixed(2)})`}
-                      value={value}
-                      onChangeText={(text) => {
-                        onChange(text);
-                        // Trigger validation
-                        trigger('amount');
-                        if(paymentType == 'CASH'){
-                          debouncedComputeChange();
-                        }
-                      }}
-                      onBlur={() => {
-                        onBlur();
-                        // Also compute change when user leaves the field
-                        if(paymentType == 'CASH'){
-                          computeChange();
-                        }
-                      }}
-                      keyboardType="numeric"
-                    />
-                    {errors.amount && (
-                      <Text style={styles.errorText}>{errors.amount.message}</Text>
-                    )}
-                    <TouchableOpacity onPress={() => {
-                      setValue('amount', calculateRemainingBalance().toFixed(2));
-                      trigger('amount');
-                      if(paymentType == 'CASH'){
-                        computeChange();
-                      }
-                    }}>
-                      <Text style={styles.helperText}>
-                        Remaining balance: ₱{calculateRemainingBalance().toFixed(2)} (Tap to use full amount)
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
+                {errors.paymentType && (
+                  <Text style={styles.errorText}>{errors.paymentType.message}</Text>
                 )}
-              />
 
-              {/* CASH BILL */}
-                {(paymentType == 'CASH') && (
-                <Controller
-                  name="cashBill"
-                  control={control}
-                  render={({ field: { onChange, value, onBlur } }) => {
-                    const cashBillNum = parseFloat(value || '0');
-                    const amountNum = parseFloat(watch('amount') || '0');
-                    const isCashBillLessThanAmount = cashBillNum > 0 && amountNum > 0 && cashBillNum < amountNum;
-                    
-                    return (
+                {/* Reference Number Input for PWALLET/GCASH */}
+                {(paymentType === 'PWALLET' || paymentType === 'GCASH') && (
+                  <Controller
+                    name="referenceNumber"
+                    control={control}
+                    render={({ field: { value } }) => (
                       <View style={styles.inputContainer}>
-                        <Text style={styles.inputLabel}>Enter Bill</Text>
-                        <TextInput
-                          style={[
-                            styles.textInput,
-                            errors.cashBill && styles.errorInput,
-                            isCashBillLessThanAmount && styles.errorInput
-                          ]}
-                          placeholder={`Minimum: ₱${parseFloat(watch('amount') || '0').toFixed(2)}`}
-                          value={value}
-                          onChangeText={(text) => {
-                            onChange(text);
-                            // Trigger validation
-                            trigger('cashBill');
-                            if(paymentType == 'CASH'){
-                              debouncedComputeChange();
-                            }
-                          }}
-                          onBlur={() => {
-                            onBlur();
-                            // Also compute change when user leaves the field
-                            if(paymentType == 'CASH'){
-                              computeChange();
-                            }
-                          }}
-                          keyboardType="numeric"
-                        />
-                        {errors.cashBill && (
-                          <Text style={styles.errorText}>{errors.cashBill.message}</Text>
-                        )}
-                        {isCashBillLessThanAmount && !errors.cashBill && (
-                          <Text style={styles.errorText}>
-                            Cash bill must be at least ₱{amountNum.toFixed(2)}
-                          </Text>
+                        <Text style={styles.inputLabel}>{paymentType} Reference Number</Text>
+                        <View style={styles.referenceInputRow}>
+                          <TextInput
+                            style={[
+                              styles.textInput,
+                              styles.flex1,
+                              styles.disabledInput,
+                              errors.referenceNumber && styles.errorInput
+                            ]}
+                            placeholder="Scan QR code to get reference number"
+                            value={value}
+                            editable={false}
+                            keyboardType="numeric"
+                          />
+                          <TouchableOpacity
+                            style={styles.scanReferenceButton}
+                            onPress={() => setPaymentScanner(true)}
+                          >
+                            <Ionicons name="barcode-outline" size={24} color="#007AFF" />
+                          </TouchableOpacity>
+                        </View>
+                        {errors.referenceNumber && (
+                          <Text style={styles.errorText}>{errors.referenceNumber.message}</Text>
                         )}
                         <Text style={styles.helperText}>
-                          Enter the cash amount received from customer
+                          Reference number can only be set by scanning the payment QR code
                         </Text>
                       </View>
-                    );
-                  }}
-                />
-              )}
-              
-              {(paymentType == 'CASH') && (
+                    )}
+                  />
+                )}
+
+                {/* Amount Input */}
                 <Controller
-                  name="cashChange"
+                  name="amount"
                   control={control}
                   render={({ field: { onChange, value, onBlur } }) => (
                     <View style={styles.inputContainer}>
-                      <Text style={styles.inputLabel}>Cash Change</Text>
+                      <Text style={styles.inputLabel}>Amount to Pay</Text>
                       <TextInput
                         style={[
                           styles.textInput,
-                          styles.disabledInput,
+                          errors.amount && styles.errorInput,
                         ]}
-                        placeholder={``}
+                        placeholder={`Enter amount (max: ₱${calculateRemainingBalance().toFixed(2)})`}
                         value={value}
-                        onBlur={onBlur}
-                        editable={false}
+                        onChangeText={(text) => {
+                          onChange(text);
+                          // Trigger validation
+                          trigger('amount');
+                          if(paymentType == 'CASH'){
+                            debouncedComputeChange();
+                          }
+                        }}
+                        onBlur={() => {
+                          onBlur();
+                          // Also compute change when user leaves the field
+                          if(paymentType == 'CASH'){
+                            computeChange();
+                          }
+                        }}
+                        keyboardType="numeric"
                       />
+                      {errors.amount && (
+                        <Text style={styles.errorText}>{errors.amount.message}</Text>
+                      )}
+                      <TouchableOpacity onPress={() => {
+                        setValue('amount', calculateRemainingBalance().toFixed(2));
+                        trigger('amount');
+                        if(paymentType == 'CASH'){
+                          computeChange();
+                        }
+                      }}>
+                        <Text style={styles.helperText}>
+                          Remaining balance: ₱{calculateRemainingBalance().toFixed(2)} (Tap to use full amount)
+                        </Text>
+                      </TouchableOpacity>
                     </View>
                   )}
                 />
-              )}
-              
-            </View>
 
-            <View style={styles.modalActions}>
+                {/* CASH BILL */}
+                  {(paymentType == 'CASH') && (
+                  <Controller
+                    name="cashBill"
+                    control={control}
+                    render={({ field: { onChange, value, onBlur } }) => {
+                      const cashBillNum = parseFloat(value || '0');
+                      const amountNum = parseFloat(watch('amount') || '0');
+                      const isCashBillLessThanAmount = cashBillNum > 0 && amountNum > 0 && cashBillNum < amountNum;
+                      
+                      return (
+                        <View style={styles.inputContainer}>
+                          <Text style={styles.inputLabel}>Enter Bill</Text>
+                          <TextInput
+                            style={[
+                              styles.textInput,
+                              errors.cashBill && styles.errorInput,
+                              isCashBillLessThanAmount && styles.errorInput
+                            ]}
+                            placeholder={`Minimum: ₱${parseFloat(watch('amount') || '0').toFixed(2)}`}
+                            value={value}
+                            onChangeText={(text) => {
+                              onChange(text);
+                              // Trigger validation
+                              trigger('cashBill');
+                              if(paymentType == 'CASH'){
+                                debouncedComputeChange();
+                              }
+                            }}
+                            onBlur={() => {
+                              onBlur();
+                              // Also compute change when user leaves the field
+                              if(paymentType == 'CASH'){
+                                computeChange();
+                              }
+                            }}
+                            keyboardType="numeric"
+                          />
+                          {errors.cashBill && (
+                            <Text style={styles.errorText}>{errors.cashBill.message}</Text>
+                          )}
+                          {isCashBillLessThanAmount && !errors.cashBill && (
+                            <Text style={styles.errorText}>
+                              Cash bill must be at least ₱{amountNum.toFixed(2)}
+                            </Text>
+                          )}
+                          <Text style={styles.helperText}>
+                            Enter the cash amount received from customer
+                          </Text>
+                        </View>
+                      );
+                    }}
+                  />
+                )}
+                
+                {(paymentType == 'CASH') && (
+                  <Controller
+                    name="cashChange"
+                    control={control}
+                    render={({ field: { onChange, value, onBlur } }) => (
+                      <View style={styles.inputContainer}>
+                        <Text style={styles.inputLabel}>Cash Change</Text>
+                        <TextInput
+                          style={[
+                            styles.textInput,
+                            styles.disabledInput,
+                          ]}
+                          placeholder={``}
+                          value={value}
+                          onBlur={onBlur}
+                          editable={false}
+                        />
+                      </View>
+                    )}
+                  />
+                )}
+                
+              </View>
+            </ScrollView>
+
+            {/* Fixed Footer for Action Buttons */}
+            <View style={[styles.modalActions, { paddingBottom: 34, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#E5E5EA' }]}>
               <TouchableOpacity 
                 style={styles.cancelButton} 
                 onPress={() => {
@@ -1422,8 +1434,8 @@ export default function CartScreen() {
                 <Text style={styles.addPaymentButtonText}>Add Payment</Text>
               </TouchableOpacity>
             </View>
-          </ScrollView>
-        </View>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <ItemList 
