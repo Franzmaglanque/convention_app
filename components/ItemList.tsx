@@ -75,7 +75,9 @@ const ItemList: React.FC<ItemListProps> = ({ visible, onClose, onProductSelect }
     isLoading,
     isError,
     refetch
-  } = useFetchProductList();
+  } = useFetchProductList({
+    enabled: visible
+  });
 
   const handleProductPress = (product: Product) => {
     if (onProductSelect) {
