@@ -5,6 +5,7 @@ import { fetchSupplierOrders } from '@/hooks/useOrder';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function TransactionsScreen() {
   const {
@@ -51,7 +52,7 @@ export default function TransactionsScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Transaction History</Text>
         <Text style={styles.subtitle}>
@@ -162,7 +163,7 @@ export default function TransactionsScreen() {
         visible={isPaymentsModalVisible}
         onClose={() => setIsPaymentsModalVisible(false)}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
