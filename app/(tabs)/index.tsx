@@ -2,6 +2,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Link, Redirect, router } from 'expo-router';
 import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BarChart, PieChart } from 'react-native-chart-kit';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
   const { user} = useAuth();
@@ -61,161 +62,163 @@ export default function HomeScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Sales Dashboard</Text>
-        <Text style={styles.subtitle}>Puregold Convention POS - Real-time Statistics</Text>
-      </View>
+    <SafeAreaView style={styles.container}>
+      <ScrollView >
+        <View style={styles.header}>
+          <Text style={styles.title}>Sales Dashboard</Text>
+          <Text style={styles.subtitle}>Puregold Convention POS - Real-time Statistics</Text>
+        </View>
 
-      {/* Total Sales Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Total Sales</Text>
-        <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <Text style={styles.statLabel}>Today's Sales</Text>
-            <Text style={styles.statValue}>₱{salesData.currentDay.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
-            <Text style={styles.statSubtext}>Current Day</Text>
+        {/* Total Sales Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Total Sales</Text>
+          <View style={styles.statsContainer}>
+            <View style={styles.statCard}>
+              <Text style={styles.statLabel}>Today's Sales</Text>
+              <Text style={styles.statValue}>₱{salesData.currentDay.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+              <Text style={styles.statSubtext}>Current Day</Text>
+            </View>
+            
+            <View style={styles.statCard}>
+              <Text style={styles.statLabel}>Convention Total</Text>
+              <Text style={styles.statValue}>₱{salesData.overallConvention.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+              <Text style={styles.statSubtext}>3-Day Total</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Top Ranking Items */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Top Selling Items</Text>
+          <View style={styles.chartContainer}>
+            <BarChart
+              data={barChartData}
+              width={screenWidth - 40}
+              height={220}
+              yAxisLabel=""
+              yAxisSuffix=" sold"
+              chartConfig={{
+                backgroundColor: '#ffffff',
+                backgroundGradientFrom: '#ffffff',
+                backgroundGradientTo: '#ffffff',
+                decimalPlaces: 0,
+                color: (opacity = 1) => `rgba(0, 102, 204, ${opacity})`,
+                labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                style: {
+                  borderRadius: 16
+                },
+                propsForDots: {
+                  r: '6',
+                  strokeWidth: '2',
+                  stroke: '#0066cc'
+                }
+              }}
+              style={styles.chart}
+            />
           </View>
           
-          <View style={styles.statCard}>
-            <Text style={styles.statLabel}>Convention Total</Text>
-            <Text style={styles.statValue}>₱{salesData.overallConvention.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
-            <Text style={styles.statSubtext}>3-Day Total</Text>
+          <View style={styles.itemsList}>
+            {salesData.topItems.map((item, index) => (
+              <View key={index} style={styles.itemRow}>
+                <View style={styles.itemInfo}>
+                  <Text style={styles.itemRank}>#{index + 1}</Text>
+                  <Text style={styles.itemName}>{item.name}</Text>
+                </View>
+                <View style={styles.itemStats}>
+                  <Text style={styles.itemSold}>{item.sold} sold</Text>
+                  <Text style={styles.itemRevenue}>₱{item.revenue.toLocaleString()}</Text>
+                </View>
+              </View>
+            ))}
           </View>
         </View>
-      </View>
 
-      {/* Top Ranking Items */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Top Selling Items</Text>
-        <View style={styles.chartContainer}>
-          <BarChart
-            data={barChartData}
-            width={screenWidth - 40}
-            height={220}
-            yAxisLabel=""
-            yAxisSuffix=" sold"
-            chartConfig={{
-              backgroundColor: '#ffffff',
-              backgroundGradientFrom: '#ffffff',
-              backgroundGradientTo: '#ffffff',
-              decimalPlaces: 0,
-              color: (opacity = 1) => `rgba(0, 102, 204, ${opacity})`,
-              labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-              style: {
-                borderRadius: 16
-              },
-              propsForDots: {
-                r: '6',
-                strokeWidth: '2',
-                stroke: '#0066cc'
-              }
-            }}
-            style={styles.chart}
-          />
-        </View>
-        
-        <View style={styles.itemsList}>
-          {salesData.topItems.map((item, index) => (
-            <View key={index} style={styles.itemRow}>
-              <View style={styles.itemInfo}>
-                <Text style={styles.itemRank}>#{index + 1}</Text>
-                <Text style={styles.itemName}>{item.name}</Text>
-              </View>
-              <View style={styles.itemStats}>
-                <Text style={styles.itemSold}>{item.sold} sold</Text>
-                <Text style={styles.itemRevenue}>₱{item.revenue.toLocaleString()}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-      </View>
-
-      {/* Sales Breakdown by Payment Type */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Sales by Payment Type</Text>
-        <View style={styles.chartContainer}>
-          <PieChart
-            data={paymentChartData}
-            width={screenWidth - 40}
-            height={200}
-            chartConfig={{
-              color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-            }}
-            accessor="population"
-            backgroundColor="transparent"
-            paddingLeft="15"
-            absolute
-          />
-        </View>
-        
-        <View style={styles.breakdownList}>
-          {salesData.paymentBreakdown.map((item, index) => (
-            <View key={index} style={styles.breakdownRow}>
-              <View style={styles.breakdownLeft}>
-                <View style={[styles.colorDot, { backgroundColor: paymentChartData[index].color }]} />
-                <Text style={styles.breakdownLabel}>{item.type}</Text>
-              </View>
-              <View style={styles.breakdownRight}>
-                <Text style={styles.breakdownAmount}>₱{item.amount.toLocaleString()}</Text>
-                <Text style={styles.breakdownPercentage}>{item.percentage}%</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-      </View>
-
-      {/* Sales Breakdown by Order Status */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Orders by Status</Text>
-        <View style={styles.chartContainer}>
-          <PieChart
-            data={statusChartData}
-            width={screenWidth - 40}
-            height={200}
-            chartConfig={{
-              color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-            }}
-            accessor="population"
-            backgroundColor="transparent"
-            paddingLeft="15"
-            absolute
-          />
-        </View>
-        
-        <View style={styles.breakdownList}>
-          {salesData.statusBreakdown.map((item, index) => (
-            <View key={index} style={styles.breakdownRow}>
-              <View style={styles.breakdownLeft}>
-                <View style={[styles.colorDot, { backgroundColor: statusChartData[index].color }]} />
-                <Text style={styles.breakdownLabel}>{item.status}</Text>
-              </View>
-              <View style={styles.breakdownRight}>
-                <Text style={styles.breakdownAmount}>{item.count} orders</Text>
-                <Text style={styles.breakdownPercentage}>{item.percentage}%</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-      </View>
-
-      {/* Quick Actions */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-        <Pressable
-            style={styles.button}
-            onPress={() => router.push('/(auth)/login')}
-            >
-            <Text style={styles.buttonText}>Login</Text>
-        </Pressable>
-
-        <Link href="/products" asChild>
-          <View style={styles.button}>
-            <Text style={styles.buttonText}>Browse Products</Text>
+        {/* Sales Breakdown by Payment Type */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Sales by Payment Type</Text>
+          <View style={styles.chartContainer}>
+            <PieChart
+              data={paymentChartData}
+              width={screenWidth - 40}
+              height={200}
+              chartConfig={{
+                color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+              }}
+              accessor="population"
+              backgroundColor="transparent"
+              paddingLeft="15"
+              absolute
+            />
           </View>
-        </Link>
-      </View>
-    </ScrollView>
+          
+          <View style={styles.breakdownList}>
+            {salesData.paymentBreakdown.map((item, index) => (
+              <View key={index} style={styles.breakdownRow}>
+                <View style={styles.breakdownLeft}>
+                  <View style={[styles.colorDot, { backgroundColor: paymentChartData[index].color }]} />
+                  <Text style={styles.breakdownLabel}>{item.type}</Text>
+                </View>
+                <View style={styles.breakdownRight}>
+                  <Text style={styles.breakdownAmount}>₱{item.amount.toLocaleString()}</Text>
+                  <Text style={styles.breakdownPercentage}>{item.percentage}%</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Sales Breakdown by Order Status */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Orders by Status</Text>
+          <View style={styles.chartContainer}>
+            <PieChart
+              data={statusChartData}
+              width={screenWidth - 40}
+              height={200}
+              chartConfig={{
+                color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+              }}
+              accessor="population"
+              backgroundColor="transparent"
+              paddingLeft="15"
+              absolute
+            />
+          </View>
+          
+          <View style={styles.breakdownList}>
+            {salesData.statusBreakdown.map((item, index) => (
+              <View key={index} style={styles.breakdownRow}>
+                <View style={styles.breakdownLeft}>
+                  <View style={[styles.colorDot, { backgroundColor: statusChartData[index].color }]} />
+                  <Text style={styles.breakdownLabel}>{item.status}</Text>
+                </View>
+                <View style={styles.breakdownRight}>
+                  <Text style={styles.breakdownAmount}>{item.count} orders</Text>
+                  <Text style={styles.breakdownPercentage}>{item.percentage}%</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Quick Actions */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <Pressable
+              style={styles.button}
+              onPress={() => router.push('/(auth)/login')}
+              >
+              <Text style={styles.buttonText}>Login</Text>
+          </Pressable>
+
+          <Link href="/products" asChild>
+            <View style={styles.button}>
+              <Text style={styles.buttonText}>Browse Products</Text>
+            </View>
+          </Link>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
