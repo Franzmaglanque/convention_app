@@ -18,7 +18,6 @@ class ProductService {
         const response: AxiosResponse<ProductListReponse> = await apiClient.get(
             API_ENDPOINTS.PRODUCTS.PRODUCT_LIST,
         );
-        console.log('PRODUCT LIST:', response.data);
         return response.data;
     }
 
