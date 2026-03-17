@@ -36,7 +36,9 @@ export const API_ENDPOINTS = {
   PAYMENTS:{
     PWALLET_PARSE_QR: 'payment/pwallet/qrparse',
     PWALLET_DEBIT: 'payment/pwallet/debit',
-    SAVE_CASH: 'payment/cash/save'
+    SAVE_CASH: 'payment/cash/save',
+    SAVE_CREDIT_CARD: 'payment/credit/save'
+
   }
 
 } as const;
