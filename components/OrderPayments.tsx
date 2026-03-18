@@ -178,7 +178,7 @@ const OrderPaymentList: React.FC<OrderPaymentListProps> = ({ order_no, visible, 
                             <View style={styles.footerItem}>
                                 <Ionicons name="cash-outline" size={16} color="#666" />
                                 <Text style={styles.footerLabel}>Total Paid:</Text>
-                                <Text style={styles.footerValue}>₱{totalPaid}</Text>
+                                <Text style={styles.footerValue}>₱{totalPaid?.toFixed(2)}</Text>
                             </View>
                         </View>
                     </View>
