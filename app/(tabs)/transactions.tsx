@@ -3,11 +3,13 @@ import OrderPaymentList from '@/components/OrderPayments';
 import { TRANSACTION_STATUS_COLORS } from '@/constants/transaction';
 import { fetchSupplierOrders } from '@/hooks/useOrder';
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function TransactionsScreen() {
+  const [searchQuery,setSearchQuery] = useState('');
+  
   const {
       data: transactions,
       isLoading,
@@ -42,6 +44,21 @@ export default function TransactionsScreen() {
     });
   };
 
+  const filteredData = useMemo(() => {
+      if (!transactions?.data) return [];
+      if (!searchQuery.trim()) return transactions?.data;
+  
+      const lowerCaseQuery = searchQuery.toLowerCase();
+      
+      return transactions.data.filter((transaction:any) => {
+        const matchOrderNo = transaction.order_no?.toLowerCase().includes(lowerCaseQuery);
+        const matchCustomerCard = transaction.customer_card_no?.toLowerCase().includes(lowerCaseQuery);
+        const matchStatus = transaction.order_status?.toLowerCase().includes(lowerCaseQuery);
+        
+        return matchOrderNo || matchCustomerCard || matchStatus;
+      });
+    }, [transactions, searchQuery])
+
   if(isLoading){
     return(
         <View style={styles.loadingContainer}>
@@ -50,7 +67,7 @@ export default function TransactionsScreen() {
         </View>
     )
   }
-
+  // console.log('filteredData',filteredData);
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -59,7 +76,23 @@ export default function TransactionsScreen() {
           View and manage your past transactions
         </Text>
       </View>
-
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={20} color="#8E8E93" style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search by name, barcode, or SKU..."
+          placeholderTextColor="#8E8E93"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearIcon}>
+            <Ionicons name="close-circle" size={20} color="#8E8E93" />
+          </TouchableOpacity>
+        )}
+      </View>
       {/* Transactions List */}
       <ScrollView 
         style={styles.transactionsList}
@@ -72,6 +105,7 @@ export default function TransactionsScreen() {
           />
         }  
       >
+      
         {transactions.data.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="receipt-outline" size={64} color="#CCCCCC" />
@@ -81,7 +115,7 @@ export default function TransactionsScreen() {
             </Text>
           </View>
         ) :  (
-          transactions.data.map((transaction:any) => (
+          filteredData.map((transaction:any) => (
             <View key={transaction.id} style={styles.transactionCard}>
               <View style={styles.transactionHeader}>
                 <View style={styles.orderInfo}>
@@ -530,5 +564,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#0066cc',
+  },
+
+  // --- New Search Bar Styles ---
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5EA',
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    backgroundColor: '#F2F2F7',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: '#1C1C1E',
+  },
+  clearIcon: {
+    position: 'absolute',
+    right: 28,
   },
 });
