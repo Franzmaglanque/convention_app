@@ -1,13 +1,28 @@
 import { useAuth } from '@/hooks/useAuth';
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
-import { Dimensions, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { Dimensions, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
   const { user } = useAuth();
   const screenWidth = Dimensions.get('window').width;
+
+  // --- NEW: Refresh State & Function ---
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    
+    // Simulate an API network call. 
+    // TODO: Replace this setTimeout with your actual API refetch function later!
+    setTimeout(() => {
+      console.log('Dashboard data refreshed!');
+      setRefreshing(false); // Hides the spinner
+    }, 1500);
+    
+  }, []);
 
   // Mock data for dashboard
   const salesData = {
@@ -65,6 +80,14 @@ export default function HomeScreen() {
       <ScrollView 
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing} // Spinner visible while refetching
+            onRefresh={onRefresh}        // Calls the hook's refetch function
+            colors={['#0066cc']}      // Spinner color (Android)
+            tintColor={'#0066cc'}     // Spinner color (iOS)
+          />
+        }  
       >
         {/* At-a-Glance Summary Cards */}
         <View style={styles.summaryGrid}>
