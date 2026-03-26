@@ -1,6 +1,7 @@
 
 import BarcodeScanner from '@/components/BarcodeScanner';
 import ItemList from '@/components/ItemList';
+import SMSModal from '@/components/modals/SmsModal';
 import { useToast } from '@/components/ToastProvider';
 import { useAuth } from '@/hooks/useAuth';
 import { newOrder, useAddItemToOrder, useCancelOrder, useCompleteOrder, useRemoveOrderItem, useUpdateOrderItem } from '@/hooks/useOrder';
@@ -112,6 +113,7 @@ export default function CartScreen() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showTransactionTypeModal, setShowTransactionTypeModal] = useState(false);
   const [showCardInputModal, setShowCardInputModal] = useState(false);
+  const [showSmsModal, setShowSmsModal] = useState(false);
   const [customerCardNumber, setCustomerCardNumber] = useState('');
   const [isCardedTransaction, setIsCardedTransaction] = useState(false);
   const [isScanningCard, setIsScanningCard] = useState(false);
@@ -166,8 +168,6 @@ export default function CartScreen() {
   const [isCreatingTransaction, setIsCreatingTransaction] = useState(false);
   const [showItemList,setShowItemList] = useState(false);
 
-  
-
     ////
   const PAYMENT_OPTIONS = [
     { id: 'CASH', label: 'Cash', icon: 'cash-outline', color: '#4CAF50' },
@@ -194,9 +194,6 @@ export default function CartScreen() {
     (currentPaymentType === 'CASH' && !isCashBillValid);
 
     ///
-
-
-
   const handleNewTransaction = async () => {
     if (cartItems.length > 0) {
       Alert.alert(
@@ -538,13 +535,16 @@ export default function CartScreen() {
     return true;
   };
 
-  const handleCompleteTransaction = async() => {
+  const handleCompleteTransaction = async(customerNumber?:string) => {
     
+    setShowSmsModal(false);
     await completeOrderMutation.mutate({
-      order_no:orderNo
+      order_no:orderNo,
+      customer_no:customerNumber || null,
+      total:calculateTotal().toFixed(2)
     },{
       onSuccess: (response) => {
-        // Reset the form
+        console.log('handleCompleteTransaction',response);
         reset({
           paymentType: undefined,
           amount: '',
@@ -562,9 +562,6 @@ export default function CartScreen() {
     
       }
     })
-
-
-    
   }
 
   const handlePaymentScanned = async (barcodeData: string) => {
@@ -999,7 +996,7 @@ export default function CartScreen() {
               (cartItems.length === 0 || payments.length === 0 || calculateRemainingBalance() > 0.01) && styles.postActionButtonDisabled
             ]}
             disabled={cartItems.length === 0 || payments.length === 0 || calculateRemainingBalance() > 0.01}
-            onPress={handleCompleteTransaction}
+            onPress={() => setShowSmsModal(true)}
           >
             <Ionicons 
               name="card-outline" 
@@ -1440,12 +1437,21 @@ export default function CartScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
+        {/* SMS Modal */}
+  
+      
       <ItemList 
         visible={showItemList}
         onClose={() => setShowItemList(false)}
         onProductSelect={(product) => {
           handleBrowseItems(product);
         }}
+      />
+
+      <SMSModal
+        visible={showSmsModal}
+        onClose={() => setShowSmsModal(false)}
+        onSubmit={handleCompleteTransaction}
       />
     </SafeAreaView>
   );
