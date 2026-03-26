@@ -1,12 +1,13 @@
 import { useFetchProductList } from '@/hooks/useProduct';
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   Modal,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
@@ -70,17 +71,35 @@ const EmptyListComponent = () => (
 );
 
 const ItemList: React.FC<ItemListProps> = ({ visible, onClose, onProductSelect }) => {
+  const [searchQuery,setSearchQuery] = useState('');
+
   const {
     data: products,
     isLoading,
     isError,
     refetch
-  } = useFetchProductList();
+  } = useFetchProductList({
+    enabled: visible
+  });
 
-  const handleProductPress = (product: Product) => {
-    if (onProductSelect) {
-      onProductSelect(product);
-    }
+  const filteredData = useMemo(() => {
+    if (!products?.data) return [];
+    if (!searchQuery.trim()) return products?.data;
+
+    const lowerCaseQuery = searchQuery.toLowerCase();
+    
+    return products.data.filter((product: Product) => {
+      const matchName = product.description?.toLowerCase().includes(lowerCaseQuery);
+      const matchBarcode = product.barcode?.toLowerCase().includes(lowerCaseQuery);
+      const matchSku = product.sku?.toLowerCase().includes(lowerCaseQuery);
+      const matchPrice = product.price?.toLowerCase().includes(lowerCaseQuery);
+      
+      return matchName || matchBarcode || matchSku || matchPrice;
+    });
+  }, [products, searchQuery])
+
+  const handleClose = () => {
+    setSearchQuery('');
     onClose();
   };
 
@@ -92,7 +111,6 @@ const ItemList: React.FC<ItemListProps> = ({ visible, onClose, onProductSelect }
         </View>
     )
   }
-
   return (
     <Modal
       visible={visible}
@@ -102,6 +120,8 @@ const ItemList: React.FC<ItemListProps> = ({ visible, onClose, onProductSelect }
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
+
+          {/* Header */}
           <View style={styles.modalHeader}>
             <Text style={styles.headerTitle}>Products</Text>
             {/* <Text style={styles.productCount}>{products.length || 0} items</Text> */}
@@ -109,6 +129,25 @@ const ItemList: React.FC<ItemListProps> = ({ visible, onClose, onProductSelect }
               <Text style={styles.closeButtonText}>✕</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={20} color="#8E8E93" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search by name, barcode, or SKU..."
+            placeholderTextColor="#8E8E93"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearIcon}>
+              <Ionicons name="close-circle" size={20} color="#8E8E93" />
+            </TouchableOpacity>
+          )}
+        </View>
           
           { isError ? (
             <View style={styles.centerContainer}>
@@ -119,12 +158,16 @@ const ItemList: React.FC<ItemListProps> = ({ visible, onClose, onProductSelect }
             </View>
           ) : (
             <FlatList<Product>
-              data={products?.data ?? []} 
+              // data={products?.data ?? []} 
+              data={filteredData ?? []}
               keyExtractor={(item) => item.id.toString()}
               renderItem={({ item }) => (
                 <ProductItem 
                   product={item} 
-                  onPress={() => handleProductPress(item)} 
+                  onPress={() => {
+                    if (onProductSelect) onProductSelect(item);
+                    handleClose();
+                  }}
                 />
               )}
              ListEmptyComponent={EmptyListComponent}
@@ -292,6 +335,33 @@ const styles = StyleSheet.create({
     color: '#888',
     marginTop: 5,
   },
+  // --- New Search Bar Styles ---
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5EA',
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    backgroundColor: '#F2F2F7',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: '#1C1C1E',
+  },
+  clearIcon: {
+    position: 'absolute',
+    right: 28,
+  },
+  // -----------------------------
 });
 
 export default ItemList;

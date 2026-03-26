@@ -20,6 +20,14 @@ class OrderService {
         return response.data;
     }
 
+    async cancelOrder(params:any){
+        const response = await apiClient.post(
+            API_ENDPOINTS.ORDER.CANCEL_ORDER,
+            params
+        )
+        return response.data;
+    }
+
     async updateOrderItem(params: { order_no: string; product_id: number; quantity: number }) {
         const response = await apiClient.patch(API_ENDPOINTS.ORDER.UPDATE_ITEM, params);
         return response.data;
@@ -40,12 +48,23 @@ class OrderService {
     }){
         console.log('addItemToOrder',params);
 
-        const response = await apiClient.post(API_ENDPOINTS.ORDER.SUPPLIER_ORDER_LIST,params);
+        const response = await apiClient.post(API_ENDPOINTS.ORDER.ADD_ITEM,params);
         return response.data;
     }
 
     async fetchSupplierOrderList(){
         const response = await apiClient.get(API_ENDPOINTS.ORDER.SUPPLIER_ORDER_LIST)
+        return response.data;
+    }
+
+    async fetchOrderItemsList(order_no:string){
+        const response = await apiClient.get(API_ENDPOINTS.ORDER.ORDER_ITEM_LIST(order_no))
+        return response.data;
+    }
+
+    async fetchOrderPaymentsList(order_no:string){
+        const response = await apiClient.get(API_ENDPOINTS.ORDER.ORDER_PAYMENT_LIST(order_no))
+        return response.data;
     }
     
 }

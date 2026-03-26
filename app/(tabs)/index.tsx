@@ -1,376 +1,483 @@
 import { useAuth } from '@/hooks/useAuth';
-import { Link, Redirect, router } from 'expo-router';
-import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { BarChart, PieChart } from 'react-native-chart-kit';
+import { useFetchTodaySales } from '@/hooks/useSupplier';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useCallback, useState } from 'react';
+import { Dimensions, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { PieChart } from 'react-native-chart-kit';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
-  const { user} = useAuth();
-  
-  // Mock data for dashboard
+  const { user } = useAuth();
+  const screenWidth = Dimensions.get('window').width;
+  const [refreshing, setRefreshing] = useState(false);
+
+  const {
+        data: dashboardSales,
+        isLoading,
+        isError,
+        refetch,
+        isRefetching
+  } = useFetchTodaySales();
+  console.log('dashboardSales',dashboardSales?.data.today_sales);
+
+  // const onRefresh = useCallback(() => {
+  //   setRefreshing(true);
+    
+  //   // Simulate an API network call. 
+  //   // TODO: Replace this setTimeout with your actual API refetch function later!
+  //   setTimeout(() => {
+  //     console.log('Dashboard data refreshed!');
+  //     setRefreshing(false); // Hides the spinner
+  //   }, 1500);
+    
+  // }, []);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      // This actually triggers the Elysia backend to get fresh data!
+      await refetch(); 
+      console.log('Dashboard data refreshed!');
+    } catch (error) {
+      console.error('Error refreshing dashboard data:', error);
+    } finally {
+      // Hides the spinner whether the API call succeeds or fails
+      setRefreshing(false); 
+    }
+  }, [refetch]);
+
   const salesData = {
     currentDay: 125430.75,
     overallConvention: 387650.50,
     topItems: [
-      { name: 'Premium Rice', sold: 245, revenue: 61250 },
-      { name: 'Cooking Oil', sold: 189, revenue: 28350 },
-      { name: 'Canned Goods', sold: 156, revenue: 23400 },
-      { name: 'Bottled Water', sold: 132, revenue: 19800 },
-      { name: 'Snacks', sold: 98, revenue: 14700 },
+      { name: 'BUY 2 TIES GREAT TASTE WHITE TWIN 50GX10S FOR ONLY PHP215.00', sold: 245, revenue: 61250 },
+      { name: 'BUY 2 CASES C2 SOLO GREEN TEA APPLE 230ML X 24S FREE 8 PIECES JNJ MANG JUAN SUKANG PAOMBONG 26G', sold: 189, revenue: 28350 },
+      { name: 'BUY 1 BOTTLE LE MINERALE 600ML FOR ONLY PHP16.00', sold: 156, revenue: 23400 },
+      { name: 'BUY 1 BOTTLE KOPIKO LUCKY DAY 180ML FOR ONLY PHP20.00', sold: 132, revenue: 19800 },
+      { name: 'BUY 1 TIE KOPIKO BROWN TWIN 53GX10S FOR ONLY PHP122.00', sold: 98, revenue: 14700 },
     ],
     paymentBreakdown: [
-      { type: 'Pwallet', amount: 155320, percentage: 40 },
-      { type: 'Gcash', amount: 116490, percentage: 30 },
-      { type: 'Cash', amount: 115840.50, percentage: 30 },
+      { type: 'P-Wallet', amount: 155320, percentage: 40, color: '#9C27B0', legendFontColor: '#3A3A3C', legendFontSize: 12 },
+      { type: 'GCash', amount: 116490, percentage: 30, color: '#007AFF', legendFontColor: '#3A3A3C', legendFontSize: 12 },
+      { type: 'Cash', amount: 115840.50, percentage: 30, color: '#34C759', legendFontColor: '#3A3A3C', legendFontSize: 12 },
     ],
-    statusBreakdown: [
-      { status: 'Completed', count: 342, percentage: 85 },
-      { status: 'Pending', count: 45, percentage: 11 },
-      { status: 'Cancelled', count: 13, percentage: 4 },
-    ],
+    chartLabels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Today'],
+    chartData: [45000, 52000, 48000, 61000, 125430],
   };
 
-  const screenWidth = Dimensions.get('window').width;
-
-  // Prepare data for pie charts
-  const paymentChartData = salesData.paymentBreakdown.map((item, index) => ({
-    name: item.type,
-    population: item.amount,
-    color: ['#FF6384', '#36A2EB', '#FFCE56'][index],
-    legendFontColor: '#7F7F7F',
-    legendFontSize: 12,
-  }));
-
-  const statusChartData = salesData.statusBreakdown.map((item, index) => ({
-    name: item.status,
-    population: item.count,
-    color: ['#4CAF50', '#FF9800', '#F44336'][index],
-    legendFontColor: '#7F7F7F',
-    legendFontSize: 12,
-  }));
-
-  // Prepare data for bar chart (top items)
-  const barChartData = {
-    labels: salesData.topItems.map(item => item.name.substring(0, 8) + '...'),
-    datasets: [{
-      data: salesData.topItems.map(item => item.sold)
-    }]
+  const chartConfig = {
+    backgroundGradientFrom: '#FFFFFF',
+    backgroundGradientTo: '#FFFFFF',
+    color: (opacity = 1) => `rgba(0, 122, 255, ${opacity})`, // Brand Blue
+    labelColor: (opacity = 1) => `rgba(142, 142, 147, ${opacity})`, // Muted Gray
+    strokeWidth: 2,
+    barPercentage: 0.6,
+    useShadowColorFromDataset: false,
+    decimalPlaces: 0,
+    propsForBackgroundLines: {
+      strokeWidth: 1,
+      stroke: '#F2F2F7',
+      strokeDasharray: '', // Solid subtle lines instead of dashes
+    },
   };
 
-  if (user?.department === 'SUPPLIER' && user.role === 'CASHIER') {
-    return <Redirect href="/(tabs)/cart" />;
-  }
+  // const formatCurrency = (amount: number) => {
+  //   return `₱${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  // };
+
+  const formatCurrency = (value:any) => {
+    if (value === undefined || value === null) return '₱0.00';
+    
+    const numericValue = Number(value);
+
+    return new Intl.NumberFormat('en-PH', {
+      style: 'currency',
+      currency: 'PHP',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(numericValue);
+  };
 
   return (
-    <ScrollView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Dynamic Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Sales Dashboard</Text>
-        <Text style={styles.subtitle}>Puregold Convention POS - Real-time Statistics</Text>
+        <View>
+          <Text style={styles.greeting}>Masayang Araw,</Text>
+          <Text style={styles.userName}>{user?.fullname || 'Supervisor'}</Text>
+        </View>
+        <View style={styles.headerIconBg}>
+          <Ionicons name="storefront-outline" size={24} color="#007AFF" />
+        </View>
       </View>
 
-      {/* Total Sales Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Total Sales</Text>
-        <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <Text style={styles.statLabel}>Today's Sales</Text>
-            <Text style={styles.statValue}>₱{salesData.currentDay.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
-            <Text style={styles.statSubtext}>Current Day</Text>
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing} // Spinner visible while refetching
+            onRefresh={onRefresh}        // Calls the hook's refetch function
+            colors={['#0066cc']}      // Spinner color (Android)
+            tintColor={'#0066cc'}     // Spinner color (iOS)
+          />
+        }  
+      >
+        {/* At-a-Glance Summary Cards */}
+        <View style={styles.summaryGrid}>
+          <View style={[styles.summaryCard, styles.todayCard]}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.summaryLabelLight}>Today's Revenue</Text>
+              <Ionicons name="trending-up" size={20} color="#E8F4FF" />
+            </View>
+            {/* <Text style={styles.summaryValueLight}>{formatCurrency(salesData.currentDay)}</Text> */}
+            <Text style={styles.summaryValueLight}>{formatCurrency(dashboardSales?.data.today_sales)}</Text>
+
+          </View>
+
+          <View style={[styles.summaryCard, styles.overallCard]}>
+             <View style={styles.cardHeader}>
+              <Text style={styles.summaryLabelDark}>Total Convention</Text>
+              <Ionicons name="wallet-outline" size={20} color="#8E8E93" />
+            </View>
+            {/* <Text style={styles.summaryValueDark}>{formatCurrency(salesData.overallConvention)}</Text> */}
+            <Text style={styles.summaryValueDark}>{formatCurrency(dashboardSales?.data.accumulated_sales)}</Text>
+
+          </View>
+        </View>
+
+        {/* Sales Trend Chart */}
+        {/* <View style={styles.sectionCard}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Sales Trend</Text>
+            <Ionicons name="bar-chart-outline" size={20} color="#8E8E93" />
+          </View>
+          <BarChart
+            data={{
+              labels: salesData.chartLabels,
+              datasets: [{ data: salesData.chartData }],
+            }}
+            width={screenWidth - 48} // Width minus padding
+            height={220}
+            yAxisLabel="₱"
+            yAxisSuffix=""
+            chartConfig={chartConfig}
+            style={styles.chart}
+            showValuesOnTopOfBars={true}
+            fromZero={true}
+          />
+        </View> */}
+
+        {/* Top Selling Items */}
+        <View style={styles.sectionCard}>
+           <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Top Selling Items</Text>
+            <Ionicons name="star-outline" size={20} color="#FF9500" />
           </View>
           
-          <View style={styles.statCard}>
-            <Text style={styles.statLabel}>Convention Total</Text>
-            <Text style={styles.statValue}>₱{salesData.overallConvention.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
-            <Text style={styles.statSubtext}>3-Day Total</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Top Ranking Items */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Top Selling Items</Text>
-        <View style={styles.chartContainer}>
-          <BarChart
-            data={barChartData}
-            width={screenWidth - 40}
-            height={220}
-            yAxisLabel=""
-            yAxisSuffix=" sold"
-            chartConfig={{
-              backgroundColor: '#ffffff',
-              backgroundGradientFrom: '#ffffff',
-              backgroundGradientTo: '#ffffff',
-              decimalPlaces: 0,
-              color: (opacity = 1) => `rgba(0, 102, 204, ${opacity})`,
-              labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-              style: {
-                borderRadius: 16
-              },
-              propsForDots: {
-                r: '6',
-                strokeWidth: '2',
-                stroke: '#0066cc'
-              }
-            }}
-            style={styles.chart}
-          />
-        </View>
-        
-        <View style={styles.itemsList}>
+          {/* {salesData.topItems.map((item, index) => (
+            <View key={index} style={styles.itemRow}>
+              <View style={styles.itemLeft}>
+                <View style={[styles.rankBadge, index === 0 && styles.rankBadgeTop]}>
+                  <Text style={[styles.rankText, index === 0 && styles.rankTextTop]}>
+                    #{index + 1}
+                  </Text>
+                </View>
+                <View style={styles.itemDetails}>
+                  <Text style={styles.itemName}>{item.name}</Text>
+                  <Text style={styles.itemSold}>{item.sold} units sold</Text>
+                </View>
+              </View>
+              <Text style={styles.itemRevenue}>{formatCurrency(item.revenue)}</Text>
+            </View>
+          ))} */}
           {salesData.topItems.map((item, index) => (
             <View key={index} style={styles.itemRow}>
-              <View style={styles.itemInfo}>
-                <Text style={styles.itemRank}>#{index + 1}</Text>
-                <Text style={styles.itemName}>{item.name}</Text>
+              <View style={styles.itemLeft}>
+                <View style={[styles.rankBadge, index === 0 && styles.rankBadgeTop]}>
+                  <Text style={[styles.rankText, index === 0 && styles.rankTextTop]}>
+                    #{index + 1}
+                  </Text>
+                </View>
+                {/* ADDED styles.itemDetails HERE */}
+                <View style={styles.itemDetails}>
+                  <Text 
+                    style={styles.itemName} 
+                    numberOfLines={2} // Allows 2 lines, then truncates
+                    ellipsizeMode="tail"
+                  >
+                    {item.name}
+                  </Text>
+                  <Text style={styles.itemSold}>{item.sold} units sold</Text>
+                </View>
               </View>
-              <View style={styles.itemStats}>
-                <Text style={styles.itemSold}>{item.sold} sold</Text>
-                <Text style={styles.itemRevenue}>₱{item.revenue.toLocaleString()}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-      </View>
-
-      {/* Sales Breakdown by Payment Type */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Sales by Payment Type</Text>
-        <View style={styles.chartContainer}>
-          <PieChart
-            data={paymentChartData}
-            width={screenWidth - 40}
-            height={200}
-            chartConfig={{
-              color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-            }}
-            accessor="population"
-            backgroundColor="transparent"
-            paddingLeft="15"
-            absolute
-          />
-        </View>
-        
-        <View style={styles.breakdownList}>
-          {salesData.paymentBreakdown.map((item, index) => (
-            <View key={index} style={styles.breakdownRow}>
-              <View style={styles.breakdownLeft}>
-                <View style={[styles.colorDot, { backgroundColor: paymentChartData[index].color }]} />
-                <Text style={styles.breakdownLabel}>{item.type}</Text>
-              </View>
-              <View style={styles.breakdownRight}>
-                <Text style={styles.breakdownAmount}>₱{item.amount.toLocaleString()}</Text>
-                <Text style={styles.breakdownPercentage}>{item.percentage}%</Text>
+              <View style={styles.itemRight}>
+                <Text style={styles.itemRevenue}>{formatCurrency(item.revenue)}</Text>
               </View>
             </View>
           ))}
         </View>
-      </View>
 
-      {/* Sales Breakdown by Order Status */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Orders by Status</Text>
-        <View style={styles.chartContainer}>
-          <PieChart
-            data={statusChartData}
-            width={screenWidth - 40}
-            height={200}
-            chartConfig={{
-              color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-            }}
-            accessor="population"
-            backgroundColor="transparent"
-            paddingLeft="15"
-            absolute
-          />
-        </View>
-        
-        <View style={styles.breakdownList}>
-          {salesData.statusBreakdown.map((item, index) => (
-            <View key={index} style={styles.breakdownRow}>
-              <View style={styles.breakdownLeft}>
-                <View style={[styles.colorDot, { backgroundColor: statusChartData[index].color }]} />
-                <Text style={styles.breakdownLabel}>{item.status}</Text>
-              </View>
-              <View style={styles.breakdownRight}>
-                <Text style={styles.breakdownAmount}>{item.count} orders</Text>
-                <Text style={styles.breakdownPercentage}>{item.percentage}%</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-      </View>
-
-      {/* Quick Actions */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-        <Pressable
-            style={styles.button}
-            onPress={() => router.push('/(auth)/login')}
-            >
-            <Text style={styles.buttonText}>Login</Text>
-        </Pressable>
-
-        <Link href="/products" asChild>
-          <View style={styles.button}>
-            <Text style={styles.buttonText}>Browse Products</Text>
+        {/* Payment Breakdown */}
+        <View style={styles.sectionCard}>
+           <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Revenue by Payment Method</Text>
+            <Ionicons name="pie-chart-outline" size={20} color="#8E8E93" />
           </View>
-        </Link>
-      </View>
-    </ScrollView>
+          
+          <PieChart
+            // 1. Map over the data to map "type" to "name" to prevent internal library warnings
+            data={salesData.paymentBreakdown.map(item => ({ ...item, name: item.type }))}
+            width={screenWidth - 48}
+            height={180}
+            chartConfig={chartConfig}
+            accessor="amount"
+            backgroundColor="transparent"
+            paddingLeft={(screenWidth / 4 - 40).toString()} // Centers the pie chart dynamically
+            absolute
+            hasLegend={false} // 2. THIS IS THE FIX: Hides the broken default legend
+          />
+          
+          {/* Custom Legend for cleaner look */}
+          <View style={styles.legendContainer}>
+            {salesData.paymentBreakdown.map((method, index) => (
+              <View key={index} style={styles.legendRow}>
+                <View style={styles.legendLeft}>
+                  <View style={[styles.colorDot, { backgroundColor: method.color }]} />
+                  <Text style={styles.legendType}>{method.type}</Text>
+                  <Text style={styles.legendPercent}>({method.percentage}%)</Text>
+                </View>
+                <Text style={styles.legendAmount}>{formatCurrency(method.amount)}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#F2F2F7', // iOS App Background Gray
   },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+  
+  // --- Header ---
   header: {
-    padding: 20,
-    backgroundColor: '#fff',
-    marginBottom: 10,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-  },
-  section: {
-    padding: 20,
-    backgroundColor: '#fff',
-    marginBottom: 10,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 15,
-    color: '#333',
-  },
-  statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-    padding: 15,
-    borderRadius: 10,
-    marginHorizontal: 5,
     alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5EA',
   },
-  statLabel: {
+  greeting: {
     fontSize: 14,
-    color: '#666',
-    marginBottom: 5,
+    color: '#8E8E93',
+    marginBottom: 2,
   },
-  statValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#0066cc',
-    marginBottom: 5,
+  userName: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1C1C1E',
   },
-  statSubtext: {
-    fontSize: 12,
-    color: '#999',
+  headerIconBg: {
+    backgroundColor: '#F0F7FF',
+    padding: 10,
+    borderRadius: 12,
   },
-  chartContainer: {
+
+  // --- Summary Grid ---
+  summaryGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    gap: 12,
+  },
+  summaryCard: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  todayCard: {
+    backgroundColor: '#007AFF', // Solid brand color for the primary metric
+  },
+  overallCard: {
+    backgroundColor: '#FFFFFF', // White for secondary metric
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 12,
+  },
+  summaryLabelLight: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#E8F4FF',
+  },
+  summaryLabelDark: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#8E8E93',
+  },
+  summaryValueLight: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  summaryValueDark: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1C1C1E',
+  },
+
+  // --- Section Cards ---
+  sectionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1C1C1E',
   },
   chart: {
     marginVertical: 8,
-    borderRadius: 16,
+    borderRadius: 12,
+    marginLeft: -10, // Pulls the chart slightly left to align with card padding
   },
-  itemsList: {
-    marginTop: 10,
-  },
+
+  // --- Top Items List ---
   itemRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
+    alignItems: 'center', // Centers the badge and revenue vertically with the text block
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: '#F2F2F7',
   },
-  itemInfo: {
+  itemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1, // CRITICAL: Forces the left side to respect screen width
+    marginRight: 12, // Ensures text never touches the revenue numbers
   },
-  itemRank: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#0066cc',
-    marginRight: 10,
-    width: 30,
+  rankBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: '#F2F2F7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  rankBadgeTop: {
+    backgroundColor: '#FFFBE6', 
+    borderColor: '#FFCC00',
+    borderWidth: 1,
+  },
+  rankText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#8E8E93',
+  },
+  rankTextTop: {
+    color: '#FF9500', 
+  },
+  itemDetails: {
+    flex: 1, // CRITICAL: Allows the text container to shrink and wrap
+    justifyContent: 'center',
   },
   itemName: {
-    fontSize: 16,
-    color: '#333',
-  },
-  itemStats: {
-    alignItems: 'flex-end',
+    fontSize: 13, // Slightly reduced font size to accommodate long promo names
+    fontWeight: '600',
+    color: '#1C1C1E',
+    marginBottom: 4,
+    lineHeight: 18, // Added line-height for better readability when it wraps to 2 lines
   },
   itemSold: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 12,
+    color: '#8E8E93',
+  },
+ itemRight: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    flexShrink: 0, // CRITICAL: This makes the container invincible to shrinking!
+    paddingLeft: 8, // Adds a little extra safety buffer from the text
   },
   itemRevenue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#0066cc',
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#007AFF',
+    flexShrink: 0, 
   },
-  breakdownList: {
-    marginTop: 10,
+
+  // --- Payment Legend ---
+  legendContainer: {
+    marginTop: 8,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F2F2F7',
   },
-  breakdownRow: {
+  legendRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    marginBottom: 10,
   },
-  breakdownLeft: {
+  legendLeft: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   colorDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 10,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 8,
   },
-  breakdownLabel: {
-    fontSize: 16,
-    color: '#333',
+  legendType: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1C1C1E',
+    marginRight: 6,
   },
-  breakdownRight: {
-    alignItems: 'flex-end',
+  legendPercent: {
+    fontSize: 13,
+    color: '#8E8E93',
   },
-  breakdownAmount: {
+  legendAmount: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
-  },
-  breakdownPercentage: {
-    fontSize: 14,
-    color: '#666',
-  },
-  button: {
-    backgroundColor: '#0066cc',
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#1C1C1E',
   },
 });
+
+function fetchTodaySales(): { data: any; isLoading: any; isError: any; refetch: any; isRefetching: any; } {
+  throw new Error('Function not implemented.');
+}

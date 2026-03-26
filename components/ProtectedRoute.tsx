@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
-import { router } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
-import LoadingSpinner from '@/components/LoadingSpinner';
+import { router } from 'expo-router';
+import { useEffect } from 'react';
+import LoadingSpinner from './LoadingSpinner';
 
 type ProtectedRouteProps = {
   children: React.ReactNode;
@@ -23,9 +23,9 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   // If not authenticated, show loading (will redirect via useEffect)
-  if (!isAuthenticated) {
-    return <LoadingSpinner visible={true} />;
-  }
+  // if (!isAuthenticated) {
+  //   return <LoadingSpinner visible={true} />;
+  // }
 
   // User is authenticated, render children
   return <>{children}</>;

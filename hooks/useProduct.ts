@@ -19,11 +19,11 @@ export function useScanProduct() {
     })
 }
 
-export function useFetchProductList() {
+export function useFetchProductList({ enabled }: { enabled?: boolean }) {
     return useQuery({
         queryKey: ['product-list'],
         queryFn: () => productService.fetchProductList(),
-        
+        enabled
     })
 }
 

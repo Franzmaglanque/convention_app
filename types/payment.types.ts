@@ -29,3 +29,11 @@ export interface cashPaymentParams {
 export interface cashPaymentResponse {
   status : String;
 }
+
+export interface creditCardPaymentParams {
+  reference_no:string;
+  amount:number;
+  payment_method:string;
+  order_no:string;
+  
+}

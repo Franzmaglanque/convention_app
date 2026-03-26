@@ -1,7 +1,7 @@
-import { View, Text, StyleSheet, Pressable, ScrollView, Image } from 'react-native';
-import { useAuth } from '@/hooks/useAuth';
-import { useLogout } from '@/hooks/useAuth';
+import { useAuth, useLogout } from '@/hooks/useAuth';
 import { Ionicons } from '@expo/vector-icons';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function UserProfile() {
   const { user, isAuthenticated } = useAuth();
@@ -22,112 +22,114 @@ export default function UserProfile() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.scrollContainer}>
-      <View style={styles.container}>
-        {/* Profile Header */}
-        <View style={styles.headerContainer}>
-          <View style={styles.avatarContainer}>
-            <Ionicons name="person-circle" size={80} color="#3B82F6" />
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <View style={styles.container}>
+          {/* Profile Header */}
+          <View style={styles.headerContainer}>
+            <View style={styles.avatarContainer}>
+              <Ionicons name="person-circle" size={80} color="#3B82F6" />
+            </View>
+            <Text style={styles.userName}>{user.fullname}</Text>
+            <Text style={styles.userRole}>Supplier Account</Text>
           </View>
-          <Text style={styles.userName}>{user.fullname}</Text>
-          <Text style={styles.userRole}>Supplier Account</Text>
-        </View>
 
-        {/* Profile Information Card */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Profile Information</Text>
-          
-          <View style={styles.infoSection}>
-            <View style={styles.infoRow}>
-              <View style={styles.infoIconContainer}>
-                <Ionicons name="person-outline" size={20} color="#6B7280" />
+          {/* Profile Information Card */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Profile Information</Text>
+            
+            <View style={styles.infoSection}>
+              <View style={styles.infoRow}>
+                <View style={styles.infoIconContainer}>
+                  <Ionicons name="person-outline" size={20} color="#6B7280" />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Full Name</Text>
+                  <Text style={styles.infoValue}>{user.fullname}</Text>
+                </View>
               </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Full Name</Text>
-                <Text style={styles.infoValue}>{user.fullname}</Text>
-              </View>
-            </View>
 
-            <View style={styles.divider} />
+              <View style={styles.divider} />
 
-            <View style={styles.infoRow}>
-              <View style={styles.infoIconContainer}>
-                <Ionicons name="at-outline" size={20} color="#6B7280" />
+              <View style={styles.infoRow}>
+                <View style={styles.infoIconContainer}>
+                  <Ionicons name="at-outline" size={20} color="#6B7280" />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Username</Text>
+                  <Text style={styles.infoValue}>{user.username}</Text>
+                </View>
               </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Username</Text>
-                <Text style={styles.infoValue}>{user.username}</Text>
-              </View>
-            </View>
 
-            <View style={styles.divider} />
+              <View style={styles.divider} />
 
-            <View style={styles.infoRow}>
-              <View style={styles.infoIconContainer}>
-                <Ionicons name="business-outline" size={20} color="#6B7280" />
+              <View style={styles.infoRow}>
+                <View style={styles.infoIconContainer}>
+                  <Ionicons name="business-outline" size={20} color="#6B7280" />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Supplier Code</Text>
+                  <Text style={styles.infoValue}>{user.supplier_code}</Text>
+                </View>
               </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Supplier Code</Text>
-                <Text style={styles.infoValue}>{user.supplier_code}</Text>
-              </View>
-            </View>
 
-            <View style={styles.divider} />
+              <View style={styles.divider} />
 
-            <View style={styles.infoRow}>
-              <View style={styles.infoIconContainer}>
-                <Ionicons name="storefront-outline" size={20} color="#6B7280" />
-              </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Supplier Name</Text>
-                <Text style={styles.infoValue}>{user.supplier_name}</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* Account Details Card */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Account Details</Text>
-          
-          <View style={styles.infoSection}>
-            <View style={styles.infoRow}>
-              <View style={styles.infoIconContainer}>
-                <Ionicons name="key-outline" size={20} color="#6B7280" />
-              </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Account Type</Text>
-                <Text style={styles.infoValue}>Supplier</Text>
-              </View>
-            </View>
-
-            <View style={styles.divider} />
-
-            <View style={styles.infoRow}>
-              <View style={styles.infoIconContainer}>
-                <Ionicons name="shield-checkmark-outline" size={20} color="#6B7280" />
-              </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Status</Text>
-                <View style={styles.statusBadge}>
-                  <Text style={styles.statusText}>Active</Text>
+              <View style={styles.infoRow}>
+                <View style={styles.infoIconContainer}>
+                  <Ionicons name="storefront-outline" size={20} color="#6B7280" />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Supplier Name</Text>
+                  <Text style={styles.infoValue}>{user.supplier_name}</Text>
                 </View>
               </View>
             </View>
           </View>
+
+          {/* Account Details Card */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Account Details</Text>
+            
+            <View style={styles.infoSection}>
+              <View style={styles.infoRow}>
+                <View style={styles.infoIconContainer}>
+                  <Ionicons name="key-outline" size={20} color="#6B7280" />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Account Type</Text>
+                  <Text style={styles.infoValue}>Supplier</Text>
+                </View>
+              </View>
+
+              <View style={styles.divider} />
+
+              <View style={styles.infoRow}>
+                <View style={styles.infoIconContainer}>
+                  <Ionicons name="shield-checkmark-outline" size={20} color="#6B7280" />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Status</Text>
+                  <View style={styles.statusBadge}>
+                    <Text style={styles.statusText}>Active</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {/* Logout Button */}
+          <Pressable style={styles.logoutButton} onPress={logout}>
+            <Ionicons name="log-out-outline" size={22} color="#FFFFFF" style={styles.logoutIcon} />
+            <Text style={styles.logoutButtonText}>Logout</Text>
+          </Pressable>
+
+          <Text style={styles.footerText}>
+            All your information is securely stored on your device
+          </Text>
         </View>
-
-        {/* Logout Button */}
-        <Pressable style={styles.logoutButton} onPress={logout}>
-          <Ionicons name="log-out-outline" size={22} color="#FFFFFF" style={styles.logoutIcon} />
-          <Text style={styles.logoutButtonText}>Logout</Text>
-        </Pressable>
-
-        <Text style={styles.footerText}>
-          All your information is securely stored on your device
-        </Text>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 

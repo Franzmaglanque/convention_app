@@ -5,7 +5,7 @@
 
 export const API_ENDPOINTS = {
   AUTH: {
-    LOGIN: '/supplier/login',
+    LOGIN: '/auth/login',
     LOGOUT: '/auth/logout',
     REFRESH: '/auth/refresh',
     ME: '/auth/me',
@@ -17,13 +17,15 @@ export const API_ENDPOINTS = {
   },
 
   ORDER: {
-    NEW_ORDER: '/supplier/new-order',
-    ADD_ITEM: '/supplier/order/add-item',
-    UPDATE_ITEM: '/supplier/order/item',
-    REMOVE_ITEM: '/supplier/order/item',
-    COMPLETE_ORDER: '/supplier/complete-order',
-    SUPPLIER_ORDER_LIST: '/supplier/order-list',
-
+    NEW_ORDER: '/order/new',
+    ADD_ITEM: '/order/add-item',
+    UPDATE_ITEM: '/order/item',
+    REMOVE_ITEM: '/order/item',
+    COMPLETE_ORDER: '/order/complete',
+    CANCEL_ORDER: '/order/cancel',
+    SUPPLIER_ORDER_LIST: '/order/list',
+    ORDER_ITEM_LIST: (order_no:string) => `order/items-list/${order_no}`,
+    ORDER_PAYMENT_LIST: (order_no:string) => `order/payments-list/${order_no}`
   },
 
   PRODUCTS: {
@@ -34,7 +36,12 @@ export const API_ENDPOINTS = {
   PAYMENTS:{
     PWALLET_PARSE_QR: 'payment/pwallet/qrparse',
     PWALLET_DEBIT: 'payment/pwallet/debit',
-    SAVE_CASH: 'payment/cash/save'
+    SAVE_CASH: 'payment/cash/save',
+    SAVE_CREDIT_CARD: 'payment/credit/save'
+  },
+
+  SUPPLIER:{
+    DASHBOARD_SALES: 'supplier/app/dashboard_sales',
   }
 
 } as const;
