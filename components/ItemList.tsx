@@ -82,7 +82,6 @@ const ItemList: React.FC<ItemListProps> = ({ visible, onClose, onProductSelect }
     enabled: visible
   });
 
-
   const filteredData = useMemo(() => {
     if (!products?.data) return [];
     if (!searchQuery.trim()) return products?.data;
@@ -94,7 +93,6 @@ const ItemList: React.FC<ItemListProps> = ({ visible, onClose, onProductSelect }
       const matchBarcode = product.barcode?.toLowerCase().includes(lowerCaseQuery);
       const matchSku = product.sku?.toLowerCase().includes(lowerCaseQuery);
       const matchPrice = product.price?.toLowerCase().includes(lowerCaseQuery);
-
       
       return matchName || matchBarcode || matchSku || matchPrice;
     });

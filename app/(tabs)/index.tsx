@@ -1,15 +1,50 @@
 import { useAuth } from '@/hooks/useAuth';
+import { useFetchTodaySales } from '@/hooks/useSupplier';
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
-import { Dimensions, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { Dimensions, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
   const { user } = useAuth();
   const screenWidth = Dimensions.get('window').width;
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Mock data for dashboard
+  const {
+        data: dashboardSales,
+        isLoading,
+        isError,
+        refetch,
+        isRefetching
+  } = useFetchTodaySales();
+  console.log('dashboardSales',dashboardSales?.data.today_sales);
+
+  // const onRefresh = useCallback(() => {
+  //   setRefreshing(true);
+    
+  //   // Simulate an API network call. 
+  //   // TODO: Replace this setTimeout with your actual API refetch function later!
+  //   setTimeout(() => {
+  //     console.log('Dashboard data refreshed!');
+  //     setRefreshing(false); // Hides the spinner
+  //   }, 1500);
+    
+  // }, []);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      // This actually triggers the Elysia backend to get fresh data!
+      await refetch(); 
+      console.log('Dashboard data refreshed!');
+    } catch (error) {
+      console.error('Error refreshing dashboard data:', error);
+    } finally {
+      // Hides the spinner whether the API call succeeds or fails
+      setRefreshing(false); 
+    }
+  }, [refetch]);
+
   const salesData = {
     currentDay: 125430.75,
     overallConvention: 387650.50,
@@ -45,8 +80,21 @@ export default function HomeScreen() {
     },
   };
 
-  const formatCurrency = (amount: number) => {
-    return `₱${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  // const formatCurrency = (amount: number) => {
+  //   return `₱${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  // };
+
+  const formatCurrency = (value:any) => {
+    if (value === undefined || value === null) return '₱0.00';
+    
+    const numericValue = Number(value);
+
+    return new Intl.NumberFormat('en-PH', {
+      style: 'currency',
+      currency: 'PHP',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(numericValue);
   };
 
   return (
@@ -65,6 +113,14 @@ export default function HomeScreen() {
       <ScrollView 
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing} // Spinner visible while refetching
+            onRefresh={onRefresh}        // Calls the hook's refetch function
+            colors={['#0066cc']}      // Spinner color (Android)
+            tintColor={'#0066cc'}     // Spinner color (iOS)
+          />
+        }  
       >
         {/* At-a-Glance Summary Cards */}
         <View style={styles.summaryGrid}>
@@ -73,7 +129,9 @@ export default function HomeScreen() {
               <Text style={styles.summaryLabelLight}>Today's Revenue</Text>
               <Ionicons name="trending-up" size={20} color="#E8F4FF" />
             </View>
-            <Text style={styles.summaryValueLight}>{formatCurrency(salesData.currentDay)}</Text>
+            {/* <Text style={styles.summaryValueLight}>{formatCurrency(salesData.currentDay)}</Text> */}
+            <Text style={styles.summaryValueLight}>{formatCurrency(dashboardSales?.data.today_sales)}</Text>
+
           </View>
 
           <View style={[styles.summaryCard, styles.overallCard]}>
@@ -81,7 +139,9 @@ export default function HomeScreen() {
               <Text style={styles.summaryLabelDark}>Total Convention</Text>
               <Ionicons name="wallet-outline" size={20} color="#8E8E93" />
             </View>
-            <Text style={styles.summaryValueDark}>{formatCurrency(salesData.overallConvention)}</Text>
+            {/* <Text style={styles.summaryValueDark}>{formatCurrency(salesData.overallConvention)}</Text> */}
+            <Text style={styles.summaryValueDark}>{formatCurrency(dashboardSales?.data.accumulated_sales)}</Text>
+
           </View>
         </View>
 
@@ -417,3 +477,7 @@ const styles = StyleSheet.create({
     color: '#1C1C1E',
   },
 });
+
+function fetchTodaySales(): { data: any; isLoading: any; isError: any; refetch: any; isRefetching: any; } {
+  throw new Error('Function not implemented.');
+}

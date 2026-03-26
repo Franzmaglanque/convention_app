@@ -38,7 +38,10 @@ export const API_ENDPOINTS = {
     PWALLET_DEBIT: 'payment/pwallet/debit',
     SAVE_CASH: 'payment/cash/save',
     SAVE_CREDIT_CARD: 'payment/credit/save'
+  },
 
+  SUPPLIER:{
+    DASHBOARD_SALES: 'supplier/app/dashboard_sales',
   }
 
 } as const;
