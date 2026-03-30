@@ -48,6 +48,20 @@ export default function TabsLayout() {
             href: isSupplierCashier ? '/cart' : null,
           }}
         />
+
+        <Tabs.Screen
+          name="returns" // CRITICAL: This must exactly match your filename (orders.tsx)
+          options={{
+            title: 'Returns', // The label that appears under the icon
+            tabBarIcon: ({ color, size }) => (
+              // 'swap-horizontal-outline' or 'arrow-undo-outline' are standard icons for returns/exchanges
+              <Ionicons name="swap-horizontal-outline" size={size} color={color} />
+            ),
+            // If you want to hide this tab from certain users, apply your logic here:
+            href: isSupplierCashier ? '/returns' : null,
+          }}
+        />
+
         <Tabs.Screen
           name="profile"
           options={{
@@ -68,6 +82,8 @@ export default function TabsLayout() {
             href: isSupplierManager ? '/transactions' : null,
           }}
         />
+
+       
       </Tabs>
     </ProtectedRoute>
   );
