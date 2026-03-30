@@ -1,6 +1,7 @@
 // Shared Product Types for the Convention POS App
 
 export interface Product {
+  barcode: any;
   description:string;
   category:string;
   price:string;
