@@ -15,3 +15,14 @@ export interface PostReturnPayload {
   total:number;
   balance_due:number
 }
+
+export interface SyncExchangeCartPayload {
+  order_no: string;
+  return_items: Array<{
+    id: number;
+    name: string;
+    price: string;
+    maxQty: number;
+    returnQty: number;
+  }>;
+}
