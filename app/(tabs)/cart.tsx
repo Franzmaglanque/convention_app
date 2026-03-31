@@ -167,6 +167,8 @@ export default function CartScreen() {
   const [orderNo, setOrderNo] = useState<string | null>(null);
   const [isCreatingTransaction, setIsCreatingTransaction] = useState(false);
   const [showItemList,setShowItemList] = useState(false);
+  const [ccQrData,setCcQrData] = useState('');
+
 
     ////
   const PAYMENT_OPTIONS = [
@@ -501,7 +503,8 @@ export default function CartScreen() {
             amount:amountNum,
             payment_method:data.paymentType,
             order_no:orderNo!,
-            reference_no:data.referenceNumber!
+            reference_no:data.referenceNumber!,
+            qr_code_data:ccQrData
           });
         } catch (error) {
           showError('Credit Card Payment Failed.');
@@ -564,28 +567,52 @@ export default function CartScreen() {
     })
   }
 
-  const handlePaymentScanned = async (barcodeData: string) => {
-    console.log('barcodeData', barcodeData);
-    await scanPwalletQrMutation.mutate({
-            QrCode: barcodeData,
-        },{
-        onSuccess: (response) => {
-          console.log('scanPwalletQrMutation',response);
-          setValue('referenceNumber', (response.data.reference_no).toString());
-          trigger('referenceNumber');
-          setPaymentScanner(false);
-        },
-        onError: () => {
-          setPaymentScanner(false);
+  const handlePaymentScanned = async (paymentData: string) => {
+    console.log('paymentData', paymentData);
+    console.log('paynment type',currentPaymentType);
 
-           showError('Invalid Pwallet Qr Code');
-        },
-        onSettled: () => {
-      
+    switch (currentPaymentType){
+      case 'PWALLET':
+        try {
+          await scanPwalletQrMutation.mutate({
+                  QrCode: paymentData,
+            },{
+              onSuccess: (response) => {
+                console.log('scanPwalletQrMutation',response);
+                setValue('referenceNumber', (response.data.reference_no).toString());
+                trigger('referenceNumber');
+                setPaymentScanner(false);
+              },
+              onError: () => {
+                setPaymentScanner(false);
+
+                 showError('Invalid Pwallet Qr Code');
+              },
+              onSettled: () => {
+            
+              }
+          });
+
+        } catch (error) {
+          showError('Pwallet Scan Failed.');
+          return false; 
         }
-    });
- 
+        break;
+      case 'CREDIT_CARD':
+        try {
+          const dataPart = paymentData.split('|');
+          setCcQrData(paymentData.toString());
+          setValue('referenceNumber',dataPart[3]);
+          setValue('amount',dataPart[4]);
+          setPaymentScanner(false);
 
+        } catch (error) {
+          setPaymentScanner(false);
+          showError('Credit Card Scan Failed.');
+          return false; 
+        }
+        break;
+    }
   }
 
   // Create a debounced version of computeChange
@@ -1019,7 +1046,7 @@ export default function CartScreen() {
         scanDelay={1000}
       />
 
-        {/* Card Scanner Modal */}
+        {/* Loyalty Card Scanner Modal */}
       <BarcodeScanner
         isVisible={isScanningCard}
         onBarcodeScanned={(barcodeData) => {
@@ -1436,9 +1463,6 @@ export default function CartScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-
-        {/* SMS Modal */}
-  
       
       <ItemList 
         visible={showItemList}
@@ -1448,6 +1472,7 @@ export default function CartScreen() {
         }}
       />
 
+      {/* SMS Modal */}
       <SMSModal
         visible={showSmsModal}
         onClose={() => setShowSmsModal(false)}

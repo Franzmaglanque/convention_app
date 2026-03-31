@@ -35,5 +35,5 @@ export interface creditCardPaymentParams {
   amount:number;
   payment_method:string;
   order_no:string;
-  
+  qr_code_data:string;
 }

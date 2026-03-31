@@ -305,6 +305,8 @@ export default function ReturnsScreen() {
               payment_method: details.method,
               order_no: newOrderNo.toString(),
               reference_no: details.referenceNumber || '',
+              qr_code_data:''
+
             });
 
           } catch (error) {
