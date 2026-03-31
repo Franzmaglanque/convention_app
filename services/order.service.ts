@@ -1,6 +1,6 @@
 import { apiClient } from '@/lib/api/client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
-import { PostReturnPayload, ProcessReturnPayload } from '@/types/order.types';
+import { PostReturnPayload, ProcessReturnPayload, SyncExchangeCartPayload } from '@/types/order.types';
 import { AxiosResponse } from 'axios';
 
 class OrderService {
@@ -89,6 +89,14 @@ class OrderService {
     async postReturn(params:PostReturnPayload){
         const response = await apiClient.post(
             API_ENDPOINTS.ORDER.POST_RETURN,
+            params
+        )
+        return response.data;
+    }
+
+    async syncExchangeCart(params:SyncExchangeCartPayload){
+        const response = await apiClient.post(
+            API_ENDPOINTS.ORDER.SYNC_EXCHANGE_CART,
             params
         )
         return response.data;

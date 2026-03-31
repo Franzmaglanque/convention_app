@@ -1,7 +1,7 @@
 import PaymentSelectionModal, { PaymentDetails } from '@/components/modals/PaymentSelectionModal';
 import ProductCatalogModal from '@/components/modals/ProductCatalogModal';
 import { useToast } from '@/components/ToastProvider';
-import { useOriginalOrderItems, usePostReturn, useProcessReturn, useUpdateOrderItem, useValidateReturnOrderMutation } from '@/hooks/useOrder';
+import { useOriginalOrderItems, usePostReturn, useProcessReturn, useSyncExchangeCart, useValidateReturnOrderMutation } from '@/hooks/useOrder';
 import { usePwalletDebit, useSaveCashPayment, useSaveCreditCardPayment, useScanPwalletQr } from '@/hooks/usePayment';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useRef, useState } from 'react';
@@ -46,11 +46,10 @@ export default function ReturnsScreen() {
   // Cart & Order States
   const [originalItems, setOriginalItems] = useState<any[]>([]); // Background validation list
   const [returnItems, setReturnItems] = useState<any[]>([]); // Items being returned (starts blank)
-  const [exchangeItems, setExchangeItems] = useState<any[]>([]); // New items being bought
-  const [newOrderNo, setNewOrderNo] = useState<string | null>(null);
-  // NEW: Track applied multi-tender payments
-  const [appliedPayments, setAppliedPayments] = useState<PaymentDetails[]>([]);
-
+  const [exchangeItems, setExchangeItems] = useState<any[]>([]); // cart Items ng exchange
+  const [newOrderNo, setNewOrderNo] = useState<string | null>(null); // Yung bagong Order NO
+  const [appliedPayments, setAppliedPayments] = useState<PaymentDetails[]>([]);  // Tracking ng applied multi-tender payments
+  const [isCartSynced, setIsCartSynced] = useState(false);
 
   const validateOrderMutation = useValidateReturnOrderMutation();
   const useProcessReturnMutation = useProcessReturn();
@@ -59,8 +58,7 @@ export default function ReturnsScreen() {
   const pwalletDebitMutation = usePwalletDebit();
   const cashPaymentMutation = useSaveCashPayment();
   const creditCardPaymentMutation = useSaveCreditCardPayment();
-  const updateOrderItemMutation = useUpdateOrderItem();
-  
+  const syncExchangeCartMutation = useSyncExchangeCart();
 
   const totalReturnCredit = returnItems.reduce((sum, item) => sum + (item.price * item.returnQty), 0);
   const totalExchangeCost = exchangeItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
@@ -87,7 +85,6 @@ export default function ReturnsScreen() {
     });
   };
 
-  
   const handleManagerLogin = async () => {
     
     if (managerPin !== '1234') { 
@@ -158,7 +155,6 @@ export default function ReturnsScreen() {
       total_return_credit:totalReturnCredit.toFixed(2)
     }
     console.log('originalItems',originalItems);
-    originalItems
     useProcessReturnMutation.mutate(params, {
       onSuccess: (res) => {
         console.log('useProcessReturnMutation',res);
@@ -172,8 +168,7 @@ export default function ReturnsScreen() {
   };
 
   const handleAddNewExchangeItem = (selectedItem: any) => {
-    let newQty = 1;
-
+    setIsCartSynced(false);
     setExchangeItems(prev => {
       // Check if it's already in the cart to increment qty
       const existingItem = prev.find(i => i.id === selectedItem.id);
@@ -183,20 +178,10 @@ export default function ReturnsScreen() {
       // Add new item with qty: 1
       return [...prev, { ...selectedItem, qty: 1 }];
     });
-
-    // 2. DEBOUNCED API CALL: Wait 500ms before saving to database
-    if (debounceTimers.current[selectedItem.id]) {
-      clearTimeout(debounceTimers.current[selectedItem.id]); // Cancel previous pending call
-    }
-    
-    debounceTimers.current[selectedItem.id] = setTimeout(() => {
-      console.log(`[API CALL] Adding/Updating item ${selectedItem.id} to qty: ${newQty}`);
-      // TODO: Add your API mutation here!
-      // Example: addExchangeItemMutation.mutate({ order_no: newOrderNo, item_id: selectedItem.id, qty: newQty })
-    }, 500);
   };
 
   const handleDecrementExchangeItem = (selectedItem: any) => {
+    setIsCartSynced(false);
     setExchangeItems(prev => {
       const existingItem = prev.find(i => i.id === selectedItem.id);
       
@@ -210,27 +195,40 @@ export default function ReturnsScreen() {
     });
   };
 
-  // KAPAG PANTAY YUNG CREDIT AT YUNG BAGONG PINAMILI
-  const handleProceedToCheckout = () => {
+  // check remaining balance if may balance show payment
+  // if wala nang balance post return na
+  const handleProceedToCheckout = async () => {
 
-    console.log('balanceDue',balanceDue)
-    console.log('remainingBalance',remainingBalance)
-
+    
     if (remainingBalance > 0) {
-      // They owe money, open the payment modal
-      setShowPaymentModal(true);
+
+      if (!isCartSynced) {
+
+        try {
+
+          if (!newOrderNo) throw new Error("Missing Order Number");
+
+          await syncExchangeCartMutation.mutateAsync({
+            order_no: newOrderNo.toString(),
+            return_items: exchangeItems
+          });
+
+          setIsCartSynced(true);
+          setShowPaymentModal(true);
+
+        } catch (error) {
+          Alert.alert("Network Error", "Failed to secure cart to the database. Please check connection and try again.");
+          return; // STOP! Do not open the payment modal!
+        }
+
+      } else {
+
+        setShowPaymentModal(true);
+      }
     } else {
 
-      if (!newOrderNo) {
-        Alert.alert('Error', 'Missing new order number. Cannot proceed.');
-        return;
-      }
+      if (!newOrderNo) return;
 
-      console.log('handleEven exchange',{
-        order_no:newOrderNo,
-        total:totalReturnCredit,
-        balance_due:balanceDue
-      });
       usePostReturnMutation.mutate({
         order_no:newOrderNo?.toString(),
         total:totalReturnCredit,
@@ -284,13 +282,6 @@ export default function ReturnsScreen() {
         //   break;
         
         case 'CASH':
-          console.log('dsadsa1',{
-              cash_bill:(details.cashReceived)!.toString(),
-              cash_change:(details.change)!.toString(),
-              amount:details.amountPaid,
-              payment_method:details.method,
-              order_no:newOrderNo,
-            });
           try {
             await cashPaymentMutation.mutateAsync({
               cash_bill:(details.cashReceived)!.toString(),
