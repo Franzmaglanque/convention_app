@@ -5,7 +5,7 @@ import SMSModal from '@/components/modals/SmsModal';
 import { useToast } from '@/components/ToastProvider';
 import { useAuth } from '@/hooks/useAuth';
 import { newOrder, useAddItemToOrder, useCancelOrder, useCompleteOrder, useRemoveOrderItem, useUpdateOrderItem } from '@/hooks/useOrder';
-import { usePwalletDebit, useSaveCashPayment, useSaveCreditCardPayment, useScanPwalletQr } from '@/hooks/usePayment';
+import { useProcessPayment, usePwalletDebit, useSaveCashPayment, useSaveCreditCardPayment, useScanPwalletQr } from '@/hooks/usePayment';
 import { useScanProduct } from '@/hooks/useProduct';
 import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -160,6 +160,8 @@ export default function CartScreen() {
   const completeOrderMutation = useCompleteOrder();
   const cancelOrderMutation = useCancelOrder();
   const creditCardPaymentMutation = useSaveCreditCardPayment();
+  const processPaymentMutation = useProcessPayment();
+
 
   const [showScanner, setShowScanner] = useState(false);
   const [paymentScanner, setPaymentScanner] = useState(false);
@@ -472,11 +474,8 @@ export default function CartScreen() {
             order_no:orderNo!,
             payment_method:data.paymentType
           });
-
-
-    
         } catch (error) {
-          console.log('debit error',error);
+          setShowPaymentModal(false)
           showError('Debit failed. Please try again.');
           return false; 
         }
@@ -493,6 +492,7 @@ export default function CartScreen() {
 
           });
         } catch (error) {
+          setShowPaymentModal(false)
           showError('Cash Payment Failed.');
           return false; 
         }
@@ -507,6 +507,23 @@ export default function CartScreen() {
             qr_code_data:ccQrData
           });
         } catch (error) {
+          setShowPaymentModal(false)
+          showError('Credit Card Payment Failed.');
+          return false; 
+        }
+        break;
+      case 'GCASH':
+        try {
+          const gcashResponse = await processPaymentMutation.mutateAsync({
+            order_no:orderNo!,
+            payment_method:data.paymentType,
+            amount:amountNum,
+            reference_no:data.referenceNumber!
+          });
+          console.log('GCASH RESPONSE',gcashResponse);
+        } catch (error) {
+
+          setShowPaymentModal(false)
           showError('Credit Card Payment Failed.');
           return false; 
         }
@@ -534,8 +551,7 @@ export default function CartScreen() {
       cashBill: '',
       cashChange: '0.00'
     });
-    
-    return true;
+    setShowPaymentModal(false)
   };
 
   const handleCompleteTransaction = async(customerNumber?:string) => {
@@ -605,6 +621,25 @@ export default function CartScreen() {
           setValue('referenceNumber',dataPart[3]);
           setValue('amount',dataPart[4]);
           setPaymentScanner(false);
+
+        } catch (error) {
+          setPaymentScanner(false);
+          showError('Credit Card Scan Failed.');
+          return false; 
+        }
+        break;
+      case 'GCASH':
+        try {
+          // const dataPart = paymentData.split('|');
+          // setCcQrData(paymentData.toString());
+          // setValue('referenceNumber',dataPart[3]);
+          // setValue('amount',dataPart[4]);
+          // setPaymentScanner(false);
+          console.log('paymentData',paymentData);
+          setValue('referenceNumber',paymentData);
+          trigger('referenceNumber');
+          setPaymentScanner(false);
+
 
         } catch (error) {
           setPaymentScanner(false);
@@ -1451,7 +1486,6 @@ export default function CartScreen() {
                     if (isValid) {
                       await handleSubmit(async (data) => {
                         const success = await handleAddPayment(data);
-                        if (success) setShowPaymentModal(false);
                       })();
                     }
                   });

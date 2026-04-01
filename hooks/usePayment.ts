@@ -1,5 +1,5 @@
 import { paymentService } from '@/services/payment.service';
-import { cashPaymentParams, creditCardPaymentParams, pwalletDebitParams } from '@/types/payment.types';
+import { cashPaymentParams, creditCardPaymentParams, gcashPaymentBody, pwalletDebitParams } from '@/types/payment.types';
 import { useMutation } from '@tanstack/react-query';
 
 
@@ -44,5 +44,12 @@ export function useSaveCreditCardPayment(){
     return useMutation({
         mutationKey: ['save_credit_card_payment'],
         mutationFn: (params:creditCardPaymentParams) => paymentService.saveCreditCardPayment(params),
+    })
+}
+
+export function useProcessPayment(){
+    return useMutation({
+        mutationKey: ['process_payment'],
+        mutationFn: (params:gcashPaymentBody) => paymentService.processPayment(params),
     })
 }
