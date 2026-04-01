@@ -5,7 +5,7 @@ import SMSModal from '@/components/modals/SmsModal';
 import { useToast } from '@/components/ToastProvider';
 import { useAuth } from '@/hooks/useAuth';
 import { newOrder, useAddItemToOrder, useCancelOrder, useCompleteOrder, useRemoveOrderItem, useUpdateOrderItem } from '@/hooks/useOrder';
-import { usePwalletDebit, useSaveCashPayment, useSaveCreditCardPayment, useScanPwalletQr } from '@/hooks/usePayment';
+import { useProcessPayment, usePwalletDebit, useSaveCashPayment, useSaveCreditCardPayment, useScanPwalletQr } from '@/hooks/usePayment';
 import { useScanProduct } from '@/hooks/useProduct';
 import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -160,6 +160,8 @@ export default function CartScreen() {
   const completeOrderMutation = useCompleteOrder();
   const cancelOrderMutation = useCancelOrder();
   const creditCardPaymentMutation = useSaveCreditCardPayment();
+  const processPaymentMutation = useProcessPayment();
+
 
   const [showScanner, setShowScanner] = useState(false);
   const [paymentScanner, setPaymentScanner] = useState(false);
@@ -167,6 +169,8 @@ export default function CartScreen() {
   const [orderNo, setOrderNo] = useState<string | null>(null);
   const [isCreatingTransaction, setIsCreatingTransaction] = useState(false);
   const [showItemList,setShowItemList] = useState(false);
+  const [ccQrData,setCcQrData] = useState('');
+
 
     ////
   const PAYMENT_OPTIONS = [
@@ -470,11 +474,8 @@ export default function CartScreen() {
             order_no:orderNo!,
             payment_method:data.paymentType
           });
-
-
-    
         } catch (error) {
-          console.log('debit error',error);
+          setShowPaymentModal(false)
           showError('Debit failed. Please try again.');
           return false; 
         }
@@ -491,6 +492,7 @@ export default function CartScreen() {
 
           });
         } catch (error) {
+          setShowPaymentModal(false)
           showError('Cash Payment Failed.');
           return false; 
         }
@@ -501,9 +503,27 @@ export default function CartScreen() {
             amount:amountNum,
             payment_method:data.paymentType,
             order_no:orderNo!,
-            reference_no:data.referenceNumber!
+            reference_no:data.referenceNumber!,
+            qr_code_data:ccQrData
           });
         } catch (error) {
+          setShowPaymentModal(false)
+          showError('Credit Card Payment Failed.');
+          return false; 
+        }
+        break;
+      case 'GCASH':
+        try {
+          const gcashResponse = await processPaymentMutation.mutateAsync({
+            order_no:orderNo!,
+            payment_method:data.paymentType,
+            amount:amountNum,
+            reference_no:data.referenceNumber!
+          });
+          console.log('GCASH RESPONSE',gcashResponse);
+        } catch (error) {
+
+          setShowPaymentModal(false)
           showError('Credit Card Payment Failed.');
           return false; 
         }
@@ -531,8 +551,7 @@ export default function CartScreen() {
       cashBill: '',
       cashChange: '0.00'
     });
-    
-    return true;
+    setShowPaymentModal(false)
   };
 
   const handleCompleteTransaction = async(customerNumber?:string) => {
@@ -564,28 +583,71 @@ export default function CartScreen() {
     })
   }
 
-  const handlePaymentScanned = async (barcodeData: string) => {
-    console.log('barcodeData', barcodeData);
-    await scanPwalletQrMutation.mutate({
-            QrCode: barcodeData,
-        },{
-        onSuccess: (response) => {
-          console.log('scanPwalletQrMutation',response);
-          setValue('referenceNumber', (response.data.reference_no).toString());
+  const handlePaymentScanned = async (paymentData: string) => {
+    console.log('paymentData', paymentData);
+    console.log('paynment type',currentPaymentType);
+
+    switch (currentPaymentType){
+      case 'PWALLET':
+        try {
+          await scanPwalletQrMutation.mutate({
+                  QrCode: paymentData,
+            },{
+              onSuccess: (response) => {
+                console.log('scanPwalletQrMutation',response);
+                setValue('referenceNumber', (response.data.reference_no).toString());
+                trigger('referenceNumber');
+                setPaymentScanner(false);
+              },
+              onError: () => {
+                setPaymentScanner(false);
+
+                 showError('Invalid Pwallet Qr Code');
+              },
+              onSettled: () => {
+            
+              }
+          });
+
+        } catch (error) {
+          showError('Pwallet Scan Failed.');
+          return false; 
+        }
+        break;
+      case 'CREDIT_CARD':
+        try {
+          const dataPart = paymentData.split('|');
+          setCcQrData(paymentData.toString());
+          setValue('referenceNumber',dataPart[3]);
+          setValue('amount',dataPart[4]);
+          setPaymentScanner(false);
+
+        } catch (error) {
+          setPaymentScanner(false);
+          showError('Credit Card Scan Failed.');
+          return false; 
+        }
+        break;
+      case 'GCASH':
+        try {
+          // const dataPart = paymentData.split('|');
+          // setCcQrData(paymentData.toString());
+          // setValue('referenceNumber',dataPart[3]);
+          // setValue('amount',dataPart[4]);
+          // setPaymentScanner(false);
+          console.log('paymentData',paymentData);
+          setValue('referenceNumber',paymentData);
           trigger('referenceNumber');
           setPaymentScanner(false);
-        },
-        onError: () => {
+
+
+        } catch (error) {
           setPaymentScanner(false);
-
-           showError('Invalid Pwallet Qr Code');
-        },
-        onSettled: () => {
-      
+          showError('Credit Card Scan Failed.');
+          return false; 
         }
-    });
- 
-
+        break;
+    }
   }
 
   // Create a debounced version of computeChange
@@ -1019,7 +1081,7 @@ export default function CartScreen() {
         scanDelay={1000}
       />
 
-        {/* Card Scanner Modal */}
+        {/* Loyalty Card Scanner Modal */}
       <BarcodeScanner
         isVisible={isScanningCard}
         onBarcodeScanned={(barcodeData) => {
@@ -1424,7 +1486,6 @@ export default function CartScreen() {
                     if (isValid) {
                       await handleSubmit(async (data) => {
                         const success = await handleAddPayment(data);
-                        if (success) setShowPaymentModal(false);
                       })();
                     }
                   });
@@ -1436,9 +1497,6 @@ export default function CartScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-
-        {/* SMS Modal */}
-  
       
       <ItemList 
         visible={showItemList}
@@ -1448,6 +1506,7 @@ export default function CartScreen() {
         }}
       />
 
+      {/* SMS Modal */}
       <SMSModal
         visible={showSmsModal}
         onClose={() => setShowSmsModal(false)}

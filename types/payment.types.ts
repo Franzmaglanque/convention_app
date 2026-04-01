@@ -5,7 +5,7 @@ export interface ScanPwalletQrResponse {
   }
 }
 
-export interface pwalletDebitResponse {
+export interface pwalletDebitResponse  {
   status: String;
 }
 
@@ -23,7 +23,6 @@ export interface cashPaymentParams {
   amount:number;
   payment_method:string;
   order_no:string;
-  
 }
 
 export interface cashPaymentResponse {
@@ -35,5 +34,12 @@ export interface creditCardPaymentParams {
   amount:number;
   payment_method:string;
   order_no:string;
-  
+  qr_code_data:string;
+}
+
+export interface gcashPaymentBody {
+  order_no:string;
+  payment_method:string;
+  amount:number;
+  reference_no:string;
 }
