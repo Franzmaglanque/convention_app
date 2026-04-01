@@ -1,16 +1,15 @@
 import { useFetchProductList } from '@/hooks/useProduct';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    FlatList,
+    Modal,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
 const formatCurrency = (value: number | string) => {
@@ -29,36 +28,134 @@ interface Product {
   barcode?: string | number;
 }
 
-// 1. UPDATE: Added cartItems and split the actions into onAdd and onRemove
+// interface ProductCatalogModalProps {
+//   visible: boolean;
+//   onClose: () => void;
+//   onAdd: (item: Product) => void;
+//   onRemove: (item: Product) => void;
+//   cartItems: any[]; 
+// }
 interface ProductCatalogModalProps {
   visible: boolean;
   onClose: () => void;
   onAdd: (item: Product) => void;
   onRemove: (item: Product) => void;
-  cartItems: any[]; // We need the cart to know the current quantity!
+  cartItemsMap: Record<string | number, number>; // ← changed from cartItems array
 }
 
-export default function ProductCatalogModal({ visible, onClose, onAdd, onRemove, cartItems }: ProductCatalogModalProps) {
+// ✨ OPTIMIZATION 1: Memoize the individual row so it doesn't re-render 
+// every time the user types in the search bar.
+const CatalogItem = React.memo(({ 
+  item, 
+  currentQty, 
+  onAdd, 
+  onRemove 
+}: { 
+  item: Product, 
+  currentQty: number, 
+  onAdd: (item: Product) => void, 
+  onRemove: (item: Product) => void 
+}) => {
+  return (
+    <View style={styles.browseItemRow}>
+      <View style={styles.browseItemInfo}>
+        <Text style={styles.itemName} numberOfLines={2}>
+          {item.description}
+        </Text>
+        <View style={styles.skuRow}>
+          <Text style={styles.itemSubDetail}>SKU: {item.sku || 'N/A'}</Text>
+          <Text style={styles.itemSubDetail}> • </Text>
+          <Text style={styles.itemSubDetail}>UPC: {item.barcode || 'N/A'}</Text>
+        </View>
+        <Text style={styles.itemPrice}>{formatCurrency(item.price)}</Text>
+      </View>
+      
+      <View style={styles.stepper}>
+        <TouchableOpacity 
+          style={[styles.stepperBtn, currentQty === 0 && styles.stepperDisabled]} 
+          onPress={() => onRemove(item)}
+          disabled={currentQty === 0}
+        >
+          <Ionicons name="remove" size={20} color={currentQty === 0 ? "#C7C7CC" : "#007AFF"} />
+        </TouchableOpacity>
+        
+        <Text style={styles.stepperValue}>{currentQty}</Text>
+        
+        <TouchableOpacity 
+          style={styles.stepperBtn} 
+          onPress={() => onAdd(item)}
+        >
+          <Ionicons name="add" size={20} color="#007AFF" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}, (prevProps, nextProps) => {
+  // Only re-render this specific row if its quantity in the cart changes!
+//   return prevProps.currentQty === nextProps.currentQty;
+    // Now this is the COMPLETE check — all props that affect rendering
+    return (
+        prevProps.currentQty === nextProps.currentQty &&
+        prevProps.onAdd === nextProps.onAdd &&       // ← stable because of useCallback
+        prevProps.onRemove === nextProps.onRemove     // ← stable because of useCallback
+    );
+});
+
+
+// export default function ProductCatalogModal({ visible, onClose, onAdd, onRemove, cartItems }: ProductCatalogModalProps) {
+export default function ProductCatalogModal({ 
+visible, onClose, onAdd, onRemove, cartItemsMap  // ← cartItemsMap
+}: ProductCatalogModalProps) {
     const [searchQuery, setSearchQuery] = useState('');
     
-    const {
-      data: products,
-      isLoading,
-      isError,
-      refetch
-    } = useFetchProductList({
+    const { data: products, isLoading, isError, refetch } = useFetchProductList({
       enabled: visible
     }); 
 
-    // Added optional chaining (?.) to description to prevent crashes if a product is missing data
-    const filteredProducts = products?.data.filter((item: any) => {
-        const query = searchQuery.toLowerCase();
-        return (
-            item.description?.toLowerCase().includes(query) ||
-            item.sku?.toString().includes(query) ||
-            item.price?.toString().includes(query) 
-        );
-    });
+    // ✨ OPTIMIZATION 2: useMemo prevents the app from re-filtering the entire 
+    // array 60 times a second while animating.
+    const filteredProducts = useMemo(() => {
+      if (!products?.data) return [];
+      if (!searchQuery) return products.data; // Don't filter if search is empty
+
+      const query = searchQuery.toLowerCase();
+      return products.data.filter((item: any) => {
+          return (
+              item.description?.toLowerCase().includes(query) ||
+              item.sku?.toString().includes(query) ||
+              item.price?.toString().includes(query) 
+          );
+      });
+    }, [products?.data, searchQuery]);
+
+
+    // ✨ OPTIMIZATION 3: Stable renderItem callback for FlatList
+    // const renderItem = useCallback(({ item }: { item: Product }) => {
+    //   // Find how many of this item are currently in the exchange cart
+    //   const currentQty = cartItems.find(cartItem => cartItem.id === item.id)?.qty || 0;
+
+    //   return (
+    //     <CatalogItem 
+    //       item={item} 
+    //       currentQty={currentQty} 
+    //       onAdd={onAdd} 
+    //       onRemove={onRemove} 
+    //     />
+    //   );
+    // }, [cartItems, onAdd, onRemove]);
+
+
+    const renderItem = useCallback(({ item }: { item: Product }) => {
+      const currentQty = cartItemsMap[item.id] || 0; // ← O(1) lookup, not O(n) find()
+      return (
+        <CatalogItem 
+          item={item} 
+          currentQty={currentQty} 
+          onAdd={onAdd} 
+          onRemove={onRemove} 
+        />
+      );
+    }, [cartItemsMap, onAdd, onRemove]);
 
     return (
     <Modal visible={visible} transparent animationType="slide">
@@ -80,81 +177,51 @@ export default function ProductCatalogModal({ visible, onClose, onAdd, onRemove,
                         value={searchQuery}
                         onChangeText={setSearchQuery}
                         clearButtonMode="while-editing"
+                        autoCorrect={false}
                     />
                 </View>
 
-                <ScrollView style={styles.sheetList} showsVerticalScrollIndicator={false}>
-                    {isLoading ? (
-                        <View style={styles.centerContainer}>
-                            <ActivityIndicator size="large" color="#007AFF" />
-                            <Text style={styles.centerText}>Loading catalog...</Text>
-                        </View>
-                    ) : isError ? (
-                        <View style={styles.centerContainer}>
-                            <Ionicons name="alert-circle-outline" size={48} color="#FF3B30" />
-                            <Text style={styles.centerText}>Failed to load products.</Text>
-                            <TouchableOpacity onPress={() => refetch()} style={styles.retryButton}>
-                                <Text style={styles.retryButtonText}>Tap to Retry</Text>
-                            </TouchableOpacity>
-                        </View>
-                    ) : filteredProducts?.length === 0 ? (
-                        <View style={styles.centerContainer}>
-                            <Text style={styles.emptyStateText}>No products found.</Text>
-                        </View>
-                    ) : ( 
-                        filteredProducts?.map((item: any) => {
-                            // 2. LOGIC: Find out how many of this item are already in the cart
-                            const itemInCart = cartItems.find(cartItem => cartItem.id === item.id);
-                            const currentQty = itemInCart ? itemInCart.qty : 0;
+                {/* ✨ OPTIMIZATION 4: The FlatList replaces the ScrollView */}
+                {isLoading ? (
+                    <View style={styles.centerContainer}>
+                        <ActivityIndicator size="large" color="#007AFF" />
+                        <Text style={styles.centerText}>Loading catalog...</Text>
+                    </View>
+                ) : isError ? (
+                    <View style={styles.centerContainer}>
+                        <Ionicons name="alert-circle-outline" size={48} color="#FF3B30" />
+                        <Text style={styles.centerText}>Failed to load products.</Text>
+                        <TouchableOpacity onPress={() => refetch()} style={styles.retryButton}>
+                            <Text>Retry</Text>
+                        </TouchableOpacity>
+                    </View>
+                ) : (
+                    <FlatList
+                      data={filteredProducts}
+                      keyExtractor={(item) => item.id.toString()}
+                      renderItem={renderItem}
+                      style={styles.sheetList}
+                      contentContainerStyle={{ paddingBottom: 40 }}
+                      showsVerticalScrollIndicator={false}
+                      
+                      // 🚀 MASSIVE PERFORMANCE BOOSTERS FOR LOW-END PHONES 🚀
+                      initialNumToRender={8}      // Only draw 8 items before sliding the modal up
+                      maxToRenderPerBatch={8}     // Draw 8 items per frame while scrolling
+                      windowSize={5}              // Unload items far off-screen to save RAM
+                      removeClippedSubviews={true} // Physically remove invisible items
+                    />
+                )}
 
-                            return (
-                                <View key={item.id} style={styles.browseItemRow}>
-                                    <View style={styles.browseItemInfo}>
-                                        <Text style={styles.itemName} numberOfLines={3}>{item.description}</Text>
-                                        
-                                        <View style={styles.skuRow}>
-                                            <Text style={styles.itemSubDetail}>SKU: {item.sku || 'N/A'}</Text>
-                                            <Text style={styles.itemSubDetail}> • </Text>
-                                            <Text style={styles.itemSubDetail}>UPC: {item.barcode || 'N/A'}</Text>
-                                        </View>
-
-                                        <Text style={styles.itemPrice}>{formatCurrency(item.price)}</Text>
-                                    </View>
-                                    
-                                    {/* 3. UPDATE: Replaced single button with Stepper */}
-                                    <View style={styles.stepper}>
-                                        <TouchableOpacity 
-                                            style={[styles.stepperBtn, currentQty === 0 && styles.stepperDisabled]} 
-                                            onPress={() => onRemove(item)}
-                                            disabled={currentQty === 0}
-                                        >
-                                            <Ionicons name="remove" size={20} color={currentQty === 0 ? "#C7C7CC" : "#007AFF"} />
-                                        </TouchableOpacity>
-                                        
-                                        <Text style={styles.stepperValue}>{currentQty}</Text>
-                                        
-                                        <TouchableOpacity 
-                                            style={styles.stepperBtn} 
-                                            onPress={() => onAdd(item)}
-                                        >
-                                            <Ionicons name="add" size={20} color="#007AFF" />
-                                        </TouchableOpacity>
-                                    </View>
-                                </View>
-                            );
-                        })
-                    )}
-                    <View style={{ height: 40 }} /> 
-                </ScrollView>
             </View>
         </View>
     </Modal>
-    );
+  );
 }
 
+// KEEP ALL YOUR EXISTING STYLES AT THE BOTTOM
 const styles = StyleSheet.create({
-  bottomSheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  bottomSheetContent: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%', paddingBottom: Platform.OS === 'ios' ? 30 : 20 },
+     bottomSheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  bottomSheetContent: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%', paddingBottom: 20 },
   sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: '#F2F2F7' },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: '#1C1C1E' },
   searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F2F2F7', margin: 16, borderRadius: 10, paddingHorizontal: 12 },
@@ -178,4 +245,6 @@ const styles = StyleSheet.create({
   stepperBtn: { padding: 8 },
   stepperDisabled: { opacity: 0.5 },
   stepperValue: { fontSize: 16, fontWeight: '600', minWidth: 24, textAlign: 'center', color: '#1C1C1E' },
+   
+    // ...
 });

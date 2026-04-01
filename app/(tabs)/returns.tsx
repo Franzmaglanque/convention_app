@@ -4,7 +4,7 @@ import { useToast } from '@/components/ToastProvider';
 import { useOriginalOrderItems, usePostReturn, useProcessReturn, useSyncExchangeCart, useValidateReturnOrderMutation } from '@/hooks/useOrder';
 import { usePwalletDebit, useSaveCashPayment, useSaveCreditCardPayment, useScanPwalletQr } from '@/hooks/usePayment';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -167,33 +167,55 @@ export default function ReturnsScreen() {
     });
   };
 
-  const handleAddNewExchangeItem = (selectedItem: any) => {
+  // const handleAddNewExchangeItem = (selectedItem: any) => {
+  //   setIsCartSynced(false);
+  //   setExchangeItems(prev => {
+  //     // Check if it's already in the cart to increment qty
+  //     const existingItem = prev.find(i => i.id === selectedItem.id);
+  //     if (existingItem) {
+  //       return prev.map(i => i.id === selectedItem.id ? { ...i, qty: i.qty + 1 } : i);
+  //     }
+  //     // Add new item with qty: 1
+  //     return [...prev, { ...selectedItem, qty: 1 }];
+  //   });
+  // };
+
+  // const handleDecrementExchangeItem = (selectedItem: any) => {
+  //   setIsCartSynced(false);
+  //   setExchangeItems(prev => {
+  //     const existingItem = prev.find(i => i.id === selectedItem.id);
+      
+  //     if (existingItem && existingItem.qty > 1) {
+  //       // Just subtract 1
+  //       return prev.map(i => i.id === selectedItem.id ? { ...i, qty: i.qty - 1 } : i);
+  //     } else {
+  //       // If it was at 1, completely remove it from the array
+  //       return prev.filter(i => i.id !== selectedItem.id);
+  //     }
+  //   });
+  // };
+
+  const handleAddNewExchangeItem = useCallback((selectedItem: any) => {
     setIsCartSynced(false);
     setExchangeItems(prev => {
-      // Check if it's already in the cart to increment qty
       const existingItem = prev.find(i => i.id === selectedItem.id);
       if (existingItem) {
         return prev.map(i => i.id === selectedItem.id ? { ...i, qty: i.qty + 1 } : i);
       }
-      // Add new item with qty: 1
       return [...prev, { ...selectedItem, qty: 1 }];
     });
-  };
+  }, []); // ← empty deps because we use the `prev` functional update pattern
 
-  const handleDecrementExchangeItem = (selectedItem: any) => {
+  const handleDecrementExchangeItem = useCallback((selectedItem: any) => {
     setIsCartSynced(false);
     setExchangeItems(prev => {
       const existingItem = prev.find(i => i.id === selectedItem.id);
-      
       if (existingItem && existingItem.qty > 1) {
-        // Just subtract 1
         return prev.map(i => i.id === selectedItem.id ? { ...i, qty: i.qty - 1 } : i);
-      } else {
-        // If it was at 1, completely remove it from the array
-        return prev.filter(i => i.id !== selectedItem.id);
       }
+      return prev.filter(i => i.id !== selectedItem.id);
     });
-  };
+  }, []);
 
   // check remaining balance if may balance show payment
   // if wala nang balance post return na
@@ -659,6 +681,13 @@ export default function ReturnsScreen() {
     </Modal>
   );
 
+  const exchangeItemsMap = useMemo(() => {
+    return exchangeItems.reduce((acc: Record<string | number, number>, item) => {
+      acc[item.id] = item.qty;
+      return acc;
+    }, {});
+  }, [exchangeItems]);
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
@@ -698,12 +727,19 @@ export default function ReturnsScreen() {
 
       </KeyboardAvoidingView>
         
-        <ProductCatalogModal 
+        {/* <ProductCatalogModal 
           visible={showCatalogModal} 
           onClose={() => setShowCatalogModal(false)}
           onAdd={handleAddNewExchangeItem}         
           onRemove={handleDecrementExchangeItem}   
           cartItems={exchangeItems}              
+        /> */}
+        <ProductCatalogModal 
+          visible={showCatalogModal} 
+          onClose={() => setShowCatalogModal(false)}
+          onAdd={handleAddNewExchangeItem}         
+          onRemove={handleDecrementExchangeItem}   
+          cartItemsMap={exchangeItemsMap}   // ← was: cartItems={exchangeItems}
         />
 
         {/* NEW PAYMENT MODAL */}
@@ -714,6 +750,7 @@ export default function ReturnsScreen() {
           // onSelectPayment={handlePaymentSelected}
           onConfirmPayment={handleConfirmPayment}
         />
+   
     </SafeAreaView>
     
   );
