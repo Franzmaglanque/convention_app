@@ -1,6 +1,6 @@
 
 import BarcodeScanner from '@/components/BarcodeScanner';
-import ItemList from '@/components/ItemList';
+import ItemList from '@/components/modals/ItemList';
 import SMSModal from '@/components/modals/SmsModal';
 import { useToast } from '@/components/ToastProvider';
 import { useAuth } from '@/hooks/useAuth';
@@ -9,7 +9,7 @@ import { useProcessPayment, usePwalletDebit, useSaveCashPayment, useSaveCreditCa
 import { useScanProduct } from '@/hooks/useProduct';
 import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
@@ -87,7 +87,7 @@ interface CartItem {
     description: string;
     price: string;
     sku: string;
-    barcode: string;
+    barcode?: string;
   };
   quantity: number;
 }
@@ -368,27 +368,34 @@ export default function CartScreen() {
         removeItem(item);
         return;
     }
-    updateOrderItemMutation.mutate(
-        { 
-            order_no: orderNo!, 
-            product_id: item.product.id, 
-            quantity: newQuantity 
-        },
-        {
-            onSuccess: () => {
-                setCartItems(prev =>
-                    prev.map(i =>
-                        i.product.id === item.product.id
-                            ? { ...i, quantity: newQuantity }
-                            : i
-                    )
-                );
-            },
-            onError: () => {
-                showError('Failed to update quantity. Please try again.');
-            }
-        }
+    setCartItems(prev =>
+        prev.map(i =>
+            i.product.id === item.product.id
+                ? { ...i, quantity: newQuantity }
+                : i
+        )
     );
+    // updateOrderItemMutation.mutate(
+    //     { 
+    //         order_no: orderNo!, 
+    //         product_id: item.product.id, 
+    //         quantity: newQuantity 
+    //     },
+    //     {
+    //         onSuccess: () => {
+    //             setCartItems(prev =>
+    //                 prev.map(i =>
+    //                     i.product.id === item.product.id
+    //                         ? { ...i, quantity: newQuantity }
+    //                         : i
+    //                 )
+    //             );
+    //         },
+    //         onError: () => {
+    //             showError('Failed to update quantity. Please try again.');
+    //         }
+    //     }
+    // );
   };
 
   const removeItem = (item: CartItem) => {
@@ -398,20 +405,24 @@ export default function CartScreen() {
             text: 'Remove',
             style: 'destructive',
             onPress: () => {
-                removeOrderItemMutation.mutate(
-                    { order_no: orderNo!, product_id: item.product.id },
-                    {
-                        onSuccess: () => {
-                            setCartItems(prev =>
-                                prev.filter(i => i.product.id !== item.product.id)
-                            );
-                            showInfo('Item removed');
-                        },
-                        onError: () => {
-                            showError('Failed to remove item. Please try again.');
-                        }
-                    }
+                // removeOrderItemMutation.mutate(
+                //     { order_no: orderNo!, product_id: item.product.id },
+                //     {
+                //         onSuccess: () => {
+                //             setCartItems(prev =>
+                //                 prev.filter(i => i.product.id !== item.product.id)
+                //             );
+                //             showInfo('Item removed');
+                //         },
+                //         onError: () => {
+                //             showError('Failed to remove item. Please try again.');
+                //         }
+                //     }
+                // );
+                setCartItems(prev =>
+                    prev.filter(i => i.product.id !== item.product.id)
                 );
+                showInfo('Item removed');
             }
         }
     ]);
@@ -718,10 +729,6 @@ export default function CartScreen() {
         }
     );
 
-    const existingItemIndex = cartItems.findIndex(
-      item => item.product.barcode === product.barcode
-    );
-
     // if (existingItemIndex >= 0) {
       
     //   const updatedItems = [...cartItems];
@@ -743,6 +750,89 @@ export default function CartScreen() {
     // console.log('existingItemIndex',existingItemIndex);
   }
 
+  const handleProductChange = (item: any, newQuantity: number) => {
+    console.log('updateQuantity',item);
+      if (newQuantity < 1) {
+        removeItem(item);
+        return;
+    }
+
+    const existingItemIndex = cartItems.findIndex(
+        i => i.product.id === item.id
+    );
+
+    if(existingItemIndex >= 0){
+      const updatedItems = [...cartItems];
+      updatedItems[existingItemIndex].quantity += 1;
+      setCartItems(updatedItems);
+    }else{
+      setCartItems(prev => [...prev, {
+          product: item,
+          quantity: 1
+      }]);
+    }
+
+    // console.log('handle',item)
+    // setCartItems(prev =>
+    //     prev.map(i =>
+    //         i.product.id === item.product.id
+    //             ? { ...i, quantity: newQuantity }
+    //             : { ...i,}
+    //     )
+    // );
+  };
+
+  const handleAdd = (item:CartItem['product']) => {
+
+    setCartItems(prev => {
+      const existingItem = prev.find(i => i.product.id === item.id)
+      if(existingItem){
+        return prev.map(i => 
+          i.product.id === item.id ? { ...i, quantity: i.quantity + 1 }  : i
+        )
+      }
+
+      return [...prev,{product:item,quantity:1}]
+    })
+    console.log('add item',item)
+  }
+
+  const handleRemove = (item:CartItem['product']) => {
+
+    setCartItems(prev => {
+      const existingItem = prev.find(i => i.product.id === item.id)
+      // if(existingItem && existingItem.quantity > 1){
+      //   return prev.map(i => 
+      //     i.product.id === item.id ? { ...i, quantity: i.quantity - 1 }  : i
+      //   )
+      // }else {
+      //   return prev.filter(i => i.product.id !== item.id); // Fixed typo here!
+      // }
+      // return prev;
+      if (existingItem) {
+        // 1. If quantity is 2 or more, just decrement it
+        if (existingItem.quantity > 1) {
+          return prev.map(i => 
+            i.product.id === item.id ? { ...i, quantity: i.quantity - 1 } : i
+          );
+        } 
+        // 2. If quantity is exactly 1, REMOVE it from the array entirely
+        else {
+          return prev.filter(i => i.product.id !== item.id); // Fixed typo here!
+        }
+      }
+      // Fallback if item wasn't found
+      return prev;
+    })
+  }
+
+  const cartItemsMap = useMemo(() => {
+    return cartItems.reduce((acc: Record<number, number>, item) => {
+      acc[item.product.id] = item.quantity;
+      return acc;
+    }, {});
+  }, [cartItems]);
+  console.log('cartItemsMap',cartItemsMap);
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -1501,9 +1591,10 @@ export default function CartScreen() {
       <ItemList 
         visible={showItemList}
         onClose={() => setShowItemList(false)}
-        onProductSelect={(product) => {
-          handleBrowseItems(product);
-        }}
+        onAdd={handleAdd}
+        onRemove={handleRemove}
+        // cartItemsMap={cartItemsMap }
+        cartItems={cartItems}
       />
 
       {/* SMS Modal */}
