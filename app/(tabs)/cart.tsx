@@ -4,12 +4,12 @@ import ItemList from '@/components/modals/ItemList';
 import SMSModal from '@/components/modals/SmsModal';
 import { useToast } from '@/components/ToastProvider';
 import { useAuth } from '@/hooks/useAuth';
-import { newOrder, useAddItemToOrder, useCancelOrder, useCompleteOrder, useRemoveOrderItem, useUpdateOrderItem } from '@/hooks/useOrder';
+import { newOrder, useCancelOrder, useCompleteOrder, useSyncCart } from '@/hooks/useOrder';
 import { useProcessPayment, usePwalletDebit, useSaveCashPayment, useSaveCreditCardPayment, useScanPwalletQr } from '@/hooks/usePayment';
 import { useScanProduct } from '@/hooks/useProduct';
 import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
@@ -153,15 +153,15 @@ export default function CartScreen() {
   const scanProductMutation = useScanProduct();
   const scanPwalletQrMutation = useScanPwalletQr();
   const pwalletDebitMutation = usePwalletDebit();
-  const updateOrderItemMutation = useUpdateOrderItem();
-  const removeOrderItemMutation = useRemoveOrderItem();
-  const addItemToOrderMutation = useAddItemToOrder();
+  // const updateOrderItemMutation = useUpdateOrderItem();
+  // const removeOrderItemMutation = useRemoveOrderItem();
+  // const addItemToOrderMutation = useAddItemToOrder();
   const cashPaymentMutation = useSaveCashPayment();
   const completeOrderMutation = useCompleteOrder();
   const cancelOrderMutation = useCancelOrder();
   const creditCardPaymentMutation = useSaveCreditCardPayment();
   const processPaymentMutation = useProcessPayment();
-
+  const syncCartMutation = useSyncCart();
 
   const [showScanner, setShowScanner] = useState(false);
   const [paymentScanner, setPaymentScanner] = useState(false);
@@ -170,7 +170,7 @@ export default function CartScreen() {
   const [isCreatingTransaction, setIsCreatingTransaction] = useState(false);
   const [showItemList,setShowItemList] = useState(false);
   const [ccQrData,setCcQrData] = useState('');
-
+  const [isCartSynced, setIsCartSynced] = useState(false);
 
     ////
   const PAYMENT_OPTIONS = [
@@ -240,9 +240,6 @@ export default function CartScreen() {
                 }
               }
             );
-            // setCartItems([]);
-            // setOrderNo(null);
-            // showInfo('Order cancelled successfully');
           }
         }
       ]
@@ -360,42 +357,6 @@ export default function CartScreen() {
         }
       }
     );
-  };
-
-  const updateQuantity = (item: CartItem, newQuantity: number) => {
-    console.log('updateQuantity',item);
-      if (newQuantity < 1) {
-        removeItem(item);
-        return;
-    }
-    setCartItems(prev =>
-        prev.map(i =>
-            i.product.id === item.product.id
-                ? { ...i, quantity: newQuantity }
-                : i
-        )
-    );
-    // updateOrderItemMutation.mutate(
-    //     { 
-    //         order_no: orderNo!, 
-    //         product_id: item.product.id, 
-    //         quantity: newQuantity 
-    //     },
-    //     {
-    //         onSuccess: () => {
-    //             setCartItems(prev =>
-    //                 prev.map(i =>
-    //                     i.product.id === item.product.id
-    //                         ? { ...i, quantity: newQuantity }
-    //                         : i
-    //                 )
-    //             );
-    //         },
-    //         onError: () => {
-    //             showError('Failed to update quantity. Please try again.');
-    //         }
-    //     }
-    // );
   };
 
   const removeItem = (item: CartItem) => {
@@ -685,105 +646,8 @@ export default function CartScreen() {
   // Create debounced function with 500ms delay
   const debouncedComputeChange = useDebounce(computeChange, 500);
 
-  const handleBrowseItems = async(product:any) => {
-
-    const cartProduct: CartItem['product'] = {
-      description: product.description || '',
-      price: product.price,
-      sku: product.sku,
-      id: product.id,
-      barcode: product.barcode
-    };
-
-    addItemToOrderMutation.mutate(
-        {
-            order_no: orderNo!,
-            product_id: product.id,
-            sku: product.sku,
-            barcode: product.barcode,
-            description: product.description,
-            price: product.price,
-        },
-        {
-            onSuccess: () => {
-                const existingItemIndex = cartItems.findIndex(
-                    i => i.product.id === product.id
-                );
-
-                if (existingItemIndex >= 0) {
-                    const updatedItems = [...cartItems];
-                    updatedItems[existingItemIndex].quantity += 1;
-                    setCartItems(updatedItems);
-                    showSuccess(`Added another ${product.description} to cart`);
-                } else {
-                    setCartItems(prev => [...prev, {
-                        product: cartProduct,
-                        quantity: 1
-                    }]);
-                    showSuccess(`Added ${product.description} to cart`);
-                }
-            },
-            onError: () => {
-                showError('Failed to add item. Please try again.');
-            }
-        }
-    );
-
-    // if (existingItemIndex >= 0) {
-      
-    //   const updatedItems = [...cartItems];
-    //   updatedItems[existingItemIndex].quantity += 1;
-    //   setCartItems(updatedItems);
-    //   showSuccess(`Added another ${product.description} to cart`);
-
-    // }else{
-
-    //   const newItem: CartItem = {
-    //     product: cartProduct,
-    //     quantity: 1
-    //   };
-    //   setCartItems([...cartItems, newItem]);
-    //   showSuccess(`Added ${cartProduct.description} to cart`);
-
-    // }
-
-    // console.log('existingItemIndex',existingItemIndex);
-  }
-
-  const handleProductChange = (item: any, newQuantity: number) => {
-    console.log('updateQuantity',item);
-      if (newQuantity < 1) {
-        removeItem(item);
-        return;
-    }
-
-    const existingItemIndex = cartItems.findIndex(
-        i => i.product.id === item.id
-    );
-
-    if(existingItemIndex >= 0){
-      const updatedItems = [...cartItems];
-      updatedItems[existingItemIndex].quantity += 1;
-      setCartItems(updatedItems);
-    }else{
-      setCartItems(prev => [...prev, {
-          product: item,
-          quantity: 1
-      }]);
-    }
-
-    // console.log('handle',item)
-    // setCartItems(prev =>
-    //     prev.map(i =>
-    //         i.product.id === item.product.id
-    //             ? { ...i, quantity: newQuantity }
-    //             : { ...i,}
-    //     )
-    // );
-  };
-
   const handleAdd = (item:CartItem['product']) => {
-
+    setIsCartSynced(false);
     setCartItems(prev => {
       const existingItem = prev.find(i => i.product.id === item.id)
       if(existingItem){
@@ -798,17 +662,9 @@ export default function CartScreen() {
   }
 
   const handleRemove = (item:CartItem['product']) => {
-
+    setIsCartSynced(false);
     setCartItems(prev => {
       const existingItem = prev.find(i => i.product.id === item.id)
-      // if(existingItem && existingItem.quantity > 1){
-      //   return prev.map(i => 
-      //     i.product.id === item.id ? { ...i, quantity: i.quantity - 1 }  : i
-      //   )
-      // }else {
-      //   return prev.filter(i => i.product.id !== item.id); // Fixed typo here!
-      // }
-      // return prev;
       if (existingItem) {
         // 1. If quantity is 2 or more, just decrement it
         if (existingItem.quantity > 1) {
@@ -826,13 +682,33 @@ export default function CartScreen() {
     })
   }
 
-  const cartItemsMap = useMemo(() => {
-    return cartItems.reduce((acc: Record<number, number>, item) => {
-      acc[item.product.id] = item.quantity;
-      return acc;
-    }, {});
-  }, [cartItems]);
-  console.log('cartItemsMap',cartItemsMap);
+  const handleProceedToCheckout = async () => {
+    
+    console.log('isCartSynced',isCartSynced);
+    if (!isCartSynced) {
+
+        try {
+
+          if (!orderNo) throw new Error("Missing Order Number");
+          console.log('cart items',cartItems);
+          await syncCartMutation.mutateAsync({
+            order_no: orderNo,
+            cart_items: cartItems
+          });
+
+          setIsCartSynced(true);
+          setShowPaymentModal(true);
+
+        } catch (error) {
+          Alert.alert("Network Error", "Failed to secure cart to the database. Please check connection and try again.");
+          return; // STOP! Do not open the payment modal!
+        }
+
+    } else {
+        setShowPaymentModal(true);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -944,7 +820,8 @@ export default function CartScreen() {
                     ]}
                     onPress={() => {
                       if (payments.length > 0) return;
-                      updateQuantity(item, item.quantity - 1);
+                      // updateQuantity(item, item.quantity - 1);
+                      handleRemove(item.product);
                     }}
                     disabled={payments.length > 0}
                   >
@@ -971,7 +848,8 @@ export default function CartScreen() {
                     ]}
                     onPress={() => {
                       if (payments.length > 0) return;
-                      updateQuantity(item, item.quantity + 1);
+                      // updateQuantity(item, item.quantity + 1);
+                      handleAdd(item.product);
                     }}
                     disabled={payments.length > 0}
                   >
@@ -1116,27 +994,32 @@ export default function CartScreen() {
         </View>
 
         <View style={styles.buttonGroup}>
-          <TouchableOpacity
+          <TouchableOpacity 
             style={[
               styles.iconButton, 
               styles.checkoutButton,
-              (cartItems.length === 0 || calculateRemainingBalance() <= 0.01) && styles.checkoutButtonDisabled
+              (cartItems.length === 0 || calculateRemainingBalance() <= 0.01 || syncCartMutation.isPending) && styles.payButtonDisabled
             ]}
-            onPress={() => {
-              if (cartItems.length === 0 || calculateRemainingBalance() <= 0.01) return;
-              setShowPaymentModal(true);
-            }}
-            disabled={cartItems.length === 0 || calculateRemainingBalance() <= 0.01}
+            onPress={() => handleProceedToCheckout()} 
+            // ✨ 1. ACTUALLY disable the button so it cannot be clicked:
+            disabled={cartItems.length === 0 || calculateRemainingBalance() <= 0.01 || syncCartMutation.isPending}
           >
-            <Ionicons 
+             <Ionicons 
               name="checkmark-circle-outline" 
               size={28} 
               color={(cartItems.length === 0 || calculateRemainingBalance() <= 0.01) ? "#CCCCCC" : "#FFFFFF"} 
             />
-            <Text style={[
-              styles.buttonLabel,
-              (cartItems.length === 0 || calculateRemainingBalance() <= 0.01) && styles.buttonLabelDisabled
-            ]}>Pay</Text>
+            {/* ✨ 2. Show a loading spinner if syncing, otherwise show "Pay" */}
+            {syncCartMutation.isPending ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={[
+                styles.buttonLabel,
+                (cartItems.length === 0 || calculateRemainingBalance() <= 0.01) && styles.buttonLabelDisabled
+              ]}>
+                Pay
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -2300,5 +2183,19 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 16,
+  },
+  payButton: {
+    backgroundColor: '#007AFF', // Your active primary blue (adjust if yours is different)
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+  },
+  // ✨ Add this right below it:
+  payButtonDisabled: {
+    backgroundColor: '#E5E5EA', // A neutral, inactive gray
+    opacity: 0.7, // Slightly fades the button to show it can't be tapped
   },
 });

@@ -101,6 +101,14 @@ class OrderService {
         )
         return response.data;
     }
+
+    async syncCart(params:any){
+        const response = await apiClient.post(
+            API_ENDPOINTS.ORDER.SYNC_CART,
+            params
+        )
+        return response.data;
+    }
 }
 
 export const orderService = new OrderService();
