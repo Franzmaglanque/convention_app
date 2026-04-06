@@ -19,6 +19,17 @@ export function useScanProduct() {
     })
 }
 
+export function useScanReturnProduct() {
+    return useMutation({
+        mutationKey: ['scan-return-product'],
+        mutationFn: (params: ScanProductParams) => productService.scanReturnProduct(params),
+        onSuccess: (response) => {
+        },
+        onError: (error) => {
+        }
+    })
+}
+
 export function useFetchProductList({ enabled }: { enabled?: boolean }) {
     return useQuery({
         queryKey: ['product-list'],

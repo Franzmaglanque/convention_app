@@ -1,10 +1,12 @@
+import BarcodeScanner from '@/components/BarcodeScanner';
 import PaymentSelectionModal, { PaymentDetails } from '@/components/modals/PaymentSelectionModal';
 import ProductCatalogModal from '@/components/modals/ProductCatalogModal';
 import { useToast } from '@/components/ToastProvider';
 import { useOriginalOrderItems, usePostReturn, useProcessReturn, useSyncExchangeCart, useValidateReturnOrderMutation } from '@/hooks/useOrder';
 import { usePwalletDebit, useSaveCashPayment, useSaveCreditCardPayment, useScanPwalletQr } from '@/hooks/usePayment';
+import { useScanProduct, useScanReturnProduct } from '@/hooks/useProduct';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -31,8 +33,7 @@ type Step = 'search' | 'override' | 'selectReturns' | 'newExchangeCart';
 export type PaymentMethod = 'CASH' | 'CARD' | 'E_WALLET';
 
 export default function ReturnsScreen() {
-  const debounceTimers = useRef<{ [key: string]: NodeJS.Timeout }>({});
-  const { showSuccess, showError, showInfo } = useToast();
+  const { showSuccess, showError,showWarning } = useToast();
   const [showCatalogModal, setShowCatalogModal] = useState(false);
   const [currentStep, setCurrentStep] = useState<Step>('search');
   const [showBrowseModal, setShowBrowseModal] = useState(false);
@@ -50,6 +51,8 @@ export default function ReturnsScreen() {
   const [newOrderNo, setNewOrderNo] = useState<string | null>(null); // Yung bagong Order NO
   const [appliedPayments, setAppliedPayments] = useState<PaymentDetails[]>([]);  // Tracking ng applied multi-tender payments
   const [isCartSynced, setIsCartSynced] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+
 
   const validateOrderMutation = useValidateReturnOrderMutation();
   const useProcessReturnMutation = useProcessReturn();
@@ -59,6 +62,9 @@ export default function ReturnsScreen() {
   const cashPaymentMutation = useSaveCashPayment();
   const creditCardPaymentMutation = useSaveCreditCardPayment();
   const syncExchangeCartMutation = useSyncExchangeCart();
+  const scanReturnProductMutation = useScanReturnProduct();
+  const scanProductMutation = useScanProduct();
+
 
   const totalReturnCredit = returnItems.reduce((sum, item) => sum + (item.price * item.returnQty), 0);
   const totalExchangeCost = exchangeItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
@@ -134,7 +140,9 @@ export default function ReturnsScreen() {
 
   const updateReturnQty = (id: string, delta: number) => {
     setReturnItems(prev => prev.map(item => {
+      console.log('checking item',item.id,'against',id);
       if (item.id === id) {
+        console.log('found item to update:', item);
         const newQty = item.returnQty + delta;
         if (newQty >= 0 && newQty <= item.maxQty) {
           return { ...item, returnQty: newQty };
@@ -166,34 +174,6 @@ export default function ReturnsScreen() {
       }
     });
   };
-
-  // const handleAddNewExchangeItem = (selectedItem: any) => {
-  //   setIsCartSynced(false);
-  //   setExchangeItems(prev => {
-  //     // Check if it's already in the cart to increment qty
-  //     const existingItem = prev.find(i => i.id === selectedItem.id);
-  //     if (existingItem) {
-  //       return prev.map(i => i.id === selectedItem.id ? { ...i, qty: i.qty + 1 } : i);
-  //     }
-  //     // Add new item with qty: 1
-  //     return [...prev, { ...selectedItem, qty: 1 }];
-  //   });
-  // };
-
-  // const handleDecrementExchangeItem = (selectedItem: any) => {
-  //   setIsCartSynced(false);
-  //   setExchangeItems(prev => {
-  //     const existingItem = prev.find(i => i.id === selectedItem.id);
-      
-  //     if (existingItem && existingItem.qty > 1) {
-  //       // Just subtract 1
-  //       return prev.map(i => i.id === selectedItem.id ? { ...i, qty: i.qty - 1 } : i);
-  //     } else {
-  //       // If it was at 1, completely remove it from the array
-  //       return prev.filter(i => i.id !== selectedItem.id);
-  //     }
-  //   });
-  // };
 
   const handleAddNewExchangeItem = useCallback((selectedItem: any) => {
     setIsCartSynced(false);
@@ -348,8 +328,124 @@ export default function ReturnsScreen() {
 
   };
 
-  const handleReturnBarcodeScan = async() => {
-    console.log('scanning return item barcode...');
+  const handleReturnBarcodeScan = async(barcodeData:string) => {
+
+    scanReturnProductMutation.mutate(
+      { barcode: barcodeData,order_no:searchInput },
+      {
+        onSuccess: (response) => {
+          const productData = response.data;
+
+          const cartProduct = {
+            barcode: Number(barcodeData),
+            id: productData.id,
+            maxQty:productData.maxQty,
+            name:productData.name,
+            price:productData.price,
+            product_id:productData.product_id,
+            sku:productData.sku,
+            returnQty:1
+          };
+
+          const existingItemIndex = returnItems.findIndex(
+            item => item.barcode == barcodeData
+          );
+
+          if (existingItemIndex >= 0) {
+
+            const updatedItems = [...returnItems];
+            const currentQty = updatedItems[existingItemIndex].returnQty;
+            const max = updatedItems[existingItemIndex].maxQty;
+
+            if (currentQty + 1 > max ){
+              setShowScanner(false);
+              showWarning(`Cannot add more than ${max} of this item.`);
+              return returnItems;
+            }
+            updatedItems[existingItemIndex].returnQty += 1;
+            setReturnItems(updatedItems);
+            showSuccess(`Scanned another ${productData.name}. Quantity is now ${updatedItems[existingItemIndex].returnQty}.`);
+          } else {
+            setReturnItems([...returnItems, cartProduct]);
+            showSuccess(`Added ${cartProduct.name} to cart`);
+          }
+
+          setShowScanner(false);
+        },
+        onError: (error: any) => {
+          console.error('Scan error:', error);
+          setShowScanner(false);
+          
+          // Check if it's a "not found" error
+          if (error.response?.status === 404 || error.message?.includes('not found')) {
+            showError('Product not found.');
+          } else if (error.response?.status === 401) {
+            showError('Session expired. Please login again.');
+          } else {
+            showError('Failed to scan product. Please try again.');
+          }
+        }
+      }
+    );
+  }
+
+  const handleExchangeBarcodeScan = async(barcodeData:string) => {
+    // console.log('scanning for exchange items is not yet implemented',barcodeData);
+
+    scanProductMutation.mutate(
+      { barcode: barcodeData,order_no:searchInput },
+      {
+        onSuccess: (response) => {
+          // The response should match ScanProductResponse from product.types.ts
+          const productData = response.data;
+          
+          console.log('Scanned product response:', productData);
+          console.log('exchangeItems before scan:', exchangeItems);
+          
+          const cartProduct = {
+            barcode: barcodeData,
+            description:productData.description,
+            id: productData.id,
+            price:productData.price,
+            qty:1,
+            sku:productData.sku,
+          };
+
+          const existingItemIndex = exchangeItems.findIndex(
+            item => item.barcode == barcodeData
+          );
+          console.log('existingItemIndex',existingItemIndex);
+
+          if (existingItemIndex >= 0) {
+            
+            const updatedItems = [...exchangeItems];
+            updatedItems[existingItemIndex].qty += 1;
+            setExchangeItems(updatedItems);
+            showSuccess(`Successfully added another ${productData.description} to the cart. Quantity is now ${updatedItems[existingItemIndex].qty}.`);
+          } else {
+
+            setExchangeItems([...exchangeItems, cartProduct]);
+            showSuccess(`Added ${cartProduct.description} to cart`);
+          }
+
+          setShowScanner(false);
+        },
+        onError: (error: any) => {
+          // Handle API error (product not found, network error, etc.)
+          console.error('Scan error:', error);
+          setShowScanner(false);
+          
+          // Check if it's a "not found" error
+          if (error.response?.status === 404 || error.message?.includes('not found')) {
+            showError('Product not found.');
+          } else if (error.response?.status === 401) {
+            showError('Session expired. Please login again.');
+          } else {
+            showError('Failed to scan product. Please try again.');
+          }
+        }
+      }
+    );
   }
 
   // UI ng type order_no
@@ -416,7 +512,7 @@ export default function ReturnsScreen() {
 
         <View style={styles.actionRow}>
           {/* <TouchableOpacity style={styles.halfButton} onPress={handleAddReturnItem}> */}
-          <TouchableOpacity style={styles.halfButton} onPress={handleReturnBarcodeScan}>
+          <TouchableOpacity style={styles.halfButton} onPress={() =>setShowScanner(true)}>
 
             <Ionicons name="barcode-outline" size={20} color="#007AFF" />
             <Text style={styles.actionButtonText}>Scan Item</Text>
@@ -527,7 +623,7 @@ export default function ReturnsScreen() {
             <View style={styles.actionRow}>
               <TouchableOpacity 
                 style={[styles.halfButton, isCartLocked && styles.buttonDisabled]} 
-                onPress={() => Alert.alert('Scan', 'Scanner active')}
+                onPress={() => setShowScanner(true)}
                 disabled={isCartLocked}
               >
                 <Ionicons name="barcode-outline" size={20} color={isCartLocked ? "#8E8E93" : "#007AFF"} />
@@ -747,7 +843,12 @@ export default function ReturnsScreen() {
           // onSelectPayment={handlePaymentSelected}
           onConfirmPayment={handleConfirmPayment}
         />
-   
+        <BarcodeScanner
+           isVisible={showScanner}
+           onBarcodeScanned={currentStep === 'selectReturns' ? handleReturnBarcodeScan : handleExchangeBarcodeScan}
+           onClose={() => setShowScanner(false)}
+           scanDelay={1000}
+         />
     </SafeAreaView>
   );
 }
