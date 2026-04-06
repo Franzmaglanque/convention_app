@@ -103,14 +103,14 @@ const ItemList: React.FC<ItemListProps> = ({ visible, onClose, onProductSelect }
     onClose();
   };
 
-  if(isLoading){
-    return(
-       <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#0000ff" />
-          <Text>Loading products...</Text>
-        </View>
-    )
-  }
+  // if(isLoading){
+  //   return(
+  //      <View style={styles.centerContainer}>
+  //         <ActivityIndicator size="large" color="#0000ff" />
+  //         <Text>Loading products...</Text>
+  //       </View>
+  //   )
+  // }
   return (
     <Modal
       visible={visible}
@@ -149,7 +149,12 @@ const ItemList: React.FC<ItemListProps> = ({ visible, onClose, onProductSelect }
           )}
         </View>
           
-          { isError ? (
+          { isLoading ? (
+            <View style={styles.centerContainer}>
+              <ActivityIndicator size="large" color="#007AFF" />
+              <Text style={{ marginTop: 10, color: '#666' }}>Loading products...</Text>
+            </View>
+          ) : isError ? (
             <View style={styles.centerContainer}>
               <Text>Failed to load products.</Text>
               <TouchableOpacity onPress={() => refetch()} style={styles.retryButton}>

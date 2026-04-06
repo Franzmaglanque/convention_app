@@ -30,7 +30,8 @@ export const API_ENDPOINTS = {
     RETURN_REPLACE_FETCH_ORIGINAL_ORDER_ITEMS: (order_no:string) => `order/return/fetch-items/${order_no}`,
     PROCESS_RETURN: 'order/return/process',
     POST_RETURN: 'order/return/post',
-    SYNC_EXCHANGE_CART: 'order/return/sync-cart'
+    SYNC_EXCHANGE_CART: 'order/return/sync-cart',
+    SYNC_CART: 'order/sync-cart'
   },
 
   PRODUCTS: {

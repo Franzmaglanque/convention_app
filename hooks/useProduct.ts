@@ -23,7 +23,8 @@ export function useFetchProductList({ enabled }: { enabled?: boolean }) {
     return useQuery({
         queryKey: ['product-list'],
         queryFn: () => productService.fetchProductList(),
-        enabled
+        // enabled
+        staleTime: 1000 * 60 * 30
     })
 }
 

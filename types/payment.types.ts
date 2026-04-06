@@ -35,6 +35,8 @@ export interface creditCardPaymentParams {
   payment_method:string;
   order_no:string;
   qr_code_data:string;
+  terminal_type?:string;
+  card_type?:string;
 }
 
 export interface gcashPaymentBody {

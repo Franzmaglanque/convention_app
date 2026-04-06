@@ -1,5 +1,5 @@
 import { orderService } from '@/services/order.service';
-import { PostReturnPayload, ProcessReturnPayload, SyncExchangeCartPayload } from '@/types/order.types';
+import { PostReturnPayload, ProcessReturnPayload, SyncCartPayload, SyncExchangeCartPayload } from '@/types/order.types';
 import { useMutation, useQuery } from '@tanstack/react-query';
 
 export function newOrder() {
@@ -126,5 +126,12 @@ export function useSyncExchangeCart(){
   return useMutation({
     mutationKey: ['sync-exchange-cart'],
     mutationFn: (body:SyncExchangeCartPayload) => orderService.syncExchangeCart(body),
+  })
+}
+
+export function useSyncCart(){
+  return useMutation({
+    mutationKey: ['sync-cart'],
+    mutationFn: (body:SyncCartPayload) => orderService.syncCart(body),
   })
 }

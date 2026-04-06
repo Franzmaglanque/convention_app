@@ -2,16 +2,33 @@ import { useFetchProductList } from '@/hooks/useProduct';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-    ActivityIndicator,
-    FlatList,
-    Modal,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  FlatList,
+  Modal,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
+interface Product {
+  id: number;
+  description: string;
+  price: string;
+  sku: string;
+  barcode?: string;
+}
+
+interface ItemListProps {
+  visible: boolean;
+  onClose: () => void;
+  onAdd: (item: Product) => void;
+  onRemove: (item: Product) => void;
+  cartItems: any[];
+    // cartItemsMap:Record<number, number>
+}
 const formatCurrency = (value: number | string) => {
   const numericValue = typeof value === 'string' ? parseFloat(value) : value;
   return new Intl.NumberFormat('en-PH', {
@@ -20,41 +37,11 @@ const formatCurrency = (value: number | string) => {
   }).format(numericValue || 0);
 };
 
-interface Product {
-  id: string | number;
-  description: string;
-  price: string | number;
-  sku?: string | number;
-  barcode?: string | number;
-}
-
-// interface ProductCatalogModalProps {
-//   visible: boolean;
-//   onClose: () => void;
-//   onAdd: (item: Product) => void;
-//   onRemove: (item: Product) => void;
-//   cartItems: any[]; 
-// }
-interface ProductCatalogModalProps {
-  visible: boolean;
-  onClose: () => void;
+const ProductItem = React.memo(({ item,onAdd,currentQty,onRemove }:{ 
+  item: Product;
+  currentQty: number;
   onAdd: (item: Product) => void;
-  onRemove: (item: Product) => void;
-  cartItemsMap: Record<string | number, number>; // ← changed from cartItems array
-}
-
-// ✨ OPTIMIZATION 1: Memoize the individual row so it doesn't re-render 
-// every time the user types in the search bar.
-const CatalogItem = React.memo(({ 
-  item, 
-  currentQty, 
-  onAdd, 
-  onRemove 
-}: { 
-  item: Product, 
-  currentQty: number, 
-  onAdd: (item: Product) => void, 
-  onRemove: (item: Product) => void 
+  onRemove: (item: Product) => void
 }) => {
   return (
     <View style={styles.browseItemRow}>
@@ -80,7 +67,6 @@ const CatalogItem = React.memo(({
         </TouchableOpacity>
         
         <Text style={styles.stepperValue}>{currentQty}</Text>
-        
         <TouchableOpacity 
           style={styles.stepperBtn} 
           onPress={() => onAdd(item)}
@@ -91,73 +77,84 @@ const CatalogItem = React.memo(({
     </View>
   );
 }, (prevProps, nextProps) => {
-  // Only re-render this specific row if its quantity in the cart changes!
-//   return prevProps.currentQty === nextProps.currentQty;
-    // Now this is the COMPLETE check — all props that affect rendering
-    return (
-        prevProps.currentQty === nextProps.currentQty &&
-        prevProps.onAdd === nextProps.onAdd &&       // ← stable because of useCallback
-        prevProps.onRemove === nextProps.onRemove     // ← stable because of useCallback
-    );
+  // ✨ PERFORMANCE BOOST: Only re-render if the quantity changes!
+  return prevProps.currentQty === nextProps.currentQty;
 });
 
+// const ItemList: React.FC<ItemListProps> = ({ visible, onClose,onAdd,cartItemsMap }) => {
+const ItemList: React.FC<ItemListProps> = ({ visible, onClose, onAdd, onRemove, cartItems }) => {
+  const [searchQuery,setSearchQuery] = useState('');
+  
+  const {
+    data: products,
+    isLoading,
+    isError,
+    refetch,
+    isRefetching
+  } = useFetchProductList({
+    enabled: visible
+  });
+  //   const {
+  //   data: products,
+  //   isLoading,
+  //   isError,
+  //   refetch
+  // } = useFetchProductList({
+  //   // ✨ Remove 'enabled: visible'. Let it fetch quietly in the 
+  //   // background as soon as the Cart screen mounts!
+  //   staleTime: 1000 * 60 * 30, // Tell React Query: "This data is good for 30 minutes, don't refetch it every time the modal opens"
+  // });
 
-// export default function ProductCatalogModal({ visible, onClose, onAdd, onRemove, cartItems }: ProductCatalogModalProps) {
-export default function ProductCatalogModal({ 
-visible, onClose, onAdd, onRemove, cartItemsMap  // ← cartItemsMap
-}: ProductCatalogModalProps) {
-    const [searchQuery, setSearchQuery] = useState('');
-    
-    const { data: products, isLoading, isError, refetch } = useFetchProductList({
-      enabled: visible
-    }); 
-
-    // ✨ OPTIMIZATION 2: useMemo prevents the app from re-filtering the entire 
-    // array 60 times a second while animating.
-    const filteredProducts = useMemo(() => {
+  const filteredData = useMemo(() => {
       if (!products?.data) return [];
-      if (!searchQuery) return products.data; // Don't filter if search is empty
-
-      const query = searchQuery.toLowerCase();
-      return products.data.filter((item: any) => {
-          return (
-              item.description?.toLowerCase().includes(query) ||
-              item.sku?.toString().includes(query) ||
-              item.price?.toString().includes(query) 
-          );
+      if (!searchQuery.trim()) return products?.data;
+  
+      const lowerCaseQuery = searchQuery.toLowerCase();
+      
+      return products.data.filter((product: Product) => {
+        const matchName = product.description?.toLowerCase().includes(lowerCaseQuery);
+        const matchBarcode = product.barcode?.toLowerCase().includes(lowerCaseQuery);
+        const matchSku = product.sku?.toLowerCase().includes(lowerCaseQuery);
+        const matchPrice = product.price?.toLowerCase().includes(lowerCaseQuery);
+        
+        return matchName || matchBarcode || matchSku || matchPrice;
       });
-    }, [products?.data, searchQuery]);
+    }, [products, searchQuery])
 
 
-    // ✨ OPTIMIZATION 3: Stable renderItem callback for FlatList
-    // const renderItem = useCallback(({ item }: { item: Product }) => {
-    //   // Find how many of this item are currently in the exchange cart
-    //   const currentQty = cartItems.find(cartItem => cartItem.id === item.id)?.qty || 0;
-
-    //   return (
-    //     <CatalogItem 
-    //       item={item} 
-    //       currentQty={currentQty} 
-    //       onAdd={onAdd} 
-    //       onRemove={onRemove} 
-    //     />
-    //   );
-    // }, [cartItems, onAdd, onRemove]);
-
-
-    const renderItem = useCallback(({ item }: { item: Product }) => {
-      const currentQty = cartItemsMap[item.id] || 0; // ← O(1) lookup, not O(n) find()
-      return (
-        <CatalogItem 
-          item={item} 
-          currentQty={currentQty} 
-          onAdd={onAdd} 
-          onRemove={onRemove} 
-        />
-      );
-    }, [cartItemsMap, onAdd, onRemove]);
-
+  const cartQtyMap = useMemo(() => {
+    const map: Record<number, number> = {};
+    cartItems.forEach(cartItem => {
+      if (cartItem.product?.id) {
+        map[cartItem.product.id] = cartItem.quantity;
+      }
+    });
+    return map;
+  }, [cartItems]); // Only recalculates when the cart actually changes!
+    // ✨ FIX: Create a proper renderItem callback
+  const renderItem = useCallback(({ item }: { item: Product }) => {
+    // const currentQty = cartItemsMap[item.id] || 0;
+    // return (
+    //   <ProductItem 
+    //     item={item}
+    //     onAdd={onAdd}
+    //     currentQty={currentQty}
+    //   />
+    // );
+    // const currentQty = cartItems.find(cartItem => cartItem.product?.id === item.id)?.quantity || 0;
+    // ✨ INSTANT LOOKUP! No more .find() loops.
+    const currentQty = cartQtyMap[item.id] || 0;
     return (
+      <ProductItem 
+        item={item} 
+        currentQty={currentQty} 
+        onAdd={onAdd} 
+        onRemove={onRemove} 
+      />
+    );
+  }, [,cartItems,onAdd,onRemove]);
+
+  return (
     <Modal visible={visible} transparent animationType="slide">
         <View style={styles.bottomSheetOverlay}>
             <View style={styles.bottomSheetContent}>
@@ -197,18 +194,25 @@ visible, onClose, onAdd, onRemove, cartItemsMap  // ← cartItemsMap
                     </View>
                 ) : (
                     <FlatList
-                      data={filteredProducts}
+                      data={filteredData}
                       keyExtractor={(item) => item.id.toString()}
                       renderItem={renderItem}
                       style={styles.sheetList}
                       contentContainerStyle={{ paddingBottom: 40 }}
                       showsVerticalScrollIndicator={false}
-                      
-                      // 🚀 MASSIVE PERFORMANCE BOOSTERS FOR LOW-END PHONES 🚀
-                      initialNumToRender={8}      // Only draw 8 items before sliding the modal up
-                      maxToRenderPerBatch={8}     // Draw 8 items per frame while scrolling
-                      windowSize={5}              // Unload items far off-screen to save RAM
-                      removeClippedSubviews={true} // Physically remove invisible items
+                    
+                      initialNumToRender={8}     
+                      maxToRenderPerBatch={8}  
+                      windowSize={5}    
+                      removeClippedSubviews={true}
+                      refreshControl={
+                      <RefreshControl
+                          refreshing={isRefetching}
+                          onRefresh={refetch}
+                          tintColor="#007AFF" // iOS spinner color
+                          colors={['#007AFF']} // Android spinner color
+                        />
+                      }
                     />
                 )}
 
@@ -216,11 +220,10 @@ visible, onClose, onAdd, onRemove, cartItemsMap  // ← cartItemsMap
         </View>
     </Modal>
   );
-}
+};
 
-// KEEP ALL YOUR EXISTING STYLES AT THE BOTTOM
 const styles = StyleSheet.create({
-     bottomSheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  bottomSheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   bottomSheetContent: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '85%', paddingBottom: 20 },
   sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: '#F2F2F7' },
   sheetTitle: { fontSize: 18, fontWeight: '700', color: '#1C1C1E' },
@@ -239,12 +242,12 @@ const styles = StyleSheet.create({
   centerText: { marginTop: 12, fontSize: 15, color: '#8E8E93', fontWeight: '500' },
   retryButton: { marginTop: 16, paddingVertical: 8, paddingHorizontal: 16, backgroundColor: '#F2F2F7', borderRadius: 8 },
   retryButtonText: { color: '#007AFF', fontWeight: '600', fontSize: 14 },
-  
+
   // NEW: Stepper Styles
   stepper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 8, borderWidth: 1, borderColor: '#E5E5EA' },
   stepperBtn: { padding: 8 },
   stepperDisabled: { opacity: 0.5 },
   stepperValue: { fontSize: 16, fontWeight: '600', minWidth: 24, textAlign: 'center', color: '#1C1C1E' },
-   
-    // ...
 });
+
+export default ItemList;
