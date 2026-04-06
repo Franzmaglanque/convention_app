@@ -1,20 +1,20 @@
 
 import BarcodeScanner from '@/components/BarcodeScanner';
-import ItemList from '@/components/ItemList';
+import PaymentSelectionModal from '@/components/modals/CartPaymentSelectionModal';
+import ItemList from '@/components/modals/ItemList';
 import SMSModal from '@/components/modals/SmsModal';
 import { useToast } from '@/components/ToastProvider';
 import { useAuth } from '@/hooks/useAuth';
-import { newOrder, useAddItemToOrder, useCancelOrder, useCompleteOrder, useRemoveOrderItem, useUpdateOrderItem } from '@/hooks/useOrder';
-import { usePwalletDebit, useSaveCashPayment, useSaveCreditCardPayment, useScanPwalletQr } from '@/hooks/usePayment';
+import { newOrder, useCancelOrder, useCompleteOrder, useSyncCart } from '@/hooks/useOrder';
+import { useProcessPayment, usePwalletDebit, useSaveCashPayment, useSaveCreditCardPayment, useScanPwalletQr } from '@/hooks/usePayment';
 import { useScanProduct } from '@/hooks/useProduct';
 import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import React, { useCallback, useRef, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
@@ -80,14 +80,15 @@ const paymentSchema = z.object({
 });
 
 type PaymentFormData = z.infer<typeof paymentSchema>;
-
+export type TerminalType = 'GCASH' | 'TANGENT';
+export type CardType = 'CREDIT' | 'DEBIT';
 interface CartItem {
   product: {
     id: number;
     description: string;
     price: string;
     sku: string;
-    barcode: string;
+    barcode?: string;
   };
   quantity: number;
 }
@@ -153,20 +154,23 @@ export default function CartScreen() {
   const scanProductMutation = useScanProduct();
   const scanPwalletQrMutation = useScanPwalletQr();
   const pwalletDebitMutation = usePwalletDebit();
-  const updateOrderItemMutation = useUpdateOrderItem();
-  const removeOrderItemMutation = useRemoveOrderItem();
-  const addItemToOrderMutation = useAddItemToOrder();
+  // const updateOrderItemMutation = useUpdateOrderItem();
+  // const removeOrderItemMutation = useRemoveOrderItem();
+  // const addItemToOrderMutation = useAddItemToOrder();
   const cashPaymentMutation = useSaveCashPayment();
   const completeOrderMutation = useCompleteOrder();
   const cancelOrderMutation = useCancelOrder();
   const creditCardPaymentMutation = useSaveCreditCardPayment();
+  const processPaymentMutation = useProcessPayment();
+  const syncCartMutation = useSyncCart();
 
   const [showScanner, setShowScanner] = useState(false);
-  const [paymentScanner, setPaymentScanner] = useState(false);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [orderNo, setOrderNo] = useState<string | null>(null);
   const [isCreatingTransaction, setIsCreatingTransaction] = useState(false);
   const [showItemList,setShowItemList] = useState(false);
+  const [ccQrData,setCcQrData] = useState('');
+  const [isCartSynced, setIsCartSynced] = useState(false);
 
     ////
   const PAYMENT_OPTIONS = [
@@ -176,6 +180,7 @@ export default function CartScreen() {
     { id: 'CREDIT_CARD', label: 'Credit Card', icon: 'card-outline', color: '#FF9500' },
     { id: 'HOME CREDIT', label: 'Home Credit', icon: 'home-outline', color: '#E53935' },
   ] as const;
+
   const amountNum = parseFloat(watch('amount') || '0');
   const cashBillNum = parseFloat(watch('cashBill') || '0');
   const currentPaymentType = watch('paymentType');
@@ -236,9 +241,6 @@ export default function CartScreen() {
                 }
               }
             );
-            // setCartItems([]);
-            // setOrderNo(null);
-            // showInfo('Order cancelled successfully');
           }
         }
       ]
@@ -358,35 +360,6 @@ export default function CartScreen() {
     );
   };
 
-  const updateQuantity = (item: CartItem, newQuantity: number) => {
-    console.log('updateQuantity',item);
-      if (newQuantity < 1) {
-        removeItem(item);
-        return;
-    }
-    updateOrderItemMutation.mutate(
-        { 
-            order_no: orderNo!, 
-            product_id: item.product.id, 
-            quantity: newQuantity 
-        },
-        {
-            onSuccess: () => {
-                setCartItems(prev =>
-                    prev.map(i =>
-                        i.product.id === item.product.id
-                            ? { ...i, quantity: newQuantity }
-                            : i
-                    )
-                );
-            },
-            onError: () => {
-                showError('Failed to update quantity. Please try again.');
-            }
-        }
-    );
-  };
-
   const removeItem = (item: CartItem) => {
     Alert.alert('Remove Item', 'Remove this item from the cart?', [
         { text: 'Cancel', style: 'cancel' },
@@ -394,20 +367,24 @@ export default function CartScreen() {
             text: 'Remove',
             style: 'destructive',
             onPress: () => {
-                removeOrderItemMutation.mutate(
-                    { order_no: orderNo!, product_id: item.product.id },
-                    {
-                        onSuccess: () => {
-                            setCartItems(prev =>
-                                prev.filter(i => i.product.id !== item.product.id)
-                            );
-                            showInfo('Item removed');
-                        },
-                        onError: () => {
-                            showError('Failed to remove item. Please try again.');
-                        }
-                    }
+                // removeOrderItemMutation.mutate(
+                //     { order_no: orderNo!, product_id: item.product.id },
+                //     {
+                //         onSuccess: () => {
+                //             setCartItems(prev =>
+                //                 prev.filter(i => i.product.id !== item.product.id)
+                //             );
+                //             showInfo('Item removed');
+                //         },
+                //         onError: () => {
+                //             showError('Failed to remove item. Please try again.');
+                //         }
+                //     }
+                // );
+                setCartItems(prev =>
+                    prev.filter(i => i.product.id !== item.product.id)
                 );
+                showInfo('Item removed');
             }
         }
     ]);
@@ -470,11 +447,8 @@ export default function CartScreen() {
             order_no:orderNo!,
             payment_method:data.paymentType
           });
-
-
-    
         } catch (error) {
-          console.log('debit error',error);
+          setShowPaymentModal(false)
           showError('Debit failed. Please try again.');
           return false; 
         }
@@ -491,6 +465,7 @@ export default function CartScreen() {
 
           });
         } catch (error) {
+          setShowPaymentModal(false)
           showError('Cash Payment Failed.');
           return false; 
         }
@@ -501,9 +476,27 @@ export default function CartScreen() {
             amount:amountNum,
             payment_method:data.paymentType,
             order_no:orderNo!,
-            reference_no:data.referenceNumber!
+            reference_no:data.referenceNumber!,
+            qr_code_data:ccQrData
           });
         } catch (error) {
+          setShowPaymentModal(false)
+          showError('Credit Card Payment Failed.');
+          return false; 
+        }
+        break;
+      case 'GCASH':
+        try {
+          const gcashResponse = await processPaymentMutation.mutateAsync({
+            order_no:orderNo!,
+            payment_method:data.paymentType,
+            amount:amountNum,
+            reference_no:data.referenceNumber!
+          });
+          console.log('GCASH RESPONSE',gcashResponse);
+        } catch (error) {
+
+          setShowPaymentModal(false)
           showError('Credit Card Payment Failed.');
           return false; 
         }
@@ -531,8 +524,7 @@ export default function CartScreen() {
       cashBill: '',
       cashChange: '0.00'
     });
-    
-    return true;
+    setShowPaymentModal(false)
   };
 
   const handleCompleteTransaction = async(customerNumber?:string) => {
@@ -564,30 +556,6 @@ export default function CartScreen() {
     })
   }
 
-  const handlePaymentScanned = async (barcodeData: string) => {
-    console.log('barcodeData', barcodeData);
-    await scanPwalletQrMutation.mutate({
-            QrCode: barcodeData,
-        },{
-        onSuccess: (response) => {
-          console.log('scanPwalletQrMutation',response);
-          setValue('referenceNumber', (response.data.reference_no).toString());
-          trigger('referenceNumber');
-          setPaymentScanner(false);
-        },
-        onError: () => {
-          setPaymentScanner(false);
-
-           showError('Invalid Pwallet Qr Code');
-        },
-        onSettled: () => {
-      
-        }
-    });
- 
-
-  }
-
   // Create a debounced version of computeChange
   const computeChange = useCallback(() => {
     const cashBill = parseFloat(watch('cashBill') || '0');
@@ -612,75 +580,197 @@ export default function CartScreen() {
   // Create debounced function with 500ms delay
   const debouncedComputeChange = useDebounce(computeChange, 500);
 
-  const handleBrowseItems = async(product:any) => {
+  const handleAdd = (item:CartItem['product']) => {
+    setIsCartSynced(false);
+    setCartItems(prev => {
+      const existingItem = prev.find(i => i.product.id === item.id)
+      if(existingItem){
+        return prev.map(i => 
+          i.product.id === item.id ? { ...i, quantity: i.quantity + 1 }  : i
+        )
+      }
 
-    const cartProduct: CartItem['product'] = {
-      description: product.description || '',
-      price: product.price,
-      sku: product.sku,
-      id: product.id,
-      barcode: product.barcode
-    };
-
-    addItemToOrderMutation.mutate(
-        {
-            order_no: orderNo!,
-            product_id: product.id,
-            sku: product.sku,
-            barcode: product.barcode,
-            description: product.description,
-            price: product.price,
-        },
-        {
-            onSuccess: () => {
-                const existingItemIndex = cartItems.findIndex(
-                    i => i.product.id === product.id
-                );
-
-                if (existingItemIndex >= 0) {
-                    const updatedItems = [...cartItems];
-                    updatedItems[existingItemIndex].quantity += 1;
-                    setCartItems(updatedItems);
-                    showSuccess(`Added another ${product.description} to cart`);
-                } else {
-                    setCartItems(prev => [...prev, {
-                        product: cartProduct,
-                        quantity: 1
-                    }]);
-                    showSuccess(`Added ${product.description} to cart`);
-                }
-            },
-            onError: () => {
-                showError('Failed to add item. Please try again.');
-            }
-        }
-    );
-
-    const existingItemIndex = cartItems.findIndex(
-      item => item.product.barcode === product.barcode
-    );
-
-    // if (existingItemIndex >= 0) {
-      
-    //   const updatedItems = [...cartItems];
-    //   updatedItems[existingItemIndex].quantity += 1;
-    //   setCartItems(updatedItems);
-    //   showSuccess(`Added another ${product.description} to cart`);
-
-    // }else{
-
-    //   const newItem: CartItem = {
-    //     product: cartProduct,
-    //     quantity: 1
-    //   };
-    //   setCartItems([...cartItems, newItem]);
-    //   showSuccess(`Added ${cartProduct.description} to cart`);
-
-    // }
-
-    // console.log('existingItemIndex',existingItemIndex);
+      return [...prev,{product:item,quantity:1}]
+    })
+    console.log('add item',item)
   }
 
+  const handleRemove = (item:CartItem['product']) => {
+    setIsCartSynced(false);
+    setCartItems(prev => {
+      const existingItem = prev.find(i => i.product.id === item.id)
+      if (existingItem) {
+        // 1. If quantity is 2 or more, just decrement it
+        if (existingItem.quantity > 1) {
+          return prev.map(i => 
+            i.product.id === item.id ? { ...i, quantity: i.quantity - 1 } : i
+          );
+        } 
+        // 2. If quantity is exactly 1, REMOVE it from the array entirely
+        else {
+          return prev.filter(i => i.product.id !== item.id); // Fixed typo here!
+        }
+      }
+      // Fallback if item wasn't found
+      return prev;
+    })
+  }
+
+  const handleProceedToCheckout = async () => {
+    
+    console.log('isCartSynced',isCartSynced);
+    if (!isCartSynced) {
+
+        try {
+
+          if (!orderNo) throw new Error("Missing Order Number");
+          console.log('cart items',cartItems);
+          await syncCartMutation.mutateAsync({
+            order_no: orderNo,
+            cart_items: cartItems
+          });
+
+          setIsCartSynced(true);
+          setShowPaymentModal(true);
+
+        } catch (error) {
+          Alert.alert("Network Error", "Failed to secure cart to the database. Please check connection and try again.");
+          return; // STOP! Do not open the payment modal!
+        }
+
+    } else {
+        setShowPaymentModal(true);
+    }
+  };
+
+  const handleConfirmPayment = async(payment_details:any) => {
+    console.log('handleConfirmPayment',payment_details);
+
+    const amountNum = parseFloat(payment_details.amountPaid);
+    const remainingBalance = Number(calculateRemainingBalance().toFixed(2));
+    console.log('amountNum',amountNum);
+    console.log('remainingBalance',remainingBalance);
+
+    if (!payment_details.method) {
+      showError('Please select a payment method');
+      return false;
+    }
+
+    // Validate reference number for PWALLET/GCASH
+    if ((payment_details.method === 'PWALLET' || payment_details.method === 'GCASH') && 
+        (!payment_details.referenceNumber || payment_details.referenceNumber.trim().length === 0)) {
+      showError('Reference number is required for PWALLET and GCASH');
+      return false;
+    }
+
+    if (amountNum > remainingBalance) {
+      showError('Payment amount cannot exceed remaining balance');
+      return false;
+    }
+
+    switch (payment_details.method){
+
+      case 'PWALLET':
+        try {
+          await pwalletDebitMutation.mutateAsync({
+            reference_no: payment_details?.referenceNumber ?? "",
+            amount: amountNum,
+            store_code: 901,
+            order_no:orderNo!,
+            payment_method:payment_details.method
+          });
+        } catch (error:any) {
+          console.log('PWALLET error',error.message);
+          setShowPaymentModal(false)
+          showError(error.message);
+          return false; 
+        }
+        break;
+      
+      case 'CASH':
+        try {
+          await cashPaymentMutation.mutateAsync({
+            cash_bill:payment_details.cashReceived.toString(),
+            cash_change:payment_details.change.toString(),
+            amount:amountNum,
+            payment_method:payment_details.method,
+            order_no:orderNo!,
+
+          });
+        } catch (error) {
+          setShowPaymentModal(false)
+          showError('Cash Payment Failed.');
+          return false; 
+        }
+        break;
+
+      case 'CREDIT_CARD':
+        try {
+          await creditCardPaymentMutation.mutateAsync({
+            amount:amountNum,
+            payment_method:payment_details.method,
+            order_no:orderNo!,
+            reference_no:payment_details.referenceNumber!,
+            qr_code_data:payment_details.ccQrData,
+            terminal_type:payment_details.terminalType,
+            card_type:payment_details.cardType ?? null,
+
+          });
+        } catch (error) {
+          setShowPaymentModal(false)
+          showError('Credit Card Payment Failed.');
+          return false; 
+        }
+        break;
+
+      case 'GCASH':
+        try {
+          const gcashResponse = await processPaymentMutation.mutateAsync({
+            order_no:orderNo!,
+            payment_method:payment_details.method,
+            amount:amountNum,
+            reference_no:payment_details.referenceNumber!
+          });
+          console.log('GCASH RESPONSE',gcashResponse);
+        } catch (error:any) {
+          console.log('GCASH error',error);
+          setShowPaymentModal(false)
+          showError(`Credit Card Payment Failed: ${error.message}`);
+          return false; 
+        }
+        break;
+
+    }
+    
+    // For CASH payments, include cashBill and cashChange
+    const newPayment = {
+      type: payment_details.method,
+      amount: amountNum,
+      referenceNumber: (payment_details.method === 'PWALLET' || payment_details.method === 'GCASH' || payment_details.method === 'CREDIT_CARD') ? payment_details.referenceNumber : undefined,
+      cashBill: payment_details.method === 'CASH' ? parseFloat(payment_details.cashReceived || '0') : undefined,
+      cashChange: payment_details.method === 'CASH' ? parseFloat(payment_details.change || '0') : undefined
+    };
+
+    setPayments([...payments, newPayment]);
+    
+    showSuccess(`Payment of ₱${amountNum.toFixed(2)} added. Remaining balance: ₱${(remainingBalance - amountNum).toFixed(2)}`);
+    
+    // Reset form
+    reset({
+      paymentType: undefined,
+      amount: '',
+      referenceNumber: '',
+      cashBill: '',
+      cashChange: '0.00'
+    });
+    setShowPaymentModal(false)
+  }
+
+  const isProcessingPayment = 
+    cashPaymentMutation.isPending || 
+    creditCardPaymentMutation.isPending || 
+    pwalletDebitMutation.isPending || 
+    processPaymentMutation.isPending;
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -792,7 +882,8 @@ export default function CartScreen() {
                     ]}
                     onPress={() => {
                       if (payments.length > 0) return;
-                      updateQuantity(item, item.quantity - 1);
+                      // updateQuantity(item, item.quantity - 1);
+                      handleRemove(item.product);
                     }}
                     disabled={payments.length > 0}
                   >
@@ -819,7 +910,8 @@ export default function CartScreen() {
                     ]}
                     onPress={() => {
                       if (payments.length > 0) return;
-                      updateQuantity(item, item.quantity + 1);
+                      // updateQuantity(item, item.quantity + 1);
+                      handleAdd(item.product);
                     }}
                     disabled={payments.length > 0}
                   >
@@ -964,27 +1056,32 @@ export default function CartScreen() {
         </View>
 
         <View style={styles.buttonGroup}>
-          <TouchableOpacity
+          <TouchableOpacity 
             style={[
               styles.iconButton, 
               styles.checkoutButton,
-              (cartItems.length === 0 || calculateRemainingBalance() <= 0.01) && styles.checkoutButtonDisabled
+              (cartItems.length === 0 || calculateRemainingBalance() <= 0.01 || syncCartMutation.isPending) && styles.payButtonDisabled
             ]}
-            onPress={() => {
-              if (cartItems.length === 0 || calculateRemainingBalance() <= 0.01) return;
-              setShowPaymentModal(true);
-            }}
-            disabled={cartItems.length === 0 || calculateRemainingBalance() <= 0.01}
+            onPress={() => handleProceedToCheckout()} 
+            // ✨ 1. ACTUALLY disable the button so it cannot be clicked:
+            disabled={cartItems.length === 0 || calculateRemainingBalance() <= 0.01 || syncCartMutation.isPending}
           >
-            <Ionicons 
+             <Ionicons 
               name="checkmark-circle-outline" 
               size={28} 
               color={(cartItems.length === 0 || calculateRemainingBalance() <= 0.01) ? "#CCCCCC" : "#FFFFFF"} 
             />
-            <Text style={[
-              styles.buttonLabel,
-              (cartItems.length === 0 || calculateRemainingBalance() <= 0.01) && styles.buttonLabelDisabled
-            ]}>Pay</Text>
+            {/* ✨ 2. Show a loading spinner if syncing, otherwise show "Pay" */}
+            {syncCartMutation.isPending ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={[
+                styles.buttonLabel,
+                (cartItems.length === 0 || calculateRemainingBalance() <= 0.01) && styles.buttonLabelDisabled
+              ]}>
+                Pay
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -1019,7 +1116,7 @@ export default function CartScreen() {
         scanDelay={1000}
       />
 
-        {/* Card Scanner Modal */}
+        {/* Loyalty Card Scanner Modal */}
       <BarcodeScanner
         isVisible={isScanningCard}
         onBarcodeScanned={(barcodeData) => {
@@ -1032,14 +1129,14 @@ export default function CartScreen() {
       />
 
         {/* Payment Scanner Modal */}
-      <BarcodeScanner
+      {/* <BarcodeScanner
         isVisible={paymentScanner}
         onBarcodeScanned={(barcodeData) => {
           handlePaymentScanned(barcodeData)
         }}
         onClose={() => setPaymentScanner(false)}
         scanDelay={1000}
-      />
+      /> */}
 
         {/* Transaction Type Selection Modal */}
       <Modal
@@ -1153,301 +1250,27 @@ export default function CartScreen() {
         </View>
       </Modal>
 
-      {/* Payment Selection Modal */}
-      <Modal
-        visible={showPaymentModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => {
-          setShowPaymentModal(false);
-          reset({ paymentType: undefined, amount: '', referenceNumber: '' });
-        }}
-      >
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalOverlay}
-        >
-          <View style={styles.paymentModalContent}>
-            {/* Header */}
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add Payment</Text>
-              <TouchableOpacity 
-                style={styles.closeIcon}
-                onPress={() => setShowPaymentModal(false)}
-              >
-                <Ionicons name="close" size={24} color="#8E8E93" />
-              </TouchableOpacity>
-            </View>
-            
-            <ScrollView 
-              style={{ flexShrink: 1 }} 
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.scrollContent}
-            >
-              {/* 1. Summary Card */}
-              <View style={styles.summaryCard}>
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Total Amount</Text>
-                  <Text style={styles.summaryValue}>₱{calculateTotal().toFixed(2)}</Text>
-                </View>
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Total Paid</Text>
-                  <Text style={styles.summaryValue}>₱{payments.reduce((sum, p) => sum + p.amount, 0).toFixed(2)}</Text>
-                </View>
-                
-                <View style={styles.divider} />
-                
-                <TouchableOpacity 
-                  style={styles.remainingBalanceAction}
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    setValue('amount', calculateRemainingBalance().toFixed(2));
-                    trigger('amount');
-                    if(currentPaymentType === 'CASH') computeChange();
-                  }}
-                >
-                  <View>
-                    <Text style={styles.remainingBalanceLabel}>Remaining Balance</Text>
-                    <Text style={styles.remainingBalanceHint}>Tap to use full amount</Text>
-                  </View>
-                  <View style={styles.remainingBalanceRight}>
-                    <Text style={styles.remainingBalanceAmount}>₱{calculateRemainingBalance().toFixed(2)}</Text>
-                    <Ionicons name="arrow-forward-circle" size={24} color="#007AFF" />
-                  </View>
-                </TouchableOpacity>
-              </View>
-
-              {/* 2. Payment Methods Grid */}
-              <Text style={styles.sectionTitle}>Payment Method</Text>
-              <Controller
-                name="paymentType"
-                control={control}
-                render={({ field: { onChange, value } }) => (
-                  <View style={styles.paymentGrid}>
-                    {PAYMENT_OPTIONS.map((option) => {
-                      const isSelected = value === option.id;
-                      return (
-                        <TouchableOpacity
-                          key={option.id}
-                          activeOpacity={0.7}
-                          style={[
-                            styles.paymentCard,
-                            isSelected && styles.paymentCardSelected,
-                            isSelected && { borderColor: option.color, backgroundColor: `${option.color}10` }, // 10% opacity background
-                            errors.paymentType && styles.errorBorder
-                          ]}
-                          onPress={() => {
-                            if (value !== option.id) {
-                              setValue('amount', '');
-                              setValue('referenceNumber', '');
-                              setValue('cashBill', '');
-                              setValue('cashChange', '0.00');
-                              trigger(['amount', 'referenceNumber', 'cashBill', 'cashChange']);
-                            }
-                            onChange(option.id);
-                          }}
-                        >
-                          <Ionicons 
-                            name={option.icon as any} 
-                            size={28} 
-                            color={isSelected ? option.color : '#8E8E93'} 
-                            style={styles.paymentIcon}
-                          />
-                          <Text style={[
-                            styles.paymentCardText,
-                            isSelected && { color: option.color, fontWeight: '600' }
-                          ]}>
-                            {option.label}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                )}
-              />
-              {errors.paymentType && <Text style={styles.errorText}>{errors.paymentType.message}</Text>}
-
-              {/* 3. Dynamic Inputs Card */}
-              {currentPaymentType && (
-                <View style={styles.inputSectionCard}>
-                  
-                  {/* Reference Number Input (PWALLET/GCASH) */}
-                  {requiresRefNumber && (
-                    <Controller
-                      name="referenceNumber"
-                      control={control}
-                      render={({ field: { onChange,value } }) => {
-                        const isCreditCard = currentPaymentType === 'CREDIT_CARD';
-                        return(
-                          <View style={styles.inputContainer}>
-                            {/* <Text style={styles.inputLabel}>{currentPaymentType} Reference Number</Text> */}
-                            <Text style={styles.inputLabel}>
-                              {isCreditCard ? 'Approval Code / Reference No.' : `${currentPaymentType} Reference Number`}
-                            </Text>
-                            <View style={styles.qrInputWrapper}>
-                              <TextInput
-                                style={[
-                                  styles.textInput,
-                                  styles.flex1,
-                                  !isCreditCard && styles.disabledInput,
-                                  errors.referenceNumber && styles.errorInput
-                                ]}
-                                placeholder="Scan QR for reference"
-                                value={value}
-                                editable={isCreditCard}
-                                onChangeText={(text) => {
-                                  onChange(text);
-                                  trigger('referenceNumber');
-                                }}
-                              />
-                              <TouchableOpacity
-                                style={styles.qrScanButton}
-                                onPress={() => setPaymentScanner(true)}
-                              >
-                                <Ionicons name="qr-code-outline" size={20} color="#FFF" />
-                                <Text style={styles.qrScanText}>Scan</Text>
-                              </TouchableOpacity>
-                            </View>
-                            {errors.referenceNumber && <Text style={styles.errorText}>{errors.referenceNumber.message}</Text>}
-
-                            {isCreditCard && !errors.referenceNumber && (
-                              <Text style={styles.helperText}>
-                                Scan GCash terminal QR, or manually type Tangent approval code.
-                              </Text>
-                            )}
-                          </View>
-                        )
-                      }}
-                    />
-                  )}
-
-                  {/* Amount Input */}
-                  <Controller
-                    name="amount"
-                    control={control}
-                    render={({ field: { onChange, value, onBlur } }) => (
-                      <View style={styles.inputContainer}>
-                        <Text style={styles.inputLabel}>Amount to Pay</Text>
-                        <TextInput
-                          style={[styles.textInput, errors.amount && styles.errorInput]}
-                          placeholder={`0.00 (Max: ₱${calculateRemainingBalance().toFixed(2)})`}
-                          value={value}
-                          onChangeText={(text) => {
-                            onChange(text);
-                            trigger('amount');
-                            if(currentPaymentType === 'CASH') debouncedComputeChange();
-                          }}
-                          onBlur={() => {
-                            onBlur();
-                            if(currentPaymentType === 'CASH') computeChange();
-                          }}
-                          keyboardType="decimal-pad"
-                        />
-                        {errors.amount && <Text style={styles.errorText}>{errors.amount.message}</Text>}
-                      </View>
-                    )}
-                  />
-
-                  {/* Cash specific inputs */}
-                  {currentPaymentType === 'CASH' && (
-                    <View style={styles.rowInputs}>
-                      <Controller
-                        name="cashBill"
-                        control={control}
-                        render={({ field: { onChange, value, onBlur } }) => (
-                          <View style={[styles.inputContainer, styles.flex1, { marginRight: 8 }]}>
-                            <Text style={styles.inputLabel}>Cash Received</Text>
-                            <TextInput
-                              style={[
-                                styles.textInput,
-                                errors.cashBill && styles.errorInput,
-                                (!isCashBillValid && cashBillNum > 0) && styles.errorInput
-                              ]}
-                              placeholder="0.00"
-                              value={value}
-                              onChangeText={(text) => {
-                                onChange(text);
-                                trigger('cashBill');
-                                debouncedComputeChange();
-                              }}
-                              onBlur={() => {
-                                onBlur();
-                                computeChange();
-                              }}
-                              keyboardType="decimal-pad"
-                            />
-                          </View>
-                        )}
-                      />
-
-                      <Controller
-                        name="cashChange"
-                        control={control}
-                        render={({ field: { value } }) => (
-                          <View style={[styles.inputContainer, styles.flex1, { marginLeft: 8 }]}>
-                            <Text style={styles.inputLabel}>Change</Text>
-                            <TextInput
-                              style={[styles.textInput, styles.disabledInput, { color: '#007AFF', fontWeight: 'bold' }]}
-                              value={value ? `₱${value}` : '₱0.00'}
-                              editable={false}
-                            />
-                          </View>
-                        )}
-                      />
-                    </View>
-                  )}
-                  
-                  {currentPaymentType === 'CASH' && !isCashBillValid && cashBillNum > 0 && !errors.cashBill && (
-                    <Text style={styles.errorText}>Received cash must be at least ₱{amountNum.toFixed(2)}</Text>
-                  )}
-                </View>
-              )}
-            </ScrollView>
-
-            {/* Footer Actions */}
-            <View style={styles.modalFooter}>
-              <TouchableOpacity 
-                style={styles.footerCancelBtn} 
-                onPress={() => {
-                  setShowPaymentModal(false);
-                  reset({ paymentType: undefined, amount: '', referenceNumber: '' });
-                }}
-              >
-                <Text style={styles.footerCancelText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={[styles.footerSubmitBtn, isSubmitDisabled && styles.footerSubmitBtnDisabled]}
-                disabled={isSubmitDisabled}
-                onPress={() => {
-                  trigger().then(async (isValid) => {
-                    if (isValid) {
-                      await handleSubmit(async (data) => {
-                        const success = await handleAddPayment(data);
-                        if (success) setShowPaymentModal(false);
-                      })();
-                    }
-                  });
-                }}
-              >
-                <Text style={styles.footerSubmitText}>Confirm Payment</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-        {/* SMS Modal */}
-  
-      
       <ItemList 
         visible={showItemList}
         onClose={() => setShowItemList(false)}
-        onProductSelect={(product) => {
-          handleBrowseItems(product);
-        }}
+        onAdd={handleAdd}
+        onRemove={handleRemove}
+        // cartItemsMap={cartItemsMap }
+        cartItems={cartItems}
       />
 
+      {/* Payment Selection Modal */}
+      <PaymentSelectionModal
+        visible={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        balanceDue={calculateRemainingBalance()}
+        // onSelectPayment={handlePaymentSelected}
+        onConfirmPayment={handleConfirmPayment}
+        isProcessing={isProcessingPayment}
+      />
+
+
+      {/* SMS Modal */}
       <SMSModal
         visible={showSmsModal}
         onClose={() => setShowSmsModal(false)}
@@ -2150,5 +1973,19 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 16,
+  },
+  payButton: {
+    backgroundColor: '#007AFF', // Your active primary blue (adjust if yours is different)
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+  },
+  // ✨ Add this right below it:
+  payButtonDisabled: {
+    backgroundColor: '#E5E5EA', // A neutral, inactive gray
+    opacity: 0.7, // Slightly fades the button to show it can't be tapped
   },
 });

@@ -1,5 +1,6 @@
 import { apiClient } from '@/lib/api/client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
+import { PostReturnPayload, ProcessReturnPayload, SyncExchangeCartPayload } from '@/types/order.types';
 import { AxiosResponse } from 'axios';
 
 class OrderService {
@@ -67,6 +68,47 @@ class OrderService {
         return response.data;
     }
     
+    async validateReturnOrder(order_no:string){
+        const response = await apiClient.get(API_ENDPOINTS.ORDER.VALIDATE_RETURN_ORDER(order_no))
+        return response.data;
+    }
+
+    async returnReplaceFetchOriginalOrderItems(order_no:string){
+        const response = await apiClient.get(API_ENDPOINTS.ORDER.RETURN_REPLACE_FETCH_ORIGINAL_ORDER_ITEMS(order_no))
+        return response.data;
+    }
+
+    async processReturn(params:ProcessReturnPayload){
+        const response = await apiClient.post(
+            API_ENDPOINTS.ORDER.PROCESS_RETURN,
+            params
+        )
+        return response.data;
+    }
+
+    async postReturn(params:PostReturnPayload){
+        const response = await apiClient.post(
+            API_ENDPOINTS.ORDER.POST_RETURN,
+            params
+        )
+        return response.data;
+    }
+
+    async syncExchangeCart(params:SyncExchangeCartPayload){
+        const response = await apiClient.post(
+            API_ENDPOINTS.ORDER.SYNC_EXCHANGE_CART,
+            params
+        )
+        return response.data;
+    }
+
+    async syncCart(params:any){
+        const response = await apiClient.post(
+            API_ENDPOINTS.ORDER.SYNC_CART,
+            params
+        )
+        return response.data;
+    }
 }
 
 export const orderService = new OrderService();

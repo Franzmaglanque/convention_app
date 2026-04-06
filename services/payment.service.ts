@@ -1,6 +1,6 @@
 import { apiClient } from '@/lib/api/client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
-import { ScanPwalletQrResponse, cashPaymentResponse, pwalletDebitResponse } from '@/types/payment.types';
+import { ScanPwalletQrResponse, cashPaymentResponse, gcashPaymentBody, pwalletDebitResponse } from '@/types/payment.types';
 import { AxiosResponse } from 'axios';
 
 class PaymentService {
@@ -31,9 +31,17 @@ class PaymentService {
         return response.data
     }
 
-     async saveCreditCardPayment(params:any): Promise<cashPaymentResponse>{
+    async saveCreditCardPayment(params:any): Promise<cashPaymentResponse>{
         const response: AxiosResponse<cashPaymentResponse> = await apiClient.post(
             API_ENDPOINTS.PAYMENTS.SAVE_CREDIT_CARD,
+            params
+        );
+        return response.data
+    }
+
+    async processPayment(params:gcashPaymentBody): Promise<cashPaymentResponse>{
+        const response: AxiosResponse<cashPaymentResponse> = await apiClient.post(
+            API_ENDPOINTS.PAYMENTS.PROCESS_PAYMENT,
             params
         );
         return response.data

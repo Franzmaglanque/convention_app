@@ -1,4 +1,5 @@
 import { orderService } from '@/services/order.service';
+import { PostReturnPayload, ProcessReturnPayload, SyncCartPayload, SyncExchangeCartPayload } from '@/types/order.types';
 import { useMutation, useQuery } from '@tanstack/react-query';
 
 export function newOrder() {
@@ -92,3 +93,45 @@ export function useFetchOrderPayments(orderNo: string) {
   });
 }
 
+// ginagamit ito para kunin yung mga items ng original order sa return/replace
+export function useOriginalOrderItems(orderNo: string) {
+  return useQuery({
+    queryKey: ['return-order-original-order-fetch-items', orderNo], 
+    queryFn: () => orderService.returnReplaceFetchOriginalOrderItems(orderNo),
+    enabled: false
+  });
+}
+
+export function useValidateReturnOrderMutation() {
+  return useMutation({
+    mutationFn: (orderNo: string) => orderService.validateReturnOrder(orderNo),
+  });
+}
+
+export function useProcessReturn(){
+  return useMutation({
+    mutationKey: ['process-return'],
+    mutationFn: (params:ProcessReturnPayload) => orderService.processReturn(params),
+  })
+}
+
+export function usePostReturn(){
+  return useMutation({
+    mutationKey: ['post-return'],
+    mutationFn: (body:PostReturnPayload) => orderService.postReturn(body),
+  })
+}
+
+export function useSyncExchangeCart(){
+  return useMutation({
+    mutationKey: ['sync-exchange-cart'],
+    mutationFn: (body:SyncExchangeCartPayload) => orderService.syncExchangeCart(body),
+  })
+}
+
+export function useSyncCart(){
+  return useMutation({
+    mutationKey: ['sync-cart'],
+    mutationFn: (body:SyncCartPayload) => orderService.syncCart(body),
+  })
+}
