@@ -348,6 +348,10 @@ export default function ReturnsScreen() {
 
   };
 
+  const handleReturnBarcodeScan = async() => {
+    console.log('scanning return item barcode...');
+  }
+
   // UI ng type order_no
   const renderSearchStep = () => (
     <View style={styles.centerContainer}>
@@ -412,7 +416,7 @@ export default function ReturnsScreen() {
 
         <View style={styles.actionRow}>
           {/* <TouchableOpacity style={styles.halfButton} onPress={handleAddReturnItem}> */}
-          <TouchableOpacity style={styles.halfButton}>
+          <TouchableOpacity style={styles.halfButton} onPress={handleReturnBarcodeScan}>
 
             <Ionicons name="barcode-outline" size={20} color="#007AFF" />
             <Text style={styles.actionButtonText}>Scan Item</Text>
@@ -726,14 +730,7 @@ export default function ReturnsScreen() {
         </Modal>
 
       </KeyboardAvoidingView>
-        
-        {/* <ProductCatalogModal 
-          visible={showCatalogModal} 
-          onClose={() => setShowCatalogModal(false)}
-          onAdd={handleAddNewExchangeItem}         
-          onRemove={handleDecrementExchangeItem}   
-          cartItems={exchangeItems}              
-        /> */}
+      
         <ProductCatalogModal 
           visible={showCatalogModal} 
           onClose={() => setShowCatalogModal(false)}
@@ -752,7 +749,6 @@ export default function ReturnsScreen() {
         />
    
     </SafeAreaView>
-    
   );
 }
 
