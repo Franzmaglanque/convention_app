@@ -14,6 +14,15 @@ class ProductService {
         return response.data;
     }
 
+    async scanReturnProduct(params: ScanProductParams){
+        const response = await apiClient.post(
+            API_ENDPOINTS.PRODUCTS.SCAN_RETURN,
+            params
+        );
+        console.log('SCAN RETURN PRODUCT SERVICE:', response.data);
+        return response.data;
+    }
+
     async fetchProductList(): Promise<ProductListReponse> {
         const response: AxiosResponse<ProductListReponse> = await apiClient.get(
             API_ENDPOINTS.PRODUCTS.PRODUCT_LIST,

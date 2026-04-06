@@ -36,6 +36,7 @@ export const API_ENDPOINTS = {
 
   PRODUCTS: {
     SCAN: '/product/scan',
+    SCAN_RETURN: '/product/return/scan',
     PRODUCT_LIST: '/product/fetch-list',
   },
 
