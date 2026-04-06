@@ -83,6 +83,17 @@ export default function TabsLayout() {
           }}
         />
 
+        <Tabs.Screen
+          name="vendorQrScreen"
+          options={{
+            title: 'Vendor QR',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="qr-code-outline" size={size} color={color} />
+            ),
+            href: isSupplierManager ? '/vendorQrScreen' : null,
+          }}
+        />
+
        
       </Tabs>
     </ProtectedRoute>

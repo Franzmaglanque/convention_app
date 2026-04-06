@@ -1,6 +1,6 @@
-import { Stack, Redirect } from 'expo-router';
-import { useAuth } from '@/hooks/useAuth';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import { useAuth } from '@/hooks/useAuth';
+import { Redirect, Stack } from 'expo-router';
 
 export default function AuthLayout() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -12,7 +12,7 @@ export default function AuthLayout() {
 
   // If user is already authenticated, redirect to tabs
   if (isAuthenticated) {
-    return <Redirect href="/(tabs)" />;
+    return <Redirect href="/" />;
   }
 
   return (

@@ -18,7 +18,6 @@ export default function HomeScreen() {
         refetch,
         isRefetching
   } = useFetchTodaySales();
-  console.log('dashboardSales',dashboardSales?.data.today_sales);
 
   // const onRefresh = useCallback(() => {
   //   setRefreshing(true);
@@ -79,10 +78,6 @@ export default function HomeScreen() {
       strokeDasharray: '', // Solid subtle lines instead of dashes
     },
   };
-
-  // const formatCurrency = (amount: number) => {
-  //   return `₱${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  // };
 
   const formatCurrency = (value:any) => {
     if (value === undefined || value === null) return '₱0.00';
