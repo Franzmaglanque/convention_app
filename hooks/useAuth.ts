@@ -11,10 +11,10 @@ export function useLogin() {
         mutationFn: (credentials: { username: string; password: string }) => authService.login(credentials),
         onSuccess: (responseData) => {
             // Save the response data to the auth store
-            console.log('responseData',responseData.data);
+            // console.log('responseData',responseData.data);
             login(responseData.data);
             // console.log('Login successful:', responseData.data);
-            router.push('/(tabs)');
+            // router.push('/(tabs)'); 
         },
         onError: (error) => {
             console.log('Login failed:', error);

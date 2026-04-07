@@ -16,6 +16,7 @@ export default function TabsLayout() {
   return (
     <ProtectedRoute>
       <Tabs
+        initialRouteName={isSupplierCashier ? 'cart' : 'index'}
         screenOptions={{
           tabBarActiveTintColor: '#0066cc',
           headerShown: false,
@@ -80,6 +81,17 @@ export default function TabsLayout() {
               <Ionicons name="receipt-outline" size={size} color={color} />
             ),
             href: isSupplierManager ? '/transactions' : null,
+          }}
+        />
+
+        <Tabs.Screen
+          name="vendorQrScreen"
+          options={{
+            title: 'Vendor QR',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="qr-code-outline" size={size} color={color} />
+            ),
+            href: isSupplierManager ? '/vendorQrScreen' : null,
           }}
         />
 
