@@ -16,6 +16,7 @@ export default function TabsLayout() {
   return (
     <ProtectedRoute>
       <Tabs
+        initialRouteName={isSupplierCashier ? 'cart' : 'index'}
         screenOptions={{
           tabBarActiveTintColor: '#0066cc',
           headerShown: false,
