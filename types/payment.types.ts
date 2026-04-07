@@ -45,3 +45,10 @@ export interface gcashPaymentBody {
   amount:number;
   reference_no:string;
 }
+
+export interface skyroPaymentBody {
+  reference_no:string;
+  amount:number;
+  payment_method:string;
+  order_no:string;
+}

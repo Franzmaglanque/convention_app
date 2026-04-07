@@ -1,5 +1,5 @@
 import { paymentService } from '@/services/payment.service';
-import { cashPaymentParams, creditCardPaymentParams, gcashPaymentBody, pwalletDebitParams } from '@/types/payment.types';
+import { cashPaymentParams, creditCardPaymentParams, gcashPaymentBody, pwalletDebitParams, skyroPaymentBody } from '@/types/payment.types';
 import { useMutation } from '@tanstack/react-query';
 
 
@@ -51,5 +51,12 @@ export function useProcessPayment(){
     return useMutation({
         mutationKey: ['process_payment'],
         mutationFn: (params:gcashPaymentBody) => paymentService.processPayment(params),
+    })
+}
+
+export function useSkyroPayment(){
+    return useMutation({
+        mutationKey: ['skyro_payment'],
+        mutationFn: (params:skyroPaymentBody) => paymentService.saveSkyroPayment(params),
     })
 }
