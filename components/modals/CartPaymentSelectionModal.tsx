@@ -24,7 +24,7 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
-export type PaymentMethod = 'CASH' | 'GCASH' | 'PWALLET' | 'CREDIT_CARD' | 'HOME_CREDIT' | 'SHOPEE_PAY';
+export type PaymentMethod = 'CASH' | 'GCASH' | 'PWALLET' | 'CREDIT_DEBIT_CARD' | 'HOME_CREDIT' | 'SHOPEE_PAY';
 
 export interface PaymentDetails {
   method: PaymentMethod;
@@ -102,14 +102,15 @@ export default function PaymentSelectionModal({
     { id: 'CASH', title: 'Cash', icon: 'cash-outline', color: '#34C759' },
     { id: 'GCASH', title: 'GCash', icon: 'phone-portrait-outline', color: '#007AFF' },
     { id: 'PWALLET', title: 'PWallet', icon: 'wallet-outline', color: '#FF9500' },
-    { id: 'CREDIT_CARD', title: 'Credit / Debit Card', icon: 'card-outline', color: '#5856D6' },
+    { id: 'CREDIT_DEBIT_CARD', title: 'Credit / Debit Card', icon: 'card-outline', color: '#5856D6' },
     { id: 'HOME_CREDIT', title: 'Home Credit', icon: 'home-outline', color: '#FF2D55' },
     { id: 'SHOPEE_PAY', title: 'Shopee Pay', icon: 'bag-check-outline', color: '#FF3B30' },
+    { id: 'SKYRO', title: 'Skyro', icon: 'wallet-outline', color: '#007AFF' },
   ];
 
   const handleConfirm = () => {
     if (!selectedMethod) return;
-
+    console.log('Confirming payment with method:', selectedMethod);
     const amount = roundMoney(parseFloat(inputAmount) || 0);
 
     // Prevent submitting 0 amount
@@ -131,7 +132,7 @@ export default function PaymentSelectionModal({
         change: roundMoney(received - amount)
       });
     } else {
-      if (!referenceNo && (selectedMethod === 'PWALLET' || selectedMethod === 'CREDIT_CARD')) {
+      if (!referenceNo && (selectedMethod === 'PWALLET' || selectedMethod === 'CREDIT_DEBIT_CARD')) {
         Alert.alert('Missing Info', 'Please provide a reference or approval code.');
         return;
       }
@@ -195,7 +196,6 @@ export default function PaymentSelectionModal({
     const numericCashReceived = parseFloat(cashReceived) || 0;
     const numericAmountToPay = parseFloat(inputAmount) || 0;
     const change = roundMoney(numericCashReceived - numericAmountToPay);
-
     return (
       <View style={styles.formContainer}>
         {/* CASH FORM */}
@@ -222,7 +222,7 @@ export default function PaymentSelectionModal({
         )}
 
         {/* PWALLET FORM */}
-        {['PWALLET','GCASH'].includes(selectedMethod || '') && (
+        {['PWALLET','GCASH','SHOPEE_PAY'].includes(selectedMethod || '') && (
           <>
             <Text style={styles.inputLabel}>{selectedMethod} Reference Number</Text>
             <View style={styles.rowInput}>
@@ -241,7 +241,7 @@ export default function PaymentSelectionModal({
         )}
 
         {/* CREDIT CARD FORM */}
-        {selectedMethod === 'CREDIT_CARD' && (
+        {selectedMethod === 'CREDIT_DEBIT_CARD' && (
           <>
             <View style={{ marginBottom: 16 }}>
               <Text style={styles.inputLabel}>Select Terminal Used</Text>
@@ -307,17 +307,18 @@ export default function PaymentSelectionModal({
         )}
 
         {/* GCASH / HOME CREDIT / SHOPEE PAY */}
-        {['HOME_CREDIT', 'SHOPEE_PAY'].includes(selectedMethod || '') && (
+        {['SKYRO'].includes(selectedMethod || '') && (
           <>
-             {renderAmountInputSection()}
-
-             <Text style={styles.inputLabel}>Reference Number</Text>
+            <Text style={styles.inputLabel}>Reference Number</Text>
              <TextInput
                style={styles.textInput}
                placeholder="Enter reference number"
                value={referenceNo}
                onChangeText={setReferenceNo}
              />
+             {renderAmountInputSection()}
+
+             
           </>
         )}
 
@@ -347,8 +348,9 @@ export default function PaymentSelectionModal({
   };
 
   const handlePaymentScanned = async (paymentData: string) => {
+
     switch (selectedMethod) {
-      case 'CREDIT_CARD':
+      case 'CREDIT_DEBIT_CARD':
         try {
           const dataPart = paymentData.split('|');
           if (dataPart.length >= 5) {
@@ -398,6 +400,18 @@ export default function PaymentSelectionModal({
           });
         } catch (error) {
            Alert.alert('Error', 'Pwallet Scan Failed.');
+           setPaymentScanner(false);
+        }
+        break;
+
+      case 'SHOPEE_PAY':
+        try {
+          console.log('Scanned Shopee Pay QR:', paymentData);
+          setReferenceNo(paymentData);
+          setPaymentScanner(false);
+          setReferenceNo(paymentData);
+        } catch (error) {
+           Alert.alert('Error', 'Shopee Pay Scan Failed.');
            setPaymentScanner(false);
         }
         break;

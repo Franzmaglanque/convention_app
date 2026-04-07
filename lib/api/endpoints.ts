@@ -45,7 +45,8 @@ export const API_ENDPOINTS = {
     PWALLET_DEBIT: 'payment/pwallet/debit',
     SAVE_CASH: 'payment/cash/save',
     SAVE_CREDIT_CARD: 'payment/credit/save',
-    PROCESS_PAYMENT: 'payment/process'
+    PROCESS_PAYMENT: 'payment/process',
+    SAVE_SKYRO: 'payment/skyro/save'
   },
 
   SUPPLIER:{

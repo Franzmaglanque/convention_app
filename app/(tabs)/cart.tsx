@@ -6,7 +6,7 @@ import SMSModal from '@/components/modals/SmsModal';
 import { useToast } from '@/components/ToastProvider';
 import { useAuth } from '@/hooks/useAuth';
 import { newOrder, useCancelOrder, useCompleteOrder, useSyncCart } from '@/hooks/useOrder';
-import { useProcessPayment, usePwalletDebit, useSaveCashPayment, useSaveCreditCardPayment, useScanPwalletQr } from '@/hooks/usePayment';
+import { useProcessPayment, usePwalletDebit, useSaveCashPayment, useSaveCreditCardPayment, useScanPwalletQr, useSkyroPayment } from '@/hooks/usePayment';
 import { useScanProduct } from '@/hooks/useProduct';
 import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -29,7 +29,7 @@ import { z } from 'zod';
 
 // Validation schema using Zod
 const paymentSchema = z.object({
-  paymentType: z.enum(['PWALLET', 'GCASH', 'CASH','CREDIT_CARD']),
+  paymentType: z.enum(['PWALLET', 'GCASH', 'CASH','CREDIT_DEBIT_CARD']),
   amount: z.string()
     .min(1, 'Amount is required')
     .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
@@ -119,7 +119,7 @@ export default function CartScreen() {
   const [isCardedTransaction, setIsCardedTransaction] = useState(false);
   const [isScanningCard, setIsScanningCard] = useState(false);
   const [payments, setPayments] = useState<Array<{
-    type: 'PWALLET' | 'GCASH' | 'CASH' | 'CREDIT_CARD';
+    type: 'PWALLET' | 'GCASH' | 'CASH' | 'CREDIT_DEBIT_CARD';
     amount: number;
     referenceNumber?: string;
     cashBill?:number;
@@ -163,6 +163,8 @@ export default function CartScreen() {
   const creditCardPaymentMutation = useSaveCreditCardPayment();
   const processPaymentMutation = useProcessPayment();
   const syncCartMutation = useSyncCart();
+  const skyroPaymentMutation = useSkyroPayment();
+
 
   const [showScanner, setShowScanner] = useState(false);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -177,7 +179,7 @@ export default function CartScreen() {
     { id: 'CASH', label: 'Cash', icon: 'cash-outline', color: '#4CAF50' },
     { id: 'GCASH', label: 'GCash', icon: 'phone-portrait-outline', color: '#007AFF' },
     { id: 'PWALLET', label: 'P-Wallet', icon: 'wallet-outline', color: '#9C27B0' },
-    { id: 'CREDIT_CARD', label: 'Credit Card', icon: 'card-outline', color: '#FF9500' },
+    { id: 'CREDIT_DEBIT_CARD', label: 'Credit Card', icon: 'card-outline', color: '#FF9500' },
     { id: 'HOME CREDIT', label: 'Home Credit', icon: 'home-outline', color: '#E53935' },
   ] as const;
 
@@ -190,7 +192,7 @@ export default function CartScreen() {
   const isRefValid = currentRefNumber && currentRefNumber.trim().length > 0;
   const isCashBillValid = cashBillNum >= amountNum;
 
-  const requiresRefNumber = currentPaymentType === 'PWALLET' || currentPaymentType === 'GCASH' || currentPaymentType === 'CREDIT_CARD';
+  const requiresRefNumber = currentPaymentType === 'PWALLET' || currentPaymentType === 'GCASH' || currentPaymentType === 'CREDIT_DEBIT_CARD';
 
   const isSubmitDisabled = 
     !currentPaymentType || 
@@ -470,7 +472,7 @@ export default function CartScreen() {
           return false; 
         }
         break;
-      case 'CREDIT_CARD':
+      case 'CREDIT_DEBIT_CARD':
         try {
           await creditCardPaymentMutation.mutateAsync({
             amount:amountNum,
@@ -507,7 +509,7 @@ export default function CartScreen() {
     const newPayment = {
       type: data.paymentType,
       amount: amountNum,
-      referenceNumber: (data.paymentType === 'PWALLET' || data.paymentType === 'GCASH' || data.paymentType === 'CREDIT_CARD') ? data.referenceNumber : undefined,
+      referenceNumber: (data.paymentType === 'PWALLET' || data.paymentType === 'GCASH' || data.paymentType === 'CREDIT_DEBIT_CARD') ? data.referenceNumber : undefined,
       cashBill: data.paymentType === 'CASH' ? parseFloat(data.cashBill || '0') : undefined,
       cashChange: data.paymentType === 'CASH' ? parseFloat(data.cashChange || '0') : undefined
     };
@@ -704,7 +706,7 @@ export default function CartScreen() {
         }
         break;
 
-      case 'CREDIT_CARD':
+      case 'CREDIT_DEBIT_CARD':
         try {
           await creditCardPaymentMutation.mutateAsync({
             amount:amountNum,
@@ -740,13 +742,47 @@ export default function CartScreen() {
         }
         break;
 
+      case 'SHOPEE_PAY':
+        try {
+          const shopeePayResponse = await processPaymentMutation.mutateAsync({
+            order_no:orderNo!,
+            payment_method:payment_details.method,
+            amount:amountNum,
+            reference_no:payment_details.referenceNumber!
+          });
+          console.log('SHOPEE PAY RESPONSE',shopeePayResponse);
+        } catch (error:any) {
+          console.log('SHOPEE PAY error',error);
+          setShowPaymentModal(false)
+          showError(`Shopee Pay Payment Failed: ${error.message}`);
+          return false; 
+        }
+        break;
+
+      case 'SKYRO':
+        try {
+          
+          await skyroPaymentMutation.mutateAsync({
+            amount:amountNum,
+            payment_method:payment_details.method,
+            order_no:orderNo!,
+            reference_no:payment_details.referenceNumber!
+          });
+        } catch (error:any) {
+          console.log('SKYRO error',error);
+          setShowPaymentModal(false)
+          showError(`Skyro Payment Failed: ${error.message}`);
+          return false; 
+        }
+        break;
+
     }
     
     // For CASH payments, include cashBill and cashChange
     const newPayment = {
       type: payment_details.method,
       amount: amountNum,
-      referenceNumber: (payment_details.method === 'PWALLET' || payment_details.method === 'GCASH' || payment_details.method === 'CREDIT_CARD') ? payment_details.referenceNumber : undefined,
+      referenceNumber: (payment_details.method === 'PWALLET' || payment_details.method === 'GCASH' || payment_details.method === 'CREDIT_DEBIT_CARD' || payment_details.method === 'SHOPEE_PAY') ? payment_details.referenceNumber : undefined,
       cashBill: payment_details.method === 'CASH' ? parseFloat(payment_details.cashReceived || '0') : undefined,
       cashChange: payment_details.method === 'CASH' ? parseFloat(payment_details.change || '0') : undefined
     };
