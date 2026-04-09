@@ -758,6 +758,23 @@ export default function CartScreen() {
           return false; 
         }
         break;
+      
+      case 'HOME_CREDIT':
+        try {
+          const homeCreditResponse = await processPaymentMutation.mutateAsync({
+            order_no:orderNo!,
+            payment_method:payment_details.method,
+            amount:amountNum,
+            reference_no:payment_details.referenceNumber!
+          });
+          console.log('HOME CREDIT RESPONSE',homeCreditResponse);
+        } catch (error:any) {
+          console.log('HOME CREDIT error',error);
+          setShowPaymentModal(false)
+          showError(`Home Credit Payment Failed: ${error.message}`);
+          return false; 
+        }
+        break;
 
       case 'SKYRO':
         try {
