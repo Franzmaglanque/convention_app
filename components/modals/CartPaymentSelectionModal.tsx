@@ -222,7 +222,7 @@ export default function PaymentSelectionModal({
         )}
 
         {/* PWALLET FORM */}
-        {['PWALLET','GCASH','SHOPEE_PAY'].includes(selectedMethod || '') && (
+        {['PWALLET','GCASH','SHOPEE_PAY','HOME_CREDIT'].includes(selectedMethod || '') && (
           <>
             <Text style={styles.inputLabel}>{selectedMethod} Reference Number</Text>
             <View style={styles.rowInput}>
@@ -385,7 +385,6 @@ export default function PaymentSelectionModal({
                   QrCode: paymentData,
             },{
               onSuccess: (response) => {
-                console.log('scanPwalletQrMutation',response);
                 setReferenceNo((response.data.reference_no).toString()); 
                 setPaymentScanner(false);
                 setPaymentScanner(false);
@@ -406,12 +405,22 @@ export default function PaymentSelectionModal({
 
       case 'SHOPEE_PAY':
         try {
-          console.log('Scanned Shopee Pay QR:', paymentData);
           setReferenceNo(paymentData);
           setPaymentScanner(false);
           setReferenceNo(paymentData);
         } catch (error) {
            Alert.alert('Error', 'Shopee Pay Scan Failed.');
+           setPaymentScanner(false);
+        }
+        break;
+
+      case 'HOME_CREDIT':
+        try {
+          setReferenceNo(paymentData);
+          setPaymentScanner(false);
+          setReferenceNo(paymentData);
+        } catch (error) {
+           Alert.alert('Error', 'Home Credit Scan Failed.');
            setPaymentScanner(false);
         }
         break;

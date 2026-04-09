@@ -117,27 +117,42 @@ export default function TransactionsScreen() {
         ) :  (
           filteredData.map((transaction:any) => (
             <View key={transaction.id} style={styles.transactionCard}>
+              {/* ROW 1: Order Number & Status */}
               <View style={styles.transactionHeader}>
-                <View style={styles.orderInfo}>
-                  <Text style={styles.orderNumber}>Order # {transaction.order_no}</Text>
-                  <View style={[
-                    styles.statusBadge, 
-                    { 
-                      backgroundColor: TRANSACTION_STATUS_COLORS[transaction.order_status as keyof typeof TRANSACTION_STATUS_COLORS] 
-                    }
-                  ]}>
-                    <Text style={styles.statusText}>
-                      {/* {TRANSACTION_STATUS_LABELS[transaction.status as keyof typeof TRANSACTION_STATUS_LABELS]} */}
-                      {transaction.order_status}
-               
-                    </Text>
-                  </View>
-                </View>
-                <Text style={styles.transactionDate}>
-                  {formatDate(transaction.created_at)}
+                <Text style={styles.orderNumber} numberOfLines={1}>
+                  Order # {transaction.order_no}
                 </Text>
+                <View style={[
+                  styles.statusBadge, 
+                  { 
+                    backgroundColor: TRANSACTION_STATUS_COLORS[transaction.order_status as keyof typeof TRANSACTION_STATUS_COLORS] || '#666'
+                  }
+                ]}>
+                  <Text style={styles.statusText}>{transaction.order_status}</Text>
+                </View>
               </View>
 
+              {/* ROW 2: Date & Cashier Name (Prevents Overflow!) */}
+              <View style={styles.transactionSubHeader}>
+                <View style={styles.metaDataContainer}>
+                  <Ionicons name="calendar-outline" size={14} color="#666" style={styles.metaIcon} />
+                  <Text style={styles.transactionDate}>
+                    {formatDate(transaction.created_at)}
+                  </Text>
+                </View>
+                <View style={styles.metaDataContainer}>
+                  <Ionicons name="person-outline" size={14} color="#666" style={styles.metaIcon} />
+                  {/* NOTE: Change 'cashier_name' to whatever exact property your backend returns */}
+                  <Text style={styles.cashierName} numberOfLines={1}>
+                    {transaction.full_name || 'N/A'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Divider Line */}
+              <View style={styles.divider} />
+
+              {/* ROW 3: Transaction Details */}
               <View style={styles.transactionDetails}>
                 <View style={styles.detailRow}>
                   <View style={styles.detailLabelContainer}>
@@ -145,7 +160,6 @@ export default function TransactionsScreen() {
                     <Text style={styles.detailLabel}>Total Amount:</Text>
                   </View>
                   <Text style={styles.detailValue}>{transaction.total}</Text>
-
                 </View>
 
                 <View style={styles.detailRow}>
@@ -157,14 +171,15 @@ export default function TransactionsScreen() {
                 </View>
 
                 <View style={styles.detailRow}>
-                    <View style={styles.detailLabelContainer}>
-                      <Ionicons name="card-outline" size={16} color="#666" />
-                      <Text style={styles.detailLabel}>Card Number:</Text>
-                    </View>
-                    <Text style={styles.detailValue}>{transaction.customer_card_no}</Text>
+                  <View style={styles.detailLabelContainer}>
+                    <Ionicons name="card-outline" size={16} color="#666" />
+                    <Text style={styles.detailLabel}>Card Number:</Text>
                   </View>
+                  <Text style={styles.detailValue}>{transaction.customer_card_no}</Text>
+                </View>
               </View>
 
+              {/* Actions */}
               <View style={styles.transactionActions}>
                 <Pressable 
                   style={styles.actionButton}
@@ -322,8 +337,8 @@ const styles = StyleSheet.create({
   transactionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
+    alignItems: 'center', // Changed to center
+    marginBottom: 8, // Reduced margin
   },
   orderInfo: {
     flexDirection: 'row',
@@ -334,6 +349,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
+    flex: 1, // This allows the text to truncate if it gets too long!
     marginRight: 8,
   },
   statusBadge: {
@@ -347,7 +363,7 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   transactionDate: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#666',
   },
   transactionDetails: {
@@ -592,4 +608,31 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 28,
   },
+
+  // --- Add these new styles for Date & Cashier ---
+  transactionSubHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  metaDataContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 1, // Prevents overflow on small screens
+  },
+  metaIcon: {
+    marginRight: 4,
+  },
+  cashierName: {
+    fontSize: 13,
+    color: '#666',
+    fontWeight: '500',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#F0F0F0',
+    marginBottom: 12,
+  },
+  
 });
