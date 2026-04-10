@@ -51,6 +51,11 @@ export const API_ENDPOINTS = {
 
   SUPPLIER:{
     DASHBOARD_SALES: 'supplier/app/dashboard_sales',
+  },
+
+  LOAD:{
+    FETCH_TELOCOS: 'load/fetch-telcos',
+    FETCH_DATA_PROMOS: (telco:string) => `load/fetch-telco-promos/${telco}`
   }
 
 } as const;

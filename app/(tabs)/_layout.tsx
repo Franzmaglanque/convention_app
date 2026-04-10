@@ -95,6 +95,17 @@ export default function TabsLayout() {
           }}
         />
 
+        <Tabs.Screen
+          name="load" // Must exactly match the filename load.tsx
+          options={{
+            title: 'E-Load',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="phone-portrait-outline" size={size} color={color} />
+            ),
+            // Use your existing logic here to hide/show this for cashiers/managers
+            href: isSupplierCashier ? '/load' : null, 
+          }}
+        />
        
       </Tabs>
     </ProtectedRoute>
