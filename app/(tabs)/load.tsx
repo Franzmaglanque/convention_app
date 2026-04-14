@@ -1,4 +1,8 @@
-import { useFetchDataPromos, useFetchTelcos } from '@/hooks/useLoad';
+import LoadPaymentSelectionModal from '@/components/modals/LoadPaymentSelectionModal';
+import { useAuth } from '@/hooks/useAuth';
+import { useFetchDataPromos, useFetchTelcos, useProcessLoadSelling } from '@/hooks/useLoad';
+import { newOrder } from '@/hooks/useOrder';
+import { useProcessPayment, usePwalletDebit, useSaveCashPayment, useSaveCreditCardPayment, useSkyroPayment } from '@/hooks/usePayment';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -17,7 +21,10 @@ type DataPromo = {
 };
 
 export default function LoadScreen() {
+    const { user } = useAuth();
     const [mobileNumber, setMobileNumber] = useState('');
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
+    
     const [loadType, setLoadType] = useState<LoadType>(null);
     
     // Conditional States
@@ -30,7 +37,14 @@ export default function LoadScreen() {
 
     const COMMERCIAL_PRESETS = [500, 1000, 1500, 2000];
     const NETWORK_PROVIDERS = ['Globe', 'TM', 'GOMO'];
-
+    
+    const newOrderMutation = newOrder();
+    const pwalletDebitMutation = usePwalletDebit();
+    const cashPaymentMutation = useSaveCashPayment();
+    const creditCardPaymentMutation = useSaveCreditCardPayment();
+    const processPaymentMutation = useProcessPayment();
+    const skyroPaymentMutation = useSkyroPayment();
+    const processLoadSellingMutation = useProcessLoadSelling();
 
     const {
         data: telcos,
@@ -50,6 +64,7 @@ export default function LoadScreen() {
 
     // Check if form is ready for payment
     const isFormValid = () => {
+      console.log('loadType:', loadType);
         if (mobileNumber.length < 10) return false;
         if (loadType === 'COMMERCIAL' && !selectedPreset) return false;
         if (loadType === 'DATA' && (!selectedNetwork || !selectedPromo)) return false;
@@ -59,27 +74,206 @@ export default function LoadScreen() {
 
     const handlePayment = () => {
         // Collect the final data payload
-        const payload = {
-            mobileNumber,
-            type: loadType,
-            amount: loadType === 'COMMERCIAL' ? selectedPreset : loadType === 'REGULAR' ? Number(customAmount) : null,
-            network: loadType === 'DATA' ? selectedNetwork : null,
-        };
+        // const payload = {
+        //     mobileNumber,
+        //     type: loadType,
+        //     amount: loadType === 'COMMERCIAL' ? selectedPreset : loadType === 'REGULAR' ? Number(customAmount) : null,
+        //     network: loadType === 'DATA' ? selectedNetwork : null,
+        // };
         
-        console.log('Proceeding to payment with:', payload);
+        // console.log('Proceeding to payment with:', payload);
+        console.log('Proceeding to payment with:', selectedPromo);
+        console.log('selectedPreset',selectedPreset);
+        console.log('customAmount',customAmount);
+
+       
         Alert.alert('Success', 'Proceeding to Payment Screen...');
         // TODO: Navigate to your actual payment/checkout screen here
     };
 
     const handleLoadTypeChange = (type: LoadType) => {
         setLoadType(type);
-
-        // Reset conditional states when changing load type
         setSelectedPreset(null);
         setSelectedNetwork(null);
         setCustomAmount('');
+        setSelectedPromo(null);
     };
-    console.log('Telcos Data:', telcos);
+
+    const handleConfirmPayment = async(payment_details:any) => {
+
+      console.log('payment_details',payment_details);
+      // const response = await newOrderMutation.mutateAsync({
+      //   user_id: user?.id || null,
+      //   vendor_code: user?.supplier_code || null,
+      //   customerCardNumber: ''
+      // });
+      //    console.log('New order mutation result:', response);
+      // // 2. Extract the order_no
+      // const orderNo = response.data?.order_no;
+
+      // if (!orderNo) {
+      //   throw new Error(response?.message || 'Failed to retrieve order number from the server.');
+      // }
+   
+
+      // const amount = 
+      // loadType === 'COMMERCIAL' ? selectedPreset : 
+      // loadType === 'DATA' ? selectedPromo?.amount : 
+      // loadType === 'REGULAR' ? Number(customAmount) : 0
+
+      // console.log('Amount to process:', amount);
+      // console.log('payload for load selling', {
+      //   order_no: orderNo,
+      //   mobile_number: mobileNumber,
+      //   load_type: loadType,
+      //   amount: amount,
+      //   network: selectedNetwork?.telco ?? null,
+      //   promo: selectedPromo ?? null
+      // });
+      // processLoadSellingMutation.mutate()
+      
+      // switch (payment_details.method){
+
+      //   case 'PWALLET':
+      //     try {
+      //       await pwalletDebitMutation.mutateAsync({
+      //         reference_no: payment_details?.referenceNumber ?? "",
+      //         amount: amount!,
+      //         store_code: 801,
+      //         order_no:orderNo!,
+      //         payment_method:payment_details.method
+      //       });
+      //     } catch (error:any) {
+      //       console.log('PWALLET error',error.message);
+      //       setShowPaymentModal(false)
+      //       showError(error.message);
+      //       return false; 
+      //     }
+      //     break;
+        
+      //   case 'CASH':
+      //     try {
+      //       console.log('Processing cash payment with details:', {
+      //         cash_bill:payment_details.cashReceived.toString(),
+      //         cash_change:payment_details.change.toString(),    
+      //         amount:amount!,
+      //         payment_method:payment_details.method,
+      //         order_no:orderNo!,
+      //       });
+      //       await cashPaymentMutation.mutateAsync({
+      //         cash_bill:payment_details.cashReceived.toString(),
+      //         cash_change:payment_details.change.toString(),
+      //         amount:Number(amount!),
+      //         payment_method:payment_details.method,
+      //         order_no:orderNo.toString(),
+
+      //       });
+      //     } catch (error) {
+      //       setShowPaymentModal(false)
+      //       showError('Cash Payment Failed.');
+      //       return false; 
+      //     }
+      //     break;
+
+      //   case 'CREDIT_DEBIT_CARD':
+      //     try {
+      //       await creditCardPaymentMutation.mutateAsync({
+      //         amount:amount!,
+      //         payment_method:payment_details.method,
+      //         order_no:orderNo!,
+      //         reference_no:payment_details.referenceNumber!,
+      //         qr_code_data:payment_details.ccQrData,
+      //         terminal_type:payment_details.terminalType,
+      //         card_type:payment_details.cardType ?? null,
+
+      //       });
+      //     } catch (error) {
+      //       setShowPaymentModal(false)
+      //       showError('Credit Card Payment Failed.');
+      //       return false; 
+      //     }
+      //     break;
+
+      //   case 'GCASH':
+      //     try {
+      //       const gcashResponse = await processPaymentMutation.mutateAsync({
+      //         order_no:orderNo!,
+      //         payment_method:payment_details.method,
+      //         amount:amount!,
+      //         reference_no:payment_details.referenceNumber!
+      //       });
+      //       console.log('GCASH RESPONSE',gcashResponse);
+      //     } catch (error:any) {
+      //       console.log('GCASH error',error);
+      //       setShowPaymentModal(false)
+      //       showError(`Credit Card Payment Failed: ${error.message}`);
+      //       return false; 
+      //     }
+      //     break;
+
+      //   case 'SHOPEE_PAY':
+      //     try {
+      //       const shopeePayResponse = await processPaymentMutation.mutateAsync({
+      //         order_no:orderNo!,
+      //         payment_method:payment_details.method,
+      //         amount:amount!,
+      //         reference_no:payment_details.referenceNumber!
+      //       });
+      //       console.log('SHOPEE PAY RESPONSE',shopeePayResponse);
+      //     } catch (error:any) {
+      //       console.log('SHOPEE PAY error',error);
+      //       setShowPaymentModal(false)
+      //       showError(`Shopee Pay Payment Failed: ${error.message}`);
+      //       return false; 
+      //     }
+      //     break;
+        
+      //   case 'HOME_CREDIT':
+      //     try {
+      //       const homeCreditResponse = await processPaymentMutation.mutateAsync({
+      //         order_no:orderNo!,
+      //         payment_method:payment_details.method,
+      //         amount:amount!,
+      //         reference_no:payment_details.referenceNumber!
+      //       });
+      //       console.log('HOME CREDIT RESPONSE',homeCreditResponse);
+      //     } catch (error:any) {
+      //       console.log('HOME CREDIT error',error);
+      //       setShowPaymentModal(false)
+      //       showError(`Home Credit Payment Failed: ${error.message}`);
+      //       return false; 
+      //     }
+      //     break;
+
+      //   case 'SKYRO':
+      //     try {
+            
+      //       await skyroPaymentMutation.mutateAsync({
+      //         amount:amount!,
+      //         payment_method:payment_details.method,
+      //         order_no:orderNo!,
+      //         reference_no:payment_details.referenceNumber!
+      //       });
+      //     } catch (error:any) {
+      //       console.log('SKYRO error',error);
+      //       setShowPaymentModal(false)
+      //       showError(`Skyro Payment Failed: ${error.message}`);
+      //       return false; 
+      //     }
+      //     break;
+      // }
+      setShowPaymentModal(false)
+
+      showSuccess(`Payment of ₱${amount} added`);
+      
+    }
+
+    const isProcessingPayment = 
+    cashPaymentMutation.isPending || 
+    creditCardPaymentMutation.isPending || 
+    pwalletDebitMutation.isPending || 
+    processPaymentMutation.isPending;
+
     return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
         
@@ -245,13 +439,24 @@ export default function LoadScreen() {
         <Pressable 
             style={[styles.paymentButton, !isFormValid() && styles.paymentButtonDisabled]}
             disabled={!isFormValid()}
-            onPress={handlePayment}
+            // onPress={handleConfirmPayment}
+            onPress={() =>setShowPaymentModal(true)}
+
         >
             <Text style={styles.paymentButtonText}>Proceed to Payment</Text>
             <Ionicons name="arrow-forward" size={20} color="#fff" />
         </Pressable>
         </View>
+        <LoadPaymentSelectionModal
+          visible={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          // onSelectPayment={handlePaymentSelected}
+          amount={selectedPreset || (selectedPromo ? selectedPromo.amount : Number(customAmount))}
+          // onConfirmPayment={handlePayment}
+          onConfirmPayment={handleConfirmPayment}
 
+          isProcessing={isProcessingPayment}
+        />
     </ScrollView>
     );
 }
@@ -426,3 +631,11 @@ const styles = StyleSheet.create({
     fontSize: 14
   },
 });
+
+function showError(arg0: string) {
+  throw new Error('Function not implemented.');
+}
+function showSuccess(arg0: string) {
+  throw new Error('Function not implemented.');
+}
+
