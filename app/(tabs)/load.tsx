@@ -1,11 +1,12 @@
 import LoadPaymentSelectionModal from '@/components/modals/LoadPaymentSelectionModal';
+import { useToast } from '@/components/ToastProvider';
 import { useAuth } from '@/hooks/useAuth';
 import { useFetchDataPromos, useFetchTelcos, useProcessLoadSelling } from '@/hooks/useLoad';
 import { newOrder } from '@/hooks/useOrder';
 import { useProcessPayment, usePwalletDebit, useSaveCashPayment, useSaveCreditCardPayment, useSkyroPayment } from '@/hooks/usePayment';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 type LoadType = 'COMMERCIAL' | 'DATA' | 'REGULAR' | null;
 type TelcoNetwork = {
@@ -24,19 +25,18 @@ export default function LoadScreen() {
     const { user } = useAuth();
     const [mobileNumber, setMobileNumber] = useState('');
     const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const { showSuccess, showError, showInfo } = useToast();
     
     const [loadType, setLoadType] = useState<LoadType>(null);
     
     // Conditional States
     const [selectedPreset, setSelectedPreset] = useState<number | null>(null);
-    // const [selectedNetwork, setSelectedNetwork] = useState<string | null>(null);
     const [selectedNetwork, setSelectedNetwork] = useState<TelcoNetwork | null>(null);
     const [customAmount, setCustomAmount] = useState('');
 
     const [selectedPromo, setSelectedPromo] = useState<DataPromo | null>(null);
 
     const COMMERCIAL_PRESETS = [500, 1000, 1500, 2000];
-    const NETWORK_PROVIDERS = ['Globe', 'TM', 'GOMO'];
     
     const newOrderMutation = newOrder();
     const pwalletDebitMutation = usePwalletDebit();
@@ -62,7 +62,6 @@ export default function LoadScreen() {
         isError: isPromosError
     } = useFetchDataPromos(selectedNetwork?.telco!);
 
-    // Check if form is ready for payment
     const isFormValid = () => {
       console.log('loadType:', loadType);
         if (mobileNumber.length < 10) return false;
@@ -70,25 +69,6 @@ export default function LoadScreen() {
         if (loadType === 'DATA' && (!selectedNetwork || !selectedPromo)) return false;
         if (loadType === 'REGULAR' && (!customAmount || isNaN(Number(customAmount)))) return false;
         return true;
-    };
-
-    const handlePayment = () => {
-        // Collect the final data payload
-        // const payload = {
-        //     mobileNumber,
-        //     type: loadType,
-        //     amount: loadType === 'COMMERCIAL' ? selectedPreset : loadType === 'REGULAR' ? Number(customAmount) : null,
-        //     network: loadType === 'DATA' ? selectedNetwork : null,
-        // };
-        
-        // console.log('Proceeding to payment with:', payload);
-        console.log('Proceeding to payment with:', selectedPromo);
-        console.log('selectedPreset',selectedPreset);
-        console.log('customAmount',customAmount);
-
-       
-        Alert.alert('Success', 'Proceeding to Payment Screen...');
-        // TODO: Navigate to your actual payment/checkout screen here
     };
 
     const handleLoadTypeChange = (type: LoadType) => {
@@ -101,169 +81,182 @@ export default function LoadScreen() {
 
     const handleConfirmPayment = async(payment_details:any) => {
 
-      console.log('payment_details',payment_details);
-      // const response = await newOrderMutation.mutateAsync({
-      //   user_id: user?.id || null,
-      //   vendor_code: user?.supplier_code || null,
-      //   customerCardNumber: ''
-      // });
-      //    console.log('New order mutation result:', response);
-      // // 2. Extract the order_no
-      // const orderNo = response.data?.order_no;
-
-      // if (!orderNo) {
-      //   throw new Error(response?.message || 'Failed to retrieve order number from the server.');
-      // }
-   
-
-      // const amount = 
-      // loadType === 'COMMERCIAL' ? selectedPreset : 
-      // loadType === 'DATA' ? selectedPromo?.amount : 
-      // loadType === 'REGULAR' ? Number(customAmount) : 0
-
-      // console.log('Amount to process:', amount);
-      // console.log('payload for load selling', {
-      //   order_no: orderNo,
-      //   mobile_number: mobileNumber,
-      //   load_type: loadType,
-      //   amount: amount,
-      //   network: selectedNetwork?.telco ?? null,
-      //   promo: selectedPromo ?? null
-      // });
-      // processLoadSellingMutation.mutate()
+      const response = await newOrderMutation.mutateAsync({
+        user_id: user?.id || null,
+        vendor_code: user?.supplier_code || null,
+        customerCardNumber: ''
+      });
       
-      // switch (payment_details.method){
+      console.log('New order mutation result:', response);
+      // 2. Extract the order_no
+      const orderNo = response.data?.order_no;
 
-      //   case 'PWALLET':
-      //     try {
-      //       await pwalletDebitMutation.mutateAsync({
-      //         reference_no: payment_details?.referenceNumber ?? "",
-      //         amount: amount!,
-      //         store_code: 801,
-      //         order_no:orderNo!,
-      //         payment_method:payment_details.method
-      //       });
-      //     } catch (error:any) {
-      //       console.log('PWALLET error',error.message);
-      //       setShowPaymentModal(false)
-      //       showError(error.message);
-      //       return false; 
-      //     }
-      //     break;
+      if (!orderNo) {
+        throw new Error(response.data?.message || 'Failed to retrieve order number from the server.');
+      }
+   
+      const amount = 
+      loadType === 'COMMERCIAL' ? selectedPreset : 
+      loadType === 'DATA' ? selectedPromo?.amount : 
+      loadType === 'REGULAR' ? Number(customAmount) : 0
+
+      console.log('Amount to process:', amount);
+      console.log('payload for load selling', {
+        order_no: orderNo,
+        mobile_number: mobileNumber,
+        load_type: loadType,
+        amount: amount,
+        network: selectedNetwork?.telco ?? null,
+        promo: selectedPromo ?? null
+      });
+      console.log('payment_details', payment_details);
+      processLoadSellingMutation.mutate({
+        order_no: orderNo,
+        load_type: loadType,
+        mobile_number: mobileNumber,
+        network: selectedNetwork?.telco ?? null,
+        promo: selectedPromo ?? null,
+        amount: amount,
+        sku: loadType === 'COMMERCIAL' ? '349315' : loadType === 'REGULAR' ? '322304' : null
+      })
+      
+      switch (payment_details.method){
+
+        case 'PWALLET':
+          try {
+            await pwalletDebitMutation.mutateAsync({
+              reference_no: payment_details?.referenceNumber ?? "",
+              amount: amount!,
+              store_code: 801,
+              order_no:orderNo!,
+              payment_method:payment_details.method
+            });
+          } catch (error:any) {
+            console.log('PWALLET error',error.message);
+            setShowPaymentModal(false)
+            showError(error.message);
+            return false; 
+          }
+          break;
         
-      //   case 'CASH':
-      //     try {
-      //       console.log('Processing cash payment with details:', {
-      //         cash_bill:payment_details.cashReceived.toString(),
-      //         cash_change:payment_details.change.toString(),    
-      //         amount:amount!,
-      //         payment_method:payment_details.method,
-      //         order_no:orderNo!,
-      //       });
-      //       await cashPaymentMutation.mutateAsync({
-      //         cash_bill:payment_details.cashReceived.toString(),
-      //         cash_change:payment_details.change.toString(),
-      //         amount:Number(amount!),
-      //         payment_method:payment_details.method,
-      //         order_no:orderNo.toString(),
+        case 'CASH':
+          try {
+            console.log('Processing cash payment with details:', {
+              cash_bill:payment_details.cashReceived.toString(),
+              cash_change:payment_details.change.toString(),    
+              amount:amount!,
+              payment_method:payment_details.method,
+              order_no:orderNo!,
+            });
+            await cashPaymentMutation.mutateAsync({
+              cash_bill:payment_details.cashReceived.toString(),
+              cash_change:payment_details.change.toString(),
+              amount:Number(amount!),
+              payment_method:payment_details.method,
+              order_no:orderNo.toString(),
 
-      //       });
-      //     } catch (error) {
-      //       setShowPaymentModal(false)
-      //       showError('Cash Payment Failed.');
-      //       return false; 
-      //     }
-      //     break;
+            });
+          } catch (error) {
+            setShowPaymentModal(false)
+            showError('Cash Payment Failed.');
+            return false; 
+          }
+          break;
 
-      //   case 'CREDIT_DEBIT_CARD':
-      //     try {
-      //       await creditCardPaymentMutation.mutateAsync({
-      //         amount:amount!,
-      //         payment_method:payment_details.method,
-      //         order_no:orderNo!,
-      //         reference_no:payment_details.referenceNumber!,
-      //         qr_code_data:payment_details.ccQrData,
-      //         terminal_type:payment_details.terminalType,
-      //         card_type:payment_details.cardType ?? null,
+        case 'CREDIT_DEBIT_CARD':
+          try {
+            await creditCardPaymentMutation.mutateAsync({
+              amount:amount!,
+              payment_method:payment_details.method,
+              order_no:orderNo!,
+              reference_no:payment_details.referenceNumber!,
+              qr_code_data:payment_details.ccQrData,
+              terminal_type:payment_details.terminalType,
+              card_type:payment_details.cardType ?? null,
 
-      //       });
-      //     } catch (error) {
-      //       setShowPaymentModal(false)
-      //       showError('Credit Card Payment Failed.');
-      //       return false; 
-      //     }
-      //     break;
+            });
+          } catch (error) {
+            setShowPaymentModal(false)
+            showError('Credit Card Payment Failed.');
+            return false; 
+          }
+          break;
 
-      //   case 'GCASH':
-      //     try {
-      //       const gcashResponse = await processPaymentMutation.mutateAsync({
-      //         order_no:orderNo!,
-      //         payment_method:payment_details.method,
-      //         amount:amount!,
-      //         reference_no:payment_details.referenceNumber!
-      //       });
-      //       console.log('GCASH RESPONSE',gcashResponse);
-      //     } catch (error:any) {
-      //       console.log('GCASH error',error);
-      //       setShowPaymentModal(false)
-      //       showError(`Credit Card Payment Failed: ${error.message}`);
-      //       return false; 
-      //     }
-      //     break;
+        case 'GCASH':
+          try {
+            const gcashResponse = await processPaymentMutation.mutateAsync({
+              order_no:orderNo!,
+              payment_method:payment_details.method,
+              amount:amount!,
+              reference_no:payment_details.referenceNumber!
+            });
+            console.log('GCASH RESPONSE',gcashResponse);
+          } catch (error:any) {
+            console.log('GCASH error',error);
+            setShowPaymentModal(false)
+            showError(`Credit Card Payment Failed: ${error.message}`);
+            return false; 
+          }
+          break;
 
-      //   case 'SHOPEE_PAY':
-      //     try {
-      //       const shopeePayResponse = await processPaymentMutation.mutateAsync({
-      //         order_no:orderNo!,
-      //         payment_method:payment_details.method,
-      //         amount:amount!,
-      //         reference_no:payment_details.referenceNumber!
-      //       });
-      //       console.log('SHOPEE PAY RESPONSE',shopeePayResponse);
-      //     } catch (error:any) {
-      //       console.log('SHOPEE PAY error',error);
-      //       setShowPaymentModal(false)
-      //       showError(`Shopee Pay Payment Failed: ${error.message}`);
-      //       return false; 
-      //     }
-      //     break;
+        case 'SHOPEE_PAY':
+          try {
+            const shopeePayResponse = await processPaymentMutation.mutateAsync({
+              order_no:orderNo!,
+              payment_method:payment_details.method,
+              amount:amount!,
+              reference_no:payment_details.referenceNumber!
+            });
+            console.log('SHOPEE PAY RESPONSE',shopeePayResponse);
+          } catch (error:any) {
+            console.log('SHOPEE PAY error',error);
+            setShowPaymentModal(false)
+            showError(`Shopee Pay Payment Failed: ${error.message}`);
+            return false; 
+          }
+          break;
         
-      //   case 'HOME_CREDIT':
-      //     try {
-      //       const homeCreditResponse = await processPaymentMutation.mutateAsync({
-      //         order_no:orderNo!,
-      //         payment_method:payment_details.method,
-      //         amount:amount!,
-      //         reference_no:payment_details.referenceNumber!
-      //       });
-      //       console.log('HOME CREDIT RESPONSE',homeCreditResponse);
-      //     } catch (error:any) {
-      //       console.log('HOME CREDIT error',error);
-      //       setShowPaymentModal(false)
-      //       showError(`Home Credit Payment Failed: ${error.message}`);
-      //       return false; 
-      //     }
-      //     break;
+        case 'HOME_CREDIT':
+          try {
+            const homeCreditResponse = await processPaymentMutation.mutateAsync({
+              order_no:orderNo!,
+              payment_method:payment_details.method,
+              amount:amount!,
+              reference_no:payment_details.referenceNumber!
+            });
+            console.log('HOME CREDIT RESPONSE',homeCreditResponse);
+          } catch (error:any) {
+            console.log('HOME CREDIT error',error);
+            setShowPaymentModal(false)
+            showError(`Home Credit Payment Failed: ${error.message}`);
+            return false; 
+          }
+          break;
 
-      //   case 'SKYRO':
-      //     try {
+        case 'SKYRO':
+          try {
             
-      //       await skyroPaymentMutation.mutateAsync({
-      //         amount:amount!,
-      //         payment_method:payment_details.method,
-      //         order_no:orderNo!,
-      //         reference_no:payment_details.referenceNumber!
-      //       });
-      //     } catch (error:any) {
-      //       console.log('SKYRO error',error);
-      //       setShowPaymentModal(false)
-      //       showError(`Skyro Payment Failed: ${error.message}`);
-      //       return false; 
-      //     }
-      //     break;
-      // }
+            await skyroPaymentMutation.mutateAsync({
+              amount:amount!,
+              payment_method:payment_details.method,
+              order_no:orderNo!,
+              reference_no:payment_details.referenceNumber!
+            });
+          } catch (error:any) {
+            console.log('SKYRO error',error);
+            setShowPaymentModal(false)
+            showError(`Skyro Payment Failed: ${error.message}`);
+            return false; 
+          }
+          break;
+      }
       setShowPaymentModal(false)
-
+      setSelectedPreset(null)
+      setSelectedNetwork(null)
+      setCustomAmount('')
+      setSelectedPromo(null)
+      setLoadType(null)
+      setMobileNumber('')
       showSuccess(`Payment of ₱${amount} added`);
       
     }
@@ -631,11 +624,4 @@ const styles = StyleSheet.create({
     fontSize: 14
   },
 });
-
-function showError(arg0: string) {
-  throw new Error('Function not implemented.');
-}
-function showSuccess(arg0: string) {
-  throw new Error('Function not implemented.');
-}
 

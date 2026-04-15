@@ -43,7 +43,7 @@ export function useLogout() {
     
     return () => {
         logout();
-        router.push('/(auth)/login');
+        router.replace('/(auth)/login');
     };
 }
 
