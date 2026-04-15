@@ -1,16 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 const formatCurrency = (value: number) => {
@@ -20,7 +20,7 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
-export type PaymentMethod = 'CASH' | 'GCASH' | 'PWALLET' | 'CREDIT_CARD' | 'HOME_CREDIT' | 'SHOPEE_PAY';
+export type PaymentMethod = 'CASH' | 'GCASH' | 'PWALLET' | 'CREDIT_DEBIT_CARD' | 'HOME_CREDIT' | 'SHOPEE_PAY';
 
 export interface PaymentDetails {
   method: PaymentMethod;
@@ -70,8 +70,8 @@ export default function PaymentSelectionModal({
   const paymentOptions = [
     { id: 'CASH', title: 'Cash', icon: 'cash-outline', color: '#34C759' },
     { id: 'GCASH', title: 'GCash', icon: 'phone-portrait-outline', color: '#007AFF' },
-    { id: 'PWALLET', title: 'PWallet', icon: 'wallet-outline', color: '#FF9500' },
-    { id: 'CREDIT_CARD', title: 'Credit / Debit Card', icon: 'card-outline', color: '#5856D6' },
+    { id: 'PWALLET', title: 'P-Wallet', icon: 'wallet-outline', color: '#FF9500' },
+    { id: 'CREDIT_DEBIT_CARD', title: 'Credit / Debit Card', icon: 'card-outline', color: '#5856D6' },
     { id: 'HOME_CREDIT', title: 'Home Credit', icon: 'home-outline', color: '#FF2D55' },
     { id: 'SHOPEE_PAY', title: 'Shopee Pay', icon: 'bag-check-outline', color: '#FF3B30' },
   ];
@@ -113,7 +113,7 @@ export default function PaymentSelectionModal({
         change: roundMoney(received - amount)
       });
     } else {
-      if (!referenceNo && (selectedMethod === 'PWALLET' || selectedMethod === 'CREDIT_CARD')) {
+      if (!referenceNo && (selectedMethod === 'PWALLET' || selectedMethod === 'CREDIT_DEBIT_CARD')) {
         Alert.alert('Missing Info', 'Please provide a reference or approval code.');
         return;
       }
@@ -219,7 +219,7 @@ export default function PaymentSelectionModal({
         )}
 
         {/* CREDIT CARD FORM */}
-        {selectedMethod === 'CREDIT_CARD' && (
+        {selectedMethod === 'CREDIT_DEBIT_CARD' && (
           <>
             {renderAmountInputSection()}
 
@@ -231,7 +231,7 @@ export default function PaymentSelectionModal({
                 value={referenceNo}
                 onChangeText={setReferenceNo}
               />
-              <TouchableOpacity style={styles.scanButton} onPress={() => handleScanQR('CREDIT_CARD')}>
+              <TouchableOpacity style={styles.scanButton} onPress={() => handleScanQR('CREDIT_DEBIT_CARD')}>
                 <Ionicons name="scan-outline" size={24} color="#FFFFFF" />
               </TouchableOpacity>
             </View>

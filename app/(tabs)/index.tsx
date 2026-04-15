@@ -152,28 +152,6 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Sales Trend Chart */}
-        {/* <View style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Sales Trend</Text>
-            <Ionicons name="bar-chart-outline" size={20} color="#8E8E93" />
-          </View>
-          <BarChart
-            data={{
-              labels: salesData.chartLabels,
-              datasets: [{ data: salesData.chartData }],
-            }}
-            width={screenWidth - 48} // Width minus padding
-            height={220}
-            yAxisLabel="₱"
-            yAxisSuffix=""
-            chartConfig={chartConfig}
-            style={styles.chart}
-            showValuesOnTopOfBars={true}
-            fromZero={true}
-          />
-        </View> */}
-
         {/* Top Selling Items */}
         <View style={styles.sectionCard}>
            <View style={styles.sectionHeader}>
@@ -220,9 +198,9 @@ export default function HomeScreen() {
               {/* 1. Calculate Total Amount dynamically */}
               {(() => {
                 const totalPaymentAmount = paymentBreakdown.data.reduce(
-                  (sum: number, item: any) => sum + item.total, 0
+                  (sum: number, item: any) => sum + parseFloat(item.total || 0), 0
                 );
-
+               
                 return (
                   <>
                     {/* --- NEW SEGMENTED PROGRESS BAR --- */}
@@ -237,7 +215,7 @@ export default function HomeScreen() {
                               { 
                                 width: `${segmentWidth}%`, 
                                 // Use the map here with a fallback to DEFAULT
-                                backgroundColor: PAYMENT_COLORS[method.type] || PAYMENT_COLORS.DEFAULT 
+                                backgroundColor: PAYMENT_COLORS[method.payment_method] || PAYMENT_COLORS.DEFAULT 
                               }
                             ]} 
                           />
@@ -249,12 +227,12 @@ export default function HomeScreen() {
                     <View style={styles.legendContainer}>
                       {paymentBreakdown?.data.map((method: any, index: number) => {
                         const percentage = totalPaymentAmount > 0 ? ((method.total / totalPaymentAmount) * 100).toFixed(1) : 0;
-                        
+                        const displayName = method.payment_method === 'PWALLET' ? 'P-WALLET' : method.payment_method;
                         return (
                           <View key={index} style={styles.legendRow}>
                             <View style={styles.legendLeft}>
                               <View style={[styles.colorDot, { backgroundColor: method.color }]} />
-                              <Text style={styles.legendType}>{method.payment_method}</Text>
+                              <Text style={styles.legendType}>{displayName}</Text>
                               <Text style={styles.legendPercent}>({percentage}%)</Text>
                             </View>
                             <Text style={styles.legendAmount}>{formatCurrency(method.total)}</Text>
