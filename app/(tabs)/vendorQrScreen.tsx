@@ -1,11 +1,12 @@
+import { useAuth } from '@/hooks/useAuth';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
-    Platform,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    View
+  Platform,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  View
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
@@ -17,6 +18,8 @@ interface VendorQRScreenProps {
 }
 
 export default function VendorQRScreen({ vendorCode = "11460", onClose }: VendorQRScreenProps) {
+  const { user } = useAuth();
+  
   
   return (
     <SafeAreaView style={styles.container}>
@@ -34,7 +37,7 @@ export default function VendorQRScreen({ vendorCode = "11460", onClose }: Vendor
         {/* The QR Code Card */}
         <View style={styles.qrCard}>
           <QRCode
-            value={vendorCode}
+            value={user?.supplier_code}
             size={220}
             color="#1C1C1E"
             backgroundColor="#FFFFFF"
@@ -47,7 +50,7 @@ export default function VendorQRScreen({ vendorCode = "11460", onClose }: Vendor
           <View style={styles.divider} />
           
           {/* Display the raw code below the QR */}
-          <Text style={styles.vendorCodeText}>Code: <Text style={styles.vendorCodeHighlight}>{vendorCode}</Text></Text>
+          <Text style={styles.vendorCodeText}>Code: <Text style={styles.vendorCodeHighlight}>{user?.supplier_code}</Text></Text>
         </View>
 
       </View>

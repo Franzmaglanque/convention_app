@@ -174,14 +174,7 @@ export default function CartScreen() {
   const [ccQrData,setCcQrData] = useState('');
   const [isCartSynced, setIsCartSynced] = useState(false);
 
-    ////
-  const PAYMENT_OPTIONS = [
-    { id: 'CASH', label: 'Cash', icon: 'cash-outline', color: '#4CAF50' },
-    { id: 'GCASH', label: 'GCash', icon: 'phone-portrait-outline', color: '#007AFF' },
-    { id: 'PWALLET', label: 'P-Wallet', icon: 'wallet-outline', color: '#9C27B0' },
-    { id: 'CREDIT_DEBIT_CARD', label: 'Credit Card', icon: 'card-outline', color: '#FF9500' },
-    { id: 'HOME CREDIT', label: 'Home Credit', icon: 'home-outline', color: '#E53935' },
-  ] as const;
+  ////
 
   const amountNum = parseFloat(watch('amount') || '0');
   const cashBillNum = parseFloat(watch('cashBill') || '0');

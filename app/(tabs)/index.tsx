@@ -1,10 +1,21 @@
 import { useAuth } from '@/hooks/useAuth';
-import { useFetchTodaySales } from '@/hooks/useSupplier';
+import { useFetchPaymentBreakdown, useFetchTodaySales, useFetchTopSellingProducts } from '@/hooks/useSupplier';
 import { Ionicons } from '@expo/vector-icons';
+import { Redirect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { Dimensions, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { PieChart } from 'react-native-chart-kit';
+import { ActivityIndicator, Dimensions, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+
+const PAYMENT_COLORS: Record<string, string> = {
+  CASH: '#FFCC00',           // Puregold Yellow
+  GCASH: '#007AFF',          // GCash Blue
+  PWALLET: '#34C759',        // Green
+  CREDIT_DEBIT_CARD: '#5856D6', // Purple
+  HOME_CREDIT: '#FF3B30',    // Red
+  SHOPEE_PAY: '#FF9500',     // Orange
+  DEFAULT: '#8E8E93',        // System Gray fallback
+};
 
 export default function HomeScreen() {
   const { user } = useAuth();
@@ -19,17 +30,23 @@ export default function HomeScreen() {
         isRefetching
   } = useFetchTodaySales();
 
-  // const onRefresh = useCallback(() => {
-  //   setRefreshing(true);
-    
-  //   // Simulate an API network call. 
-  //   // TODO: Replace this setTimeout with your actual API refetch function later!
-  //   setTimeout(() => {
-  //     console.log('Dashboard data refreshed!');
-  //     setRefreshing(false); // Hides the spinner
-  //   }, 1500);
-    
-  // }, []);
+
+  const {
+    data: topSellingProducts,
+    isLoading: topProductsLoading,
+    isError: topProductsError,
+    refetch: refetchTopProducts,
+    isRefetching: topProductsRefetching
+  } = useFetchTopSellingProducts(user?.supplier_code!);
+
+  const {
+    data: paymentBreakdown,
+    isLoading: paymentBreakdownLoading,
+    isError: paymentBreakdownError,
+    refetch: refetchPaymentBreakdown,
+    isRefetching: paymentBreakdownRefetching
+  } = useFetchPaymentBreakdown(user?.supplier_code!);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -54,29 +71,18 @@ export default function HomeScreen() {
       { name: 'BUY 1 BOTTLE KOPIKO LUCKY DAY 180ML FOR ONLY PHP20.00', sold: 132, revenue: 19800 },
       { name: 'BUY 1 TIE KOPIKO BROWN TWIN 53GX10S FOR ONLY PHP122.00', sold: 98, revenue: 14700 },
     ],
+    // paymentBreakdown: [
+    //   { type: 'P-Wallet', amount: 155320, percentage: 100, color: '#9C27B0', legendFontColor: '#3A3A3C', legendFontSize: 12 },
+    //   { type: 'GCash', amount: 116490, percentage: 30, color: '#007AFF', legendFontColor: '#3A3A3C', legendFontSize: 12 },
+    //   { type: 'Cash', amount: 115840.50, percentage: 30, color: '#34C759', legendFontColor: '#3A3A3C', legendFontSize: 12 },
+    // ],
     paymentBreakdown: [
-      { type: 'P-Wallet', amount: 155320, percentage: 40, color: '#9C27B0', legendFontColor: '#3A3A3C', legendFontSize: 12 },
-      { type: 'GCash', amount: 116490, percentage: 30, color: '#007AFF', legendFontColor: '#3A3A3C', legendFontSize: 12 },
-      { type: 'Cash', amount: 115840.50, percentage: 30, color: '#34C759', legendFontColor: '#3A3A3C', legendFontSize: 12 },
+      { type: 'P-Wallet', amount: 100, color: '#9C27B0', legendFontColor: '#3A3A3C', legendFontSize: 12 },
+      { type: 'GCash', amount: 200, color: '#007AFF', legendFontColor: '#3A3A3C', legendFontSize: 12 },
+      { type: 'Cash', amount: 300.50, color: '#34C759', legendFontColor: '#3A3A3C', legendFontSize: 12 },
     ],
     chartLabels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Today'],
     chartData: [45000, 52000, 48000, 61000, 125430],
-  };
-
-  const chartConfig = {
-    backgroundGradientFrom: '#FFFFFF',
-    backgroundGradientTo: '#FFFFFF',
-    color: (opacity = 1) => `rgba(0, 122, 255, ${opacity})`, // Brand Blue
-    labelColor: (opacity = 1) => `rgba(142, 142, 147, ${opacity})`, // Muted Gray
-    strokeWidth: 2,
-    barPercentage: 0.6,
-    useShadowColorFromDataset: false,
-    decimalPlaces: 0,
-    propsForBackgroundLines: {
-      strokeWidth: 1,
-      stroke: '#F2F2F7',
-      strokeDasharray: '', // Solid subtle lines instead of dashes
-    },
   };
 
   const formatCurrency = (value:any) => {
@@ -91,6 +97,12 @@ export default function HomeScreen() {
       maximumFractionDigits: 2,
     }).format(numericValue);
   };
+
+  if (user?.role === 'CASHIER') {
+    return <Redirect href="/(tabs)/cart" />;
+  }
+
+  console.log('paymentBreakdown', paymentBreakdown);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -169,7 +181,7 @@ export default function HomeScreen() {
             <Ionicons name="star-outline" size={20} color="#FF9500" />
           </View>
           
-          {/* {salesData.topItems.map((item, index) => (
+          {topSellingProducts?.data.map((item:any, index:any) => (
             <View key={index} style={styles.itemRow}>
               <View style={styles.itemLeft}>
                 <View style={[styles.rankBadge, index === 0 && styles.rankBadgeTop]}>
@@ -177,74 +189,86 @@ export default function HomeScreen() {
                     #{index + 1}
                   </Text>
                 </View>
-                <View style={styles.itemDetails}>
-                  <Text style={styles.itemName}>{item.name}</Text>
-                  <Text style={styles.itemSold}>{item.sold} units sold</Text>
-                </View>
-              </View>
-              <Text style={styles.itemRevenue}>{formatCurrency(item.revenue)}</Text>
-            </View>
-          ))} */}
-          {salesData.topItems.map((item, index) => (
-            <View key={index} style={styles.itemRow}>
-              <View style={styles.itemLeft}>
-                <View style={[styles.rankBadge, index === 0 && styles.rankBadgeTop]}>
-                  <Text style={[styles.rankText, index === 0 && styles.rankTextTop]}>
-                    #{index + 1}
-                  </Text>
-                </View>
-                {/* ADDED styles.itemDetails HERE */}
                 <View style={styles.itemDetails}>
                   <Text 
                     style={styles.itemName} 
                     numberOfLines={2} // Allows 2 lines, then truncates
                     ellipsizeMode="tail"
                   >
-                    {item.name}
+                    {item.description}
                   </Text>
-                  <Text style={styles.itemSold}>{item.sold} units sold</Text>
+                  <Text style={styles.itemSold}>{item.total_quantity_sold} units sold</Text>
                 </View>
               </View>
               <View style={styles.itemRight}>
-                <Text style={styles.itemRevenue}>{formatCurrency(item.revenue)}</Text>
+                <Text style={styles.itemRevenue}>{formatCurrency(item.total)}</Text>
               </View>
             </View>
           ))}
         </View>
 
-        {/* Payment Breakdown */}
-        <View style={styles.sectionCard}>
-           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Revenue by Payment Method</Text>
-            <Ionicons name="pie-chart-outline" size={20} color="#8E8E93" />
-          </View>
+          <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Payment Breakdown</Text>
           
-          <PieChart
-            // 1. Map over the data to map "type" to "name" to prevent internal library warnings
-            data={salesData.paymentBreakdown.map(item => ({ ...item, name: item.type }))}
-            width={screenWidth - 48}
-            height={180}
-            chartConfig={chartConfig}
-            accessor="amount"
-            backgroundColor="transparent"
-            paddingLeft={(screenWidth / 4 - 40).toString()} // Centers the pie chart dynamically
-            absolute
-            hasLegend={false} // 2. THIS IS THE FIX: Hides the broken default legend
-          />
-          
-          {/* Custom Legend for cleaner look */}
-          <View style={styles.legendContainer}>
-            {salesData.paymentBreakdown.map((method, index) => (
-              <View key={index} style={styles.legendRow}>
-                <View style={styles.legendLeft}>
-                  <View style={[styles.colorDot, { backgroundColor: method.color }]} />
-                  <Text style={styles.legendType}>{method.type}</Text>
-                  <Text style={styles.legendPercent}>({method.percentage}%)</Text>
-                </View>
-                <Text style={styles.legendAmount}>{formatCurrency(method.amount)}</Text>
-              </View>
-            ))}
-          </View>
+          {paymentBreakdownLoading ? (
+            <ActivityIndicator size="small" color="#007AFF" />
+          ) : paymentBreakdownError ? (
+            <Text style={styles.errorText}>Failed to load payment breakdown.</Text>
+          ) : paymentBreakdown?.data?.length > 0 ? (
+            <View style={{ marginTop: 16 }}>
+              
+              {/* 1. Calculate Total Amount dynamically */}
+              {(() => {
+                const totalPaymentAmount = paymentBreakdown.data.reduce(
+                  (sum: number, item: any) => sum + item.total, 0
+                );
+
+                return (
+                  <>
+                    {/* --- NEW SEGMENTED PROGRESS BAR --- */}
+                    <View style={styles.progressBarContainer}>
+                      {paymentBreakdown?.data.map((method: any, index: number) => {
+                        const segmentWidth = totalPaymentAmount > 0 ? (method.total / totalPaymentAmount) * 100 : 0;
+                        return (
+                          <View 
+                            key={index} 
+                            style={[
+                              styles.progressSegment, 
+                              { 
+                                width: `${segmentWidth}%`, 
+                                // Use the map here with a fallback to DEFAULT
+                                backgroundColor: PAYMENT_COLORS[method.type] || PAYMENT_COLORS.DEFAULT 
+                              }
+                            ]} 
+                          />
+                        );
+                      })}
+                    </View>
+
+                    {/* --- CUSTOM LEGEND WITH PERCENTAGES --- */}
+                    <View style={styles.legendContainer}>
+                      {paymentBreakdown?.data.map((method: any, index: number) => {
+                        const percentage = totalPaymentAmount > 0 ? ((method.total / totalPaymentAmount) * 100).toFixed(1) : 0;
+                        
+                        return (
+                          <View key={index} style={styles.legendRow}>
+                            <View style={styles.legendLeft}>
+                              <View style={[styles.colorDot, { backgroundColor: method.color }]} />
+                              <Text style={styles.legendType}>{method.payment_method}</Text>
+                              <Text style={styles.legendPercent}>({percentage}%)</Text>
+                            </View>
+                            <Text style={styles.legendAmount}>{formatCurrency(method.total)}</Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </>
+                );
+              })()}
+            </View>
+          ) : (
+             <Text style={styles.emptyText}>No payment data available.</Text>
+          )}
         </View>
 
       </ScrollView>
@@ -358,9 +382,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '700',
     color: '#1C1C1E',
+    marginBottom: 12,
   },
   chart: {
     marginVertical: 8,
@@ -465,14 +490,50 @@ const styles = StyleSheet.create({
   legendPercent: {
     fontSize: 13,
     color: '#8E8E93',
+    marginLeft: 6,
   },
   legendAmount: {
     fontSize: 14,
     fontWeight: '600',
     color: '#1C1C1E',
   },
+  // --- Segmented Progress Bar ---
+  progressBarContainer: {
+    flexDirection: 'row',
+    height: 16,
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginBottom: 20,
+    backgroundColor: '#F2F2F7', // Apple system gray fallback
+  },
+  progressSegment: {
+    height: '100%',
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    // iOS Shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    // Android Shadow
+    elevation: 2,
+  },
+  // --- State Text Styles ---
+  errorText: {
+    fontSize: 14,
+    color: '#FF3B30', // Native red for errors
+    textAlign: 'center',
+    marginVertical: 20,
+    fontWeight: '500',
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#8E8E93', // System gray for empty states
+    textAlign: 'center',
+    marginVertical: 20,
+  },
 });
-
-function fetchTodaySales(): { data: any; isLoading: any; isError: any; refetch: any; isRefetching: any; } {
-  throw new Error('Function not implemented.');
-}

@@ -8,3 +8,17 @@ export function useFetchTodaySales() {
     })
 }
 
+export function useFetchTopSellingProducts(vendor_code:string) {
+    return useQuery({
+        queryKey: ['top-selling-products', vendor_code],
+        queryFn: () => supplierService.fetchTopSellingProducts(vendor_code),
+    })
+}
+
+export function useFetchPaymentBreakdown(vendor_code:string) {
+    return useQuery({
+        queryKey: ['payment-breakdown', vendor_code],
+        queryFn: () => supplierService.fetchPaymentBreakdown(vendor_code),
+    })
+}
+
