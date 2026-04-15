@@ -25,7 +25,7 @@ export default function SMSModal({visible,onClose,onSubmit}:any) {
             <View style={styles.smsModalContent}>
             
             {/* Header */}
-            <Text style={styles.modalTitle}>Send SMS Receipt</Text>
+            <Text style={styles.modalTitle}>Send SMS</Text>
             <Text style={styles.modalSubtext}>
                 Enter the customer's mobile number to send the transaction details.
             </Text>

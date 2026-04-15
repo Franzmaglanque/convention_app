@@ -101,7 +101,7 @@ export default function PaymentSelectionModal({
   const paymentOptions = [
     { id: 'CASH', title: 'Cash', icon: 'cash-outline', color: '#34C759' },
     { id: 'GCASH', title: 'GCash', icon: 'phone-portrait-outline', color: '#007AFF' },
-    { id: 'PWALLET', title: 'PWallet', icon: 'wallet-outline', color: '#FF9500' },
+    { id: 'PWALLET', title: 'P-Wallet', icon: 'wallet-outline', color: '#FF9500' },
     { id: 'CREDIT_DEBIT_CARD', title: 'Credit / Debit Card', icon: 'card-outline', color: '#5856D6' },
     { id: 'HOME_CREDIT', title: 'Home Credit', icon: 'home-outline', color: '#FF2D55' },
     { id: 'SHOPEE_PAY', title: 'Shopee Pay', icon: 'bag-check-outline', color: '#FF3B30' },
