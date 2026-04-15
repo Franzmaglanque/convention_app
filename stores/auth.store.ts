@@ -41,7 +41,7 @@ export const useAuthStore = create<AuthState>()(
       sessionMessage: null,
       
       login: (response: AuthResponse) => {
-        console.log('Storing login data in auth store:', response);
+        // console.log('Storing login data in auth store:', response);
         set({
           token: response.token,
           user: response.user,

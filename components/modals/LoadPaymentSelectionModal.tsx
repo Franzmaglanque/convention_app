@@ -41,7 +41,7 @@ export interface PaymentDetails {
 interface PaymentSelectionModalProps {
   visible: boolean;
   onClose: () => void;
-  balanceDue: number;
+  amount: number;
   onConfirmPayment: (details: PaymentDetails) => void;
   isProcessing: boolean; // ✨ NEW: Tell the modal when the API is running
 }
@@ -50,34 +50,20 @@ const roundMoney = (amount: number): number => {
   return Math.round(amount * 100) / 100;
 };
 
-export default function PaymentSelectionModal({ 
+export default function LoadPaymentSelectionModal({ 
   visible, 
-  onClose, 
-  balanceDue, 
+  onClose,
   onConfirmPayment,
-  isProcessing
+  isProcessing,
+  amount
 }: PaymentSelectionModalProps) {
   
   // --- STATE ---
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
   const [paymentScanner, setPaymentScanner] = useState(false);
   const [ccQrData, setCcQrData] = useState('');
-  // ✨ NEW: Credit Card Sub-flow States
   const [terminalType, setTerminalType] = useState<TerminalType | null>(null);
   const [cardType, setCardType] = useState<CardType | null>(null);
-  
-  // ✨ UPDATE: Reset the sub-states when changing methods
-  // const handleMethodSelect = (method: PaymentMethod) => {
-  //   setSelectedMethod(method);
-  //   setAmountPaid(balanceDue.toString());
-  //   setReferenceNumber('');
-  //   setCashReceived('');
-  //   setChange(0);
-  //   setCcQrData('');
-  //   // Reset terminal choices
-  //   setTerminalType(null);
-  //   setCardType(null);
-  // };
 
   // Form States
   const [inputAmount, setInputAmount] = useState(''); // Starts empty now!
@@ -95,7 +81,7 @@ export default function PaymentSelectionModal({
       setCashReceived('');
       setReferenceNo('');
     }
-  }, [visible, balanceDue]);
+  }, [visible]);
 
   // --- CONFIG ---
   const paymentOptions = [
@@ -111,20 +97,25 @@ export default function PaymentSelectionModal({
   const handleConfirm = () => {
     if (!selectedMethod) return;
     console.log('Confirming payment with method:', selectedMethod);
-    const amount = roundMoney(parseFloat(inputAmount) || 0);
+    // const amount = roundMoney(parseFloat(inputAmount) || 0);
+    
 
     // Prevent submitting 0 amount
     if (amount <= 0) {
       Alert.alert('Invalid Amount', 'Please enter an amount greater than 0.');
       return;
     }
-      const received = roundMoney(parseFloat(cashReceived) || 0);
+    const received = roundMoney(parseFloat(cashReceived) || 0);
+    console.log('received',received);
+    console.log('amount',amount);
+
     if (selectedMethod === 'CASH') {
     
       if (received < amount) {
         Alert.alert('Invalid Amount', 'Cash received cannot be less than the amount to pay.');
         return;
       }
+      console.log()
       onConfirmPayment({
         method: selectedMethod,
         amountPaid: amount,
@@ -173,24 +164,66 @@ export default function PaymentSelectionModal({
   );
 
   // Helper function to render the reusable "Amount to Pay" row with the auto-fill button
-  const renderAmountInputSection = () => (
-    <>
-      <View style={styles.amountHeaderRow}>
-        <Text style={styles.inputLabelClean}>Amount to Pay</Text>
-        <TouchableOpacity onPress={() => setInputAmount(roundMoney(balanceDue).toString())}>
-          <Text style={styles.fillBalanceText}>Pay Full: {formatCurrency(balanceDue)}</Text>
-        </TouchableOpacity>
+  // const renderAmountInputSection = () => (
+  //   <>
+  //     <View style={styles.amountHeaderRow}>
+  //       <Text style={styles.inputLabelClean}>Amount to Pay</Text>
+  //       <TouchableOpacity onPress={() => setInputAmount(roundMoney(amount).toString())}>
+  //         <Text style={styles.fillBalanceText}>Pay Full: {formatCurrency(amount)}</Text>
+  //       </TouchableOpacity>
+  //     </View>
+  //     <TextInput
+  //       style={styles.textInput}
+  //       keyboardType="decimal-pad"
+  //       value={inputAmount}
+  //       onChangeText={setInputAmount}
+  //       placeholder="0.00"
+  //       autoFocus
+  //     />
+  //   </>
+  // );
+  const renderAmountInputSection = () => {
+    if (selectedMethod === 'CASH') {
+      return (
+        <View>
+          {/* 1. Fixed Amount to Pay Display */}
+          <View style={styles.staticAmountRow}>
+            <Text style={[styles.inputLabel, { marginTop: 0, marginBottom: 0 }]}>Amount to Pay</Text>
+            <Text style={styles.staticAmountValue}>{formatCurrency(amount)}</Text>
+          </View>
+
+          {/* 2. Editable Cash Received Input */}
+          <Text style={styles.inputLabel}>Cash Received (₱)</Text>
+          <TextInput
+            style={styles.textInput}
+            keyboardType="numeric"
+            placeholder="0.00"
+            value={cashReceived}
+            onChangeText={setCashReceived}
+            autoFocus
+          />
+          
+          {/* 3. Dynamic Change Display */}
+          {(parseFloat(cashReceived) || 0) >= amount && (
+            <View style={[styles.staticAmountRow, { marginTop: 8, borderBottomWidth: 0, paddingBottom: 0 }]}>
+              <Text style={[styles.inputLabel, { marginTop: 0, marginBottom: 0 }]}>Change</Text>
+              <Text style={[styles.staticAmountValue, { color: '#34C759' }]}>
+                {formatCurrency((parseFloat(cashReceived) || 0) - amount)}
+              </Text>
+            </View>
+          )}
+        </View>
+      );
+    }
+
+    // For non-CASH methods (GCASH, Cards, etc.) - Only show the fixed amount
+    return (
+      <View style={styles.staticAmountRow}>
+        <Text style={[styles.inputLabel, { marginTop: 0, marginBottom: 0 }]}>Amount to Pay</Text>
+        <Text style={styles.staticAmountValue}>{formatCurrency(amount)}</Text>
       </View>
-      <TextInput
-        style={styles.textInput}
-        keyboardType="decimal-pad"
-        value={inputAmount}
-        onChangeText={setInputAmount}
-        placeholder="0.00"
-        autoFocus
-      />
-    </>
-  );
+    );
+  };
 
   const renderPaymentForm = () => {
     const numericCashReceived = parseFloat(cashReceived) || 0;
@@ -203,7 +236,7 @@ export default function PaymentSelectionModal({
           <>
             {renderAmountInputSection()}
 
-            <Text style={styles.inputLabel}>Cash Received</Text>
+            {/* <Text style={styles.inputLabel}>Cash Received</Text>
             <TextInput
               style={styles.textInput}
               keyboardType="decimal-pad"
@@ -217,7 +250,7 @@ export default function PaymentSelectionModal({
               <Text style={[styles.staticAmountValue, { color: change >= 0 ? '#34C759' : '#FF3B30' }]}>
                 {change >= 0 ? formatCurrency(change) : '₱0.00'}
               </Text>
-            </View>
+            </View> */}
           </>
         )}
 
@@ -455,7 +488,7 @@ export default function PaymentSelectionModal({
             {!selectedMethod && (
               <View style={styles.balanceContainer}>
                 <Text style={styles.balanceLabel}>Amount Due</Text>
-                <Text style={styles.balanceValue}>{formatCurrency(balanceDue)}</Text>
+                <Text style={styles.balanceValue}>{formatCurrency(amount)}</Text>
               </View>
             )}
 

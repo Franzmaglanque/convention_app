@@ -45,11 +45,21 @@ export const API_ENDPOINTS = {
     PWALLET_DEBIT: 'payment/pwallet/debit',
     SAVE_CASH: 'payment/cash/save',
     SAVE_CREDIT_CARD: 'payment/credit/save',
-    PROCESS_PAYMENT: 'payment/process'
+    PROCESS_PAYMENT: 'payment/process',
+    SAVE_SKYRO: 'payment/skyro/save'
   },
 
   SUPPLIER:{
     DASHBOARD_SALES: 'supplier/app/dashboard_sales',
+    TOP_SELLING_PRODUCTS: (vendor_code:string) => `supplier/app/supplier-top-selling-products/${vendor_code}`,
+    DASHBOARD_PAYMENT_BREAKDOWN: (vendor_code:string) => `supplier/app/supplier-payment-breakdown/${vendor_code}`,
+  },
+
+  LOAD:{
+    FETCH_TELOCOS: 'load/fetch-telcos',
+    FETCH_DATA_PROMOS: (telco:string) => `load/fetch-telco-promos/${telco}`,
+    PROCESS_LOAD_SELLING: `load/process-load-selling`,
+
   }
 
 } as const;

@@ -47,6 +47,14 @@ class PaymentService {
         return response.data
     }
 
+      async saveSkyroPayment(params:any): Promise<cashPaymentResponse>{
+        const response: AxiosResponse<cashPaymentResponse> = await apiClient.post(
+            API_ENDPOINTS.PAYMENTS.SAVE_SKYRO,
+            params
+        );
+        return response.data
+    }
+
 }
 
 export const paymentService = new PaymentService();

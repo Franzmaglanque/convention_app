@@ -16,6 +16,7 @@ export default function TabsLayout() {
   return (
     <ProtectedRoute>
       <Tabs
+        initialRouteName={isSupplierCashier ? 'cart' : 'index'}
         screenOptions={{
           tabBarActiveTintColor: '#0066cc',
           headerShown: false,
@@ -83,6 +84,28 @@ export default function TabsLayout() {
           }}
         />
 
+        <Tabs.Screen
+          name="vendorQrScreen"
+          options={{
+            title: 'Vendor QR',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="qr-code-outline" size={size} color={color} />
+            ),
+            href: isSupplierManager ? '/vendorQrScreen' : null,
+          }}
+        />
+
+        <Tabs.Screen
+          name="load" // Must exactly match the filename load.tsx
+          options={{
+            title: 'E-Load',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="phone-portrait-outline" size={size} color={color} />
+            ),
+            // Use your existing logic here to hide/show this for cashiers/managers
+            href: isSupplierCashier ? '/load' : null, 
+          }}
+        />
        
       </Tabs>
     </ProtectedRoute>

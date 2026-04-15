@@ -7,6 +7,16 @@ class SupplierService {
         const response = await apiClient.get(API_ENDPOINTS.SUPPLIER.DASHBOARD_SALES)
         return response.data;
     }
+
+    async fetchTopSellingProducts(vendor_code: string){
+        const response = await apiClient.get(API_ENDPOINTS.SUPPLIER.TOP_SELLING_PRODUCTS(vendor_code))
+        return response.data;
+    }
+
+    async fetchPaymentBreakdown(vendor_code: string){
+        const response = await apiClient.get(API_ENDPOINTS.SUPPLIER.DASHBOARD_PAYMENT_BREAKDOWN(vendor_code))
+        return response.data;
+    }
     
 }
 

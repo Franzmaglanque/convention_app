@@ -25,7 +25,7 @@ apiClient.interceptors.request.use(
 
     // Get token from Zustand store
     const token = useAuthStore.getState().token;
-    console.log('Attaching token to request:', token);
+    // console.log('Attaching token to request:', token);
     
     if (token) {
       config.headers['x-account-session-token'] = token;
