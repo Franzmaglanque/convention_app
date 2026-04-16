@@ -103,7 +103,7 @@ export default function TabsLayout() {
               <Ionicons name="phone-portrait-outline" size={size} color={color} />
             ),
             // Use your existing logic here to hide/show this for cashiers/managers
-            href : null, 
+            href : '/load', 
           }}
         />
        
