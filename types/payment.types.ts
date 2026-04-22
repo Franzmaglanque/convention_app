@@ -26,7 +26,14 @@ export interface cashPaymentParams {
 }
 
 export interface cashPaymentResponse {
-  status : String;
+  // status : String;
+  status: string;             // Use lowercase 'string', not 'String'
+  message: string;            // Added from your backend response
+  data: {
+    status: string;
+    message: string;
+    remaining_balance: number;
+  };
 }
 
 export interface creditCardPaymentParams {

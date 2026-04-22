@@ -3,24 +3,42 @@ import { useToast } from '@/components/ToastProvider';
 import { useLogin } from '@/hooks/useAuth';
 import { useAuthStore } from '@/stores/auth.store';
 import { Ionicons } from '@expo/vector-icons';
-import { Redirect, router } from 'expo-router';
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+// Puregold Brand Colors
+const COLORS = {
+  puregoldGreen: '#008A45',
+  puregoldGold: '#FFCC00',
+  background: '#F0FDF4', // Very light green tint
+  textDark: '#1C1C1E',
+  textLight: '#8E8E93',
+  white: '#FFFFFF',
+  border: '#E5E5EA'
+};
 
 export default function LoginScreen() {
   const { isAuthenticated, sessionMessage, clearSessionMessage } = useAuthStore();
+  const [showPassword, setShowPassword] = useState(false);
 
-   // Clear the message after showing it
+  // Clear the message after showing it
   useEffect(() => {
     return () => {
       if (sessionMessage) clearSessionMessage();
     };
   }, []);
 
-  const {
-      showSuccess,
-      showError,
-    } = useToast();
+  const { showSuccess, showError } = useToast();
   const [loginForm, setLoginForm] = useState({
     email: '',
     password: ''
@@ -29,12 +47,17 @@ export default function LoginScreen() {
   const loginMutation = useLogin();
 
   const handleLogin = () => {
+    // Basic validation
+    if (!loginForm.email || !loginForm.password) {
+      showError('Please enter both username and password.');
+      return;
+    }
+
     loginMutation.mutate(
       { username: loginForm.email, password: loginForm.password },
       {
         onSuccess: (responseData) => {
-          // Response data is automatically saved to auth store via useLogin hook
-          showSuccess('Login successful!');
+          showSuccess('Welcome to the Convention!');
         },
         onError: (error) => {
           console.log('Login failed:', error);
@@ -42,108 +65,212 @@ export default function LoginScreen() {
         }
       }
     );
-  }
-
-  if(isAuthenticated){
-    return <Redirect href="/" />;
-  }
+  };
 
   return (
-    <View style={styles.container}>
-      <LoadingSpinner visible={loginMutation.isPending} />
-
-       {/* Session expired message */}
-      {sessionMessage && (
-        <View style={styles.sessionBanner}>
-          <Ionicons name="information-circle-outline" size={18} color="#1D4ED8" />
-          <Text style={styles.sessionMessage}>{sessionMessage}</Text>
-        </View>
-      )}
-
-      <Text style={styles.title}>Login</Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        keyboardType="email-address"
-        autoCapitalize="none"
-        onChangeText={(text) => setLoginForm({...loginForm, email: text})}
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        secureTextEntry
-        onChangeText={(text) => setLoginForm({...loginForm, password: text})}
-      />
-
-      <Pressable
-        style={styles.button}
-        onPress={() => handleLogin()}
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.container}
       >
-        <Text style={styles.buttonText}>Login</Text>
-      </Pressable>
+        <View style={styles.content}>
+          
+          {/* Header & Logo Section */}
+          <View style={styles.headerContainer}>
+            {/* TODO: Replace this View with your actual Puregold/Aling Puring Logo 
+              <Image source={require('@/assets/icon.png')} style={styles.logo} /> 
+            */}
+            <View style={styles.logoPlaceholder}>
+              <Ionicons name="basket" size={48} color={COLORS.puregoldGold} />
+            </View>
+            <Text style={styles.title}>Aling Puring</Text>
+            <Text style={styles.subtitle}>Negosyo Convention 2026</Text>
+          </View>
 
-      <Pressable onPress={() => router.push('/(auth)/register')}>
-        <Text style={styles.linkText}>Don't have an account? Register</Text>
-      </Pressable>
-    </View>
+          {/* Login Card */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Sign In</Text>
+
+            {/* Username Input */}
+            <View style={styles.inputWrapper}>
+              <Ionicons name="person-outline" size={20} color={COLORS.textLight} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Username"
+                placeholderTextColor={COLORS.textLight}
+                value={loginForm.email}
+                onChangeText={(text) => setLoginForm({...loginForm, email: text})}
+                autoCapitalize="none"
+              />
+            </View>
+
+            {/* Password Input */}
+            <View style={styles.inputWrapper}>
+              <Ionicons name="lock-closed-outline" size={20} color={COLORS.textLight} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Password"
+                placeholderTextColor={COLORS.textLight}
+                value={loginForm.password}
+                onChangeText={(text) => setLoginForm({...loginForm, password: text})}
+                secureTextEntry={!showPassword}
+              />
+              <Pressable 
+                onPress={() => setShowPassword(!showPassword)}
+                style={styles.eyeIcon}
+              >
+                <Ionicons 
+                  name={showPassword ? "eye-off-outline" : "eye-outline"} 
+                  size={20} 
+                  color={COLORS.textLight} 
+                />
+              </Pressable>
+            </View>
+
+            {/* Login Button */}
+            <Pressable
+              style={({ pressed }) => [
+                styles.button,
+                pressed && { opacity: 0.8 },
+                loginMutation.isPending && { backgroundColor: '#A7F3D0' }
+              ]}
+              onPress={handleLogin}
+              disabled={loginMutation.isPending}
+            >
+              {loginMutation.isPending ? (
+                <LoadingSpinner color={COLORS.white} />
+              ) : (
+                <Text style={styles.buttonText}>Login</Text>
+              )}
+            </Pressable>
+
+            {/* Register Link */}
+            <Pressable 
+              onPress={() => router.push('/(auth)/register')}
+              style={styles.registerLinkContainer}
+            >
+            </Pressable>
+          </View>
+
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
   container: {
     flex: 1,
+  },
+  content: {
+    flex: 1,
     justifyContent: 'center',
-    padding: 20,
-    backgroundColor: '#fff',
+    padding: 24,
+  },
+  headerContainer: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  logoPlaceholder: {
+    width: 80,
+    height: 80,
+    backgroundColor: COLORS.puregoldGreen,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    shadowColor: COLORS.puregoldGreen,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   title: {
     fontSize: 32,
-    fontWeight: 'bold',
-    marginBottom: 30,
-    textAlign: 'center',
+    fontWeight: '800',
+    color: COLORS.puregoldGreen,
+    letterSpacing: -0.5,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 15,
-    fontSize: 16,
-  },
-  button: {
-    backgroundColor: '#0066cc',
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  buttonText: {
-    color: '#fff',
+  subtitle: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#D97706', // A deeper gold/amber for text readability
+    marginTop: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
-  linkText: {
-    color: '#0066cc',
-    textAlign: 'center',
-    marginTop: 20,
-    fontSize: 14,
+  card: {
+    backgroundColor: COLORS.white,
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    elevation: 3,
   },
-  sessionBanner: {
+  cardTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: COLORS.textDark,
+    marginBottom: 24,
+  },
+  inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#EFF6FF',
-    borderColor: '#BFDBFE',
+    backgroundColor: '#F9FAFB',
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 20,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    marginBottom: 16,
+    height: 56,
   },
-  sessionMessage: {
-    color: '#1D4ED8',
-    fontSize: 14,
+  inputIcon: {
+    paddingHorizontal: 16,
+  },
+  input: {
     flex: 1,
+    fontSize: 16,
+    color: COLORS.textDark,
+    height: '100%',
   },
+  eyeIcon: {
+    paddingHorizontal: 16,
+    height: '100%',
+    justifyContent: 'center',
+  },
+  button: {
+    backgroundColor: COLORS.puregoldGreen,
+    height: 56,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+    shadowColor: COLORS.puregoldGreen,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  buttonText: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  registerLinkContainer: {
+    marginTop: 24,
+    alignItems: 'center',
+  },
+  registerText: {
+    fontSize: 14,
+    color: COLORS.textLight,
+  },
+  registerTextHighlight: {
+    color: COLORS.puregoldGreen,
+    fontWeight: '700',
+  }
 });
