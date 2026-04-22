@@ -130,7 +130,7 @@ export default function LoadScreen() {
           try {
             await pwalletDebitMutation.mutateAsync({
               reference_no: payment_details?.referenceNumber ?? "",
-              amount: amount!,
+              amount: Number(amount!),
               store_code: 801,
               order_no:orderNo.toString(),
               payment_method:payment_details.method
