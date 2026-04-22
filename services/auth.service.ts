@@ -12,6 +12,7 @@ class AuthService {
             API_ENDPOINTS.AUTH.LOGIN,
             credentials
         );
+        console.log('login response',response)
         return response.data;
     }
 }

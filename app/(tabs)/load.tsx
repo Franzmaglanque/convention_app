@@ -81,19 +81,19 @@ export default function LoadScreen() {
 
     const handleConfirmPayment = async(payment_details:any) => {
 
-      const response = await newOrderMutation.mutateAsync({
-        user_id: user?.id || null,
-        vendor_code: user?.supplier_code || null,
-        customerCardNumber: ''
-      });
+      // const response = await newOrderMutation.mutateAsync({
+      //   user_id: user?.id || null,
+      //   vendor_code: user?.supplier_code || null,
+      //   customerCardNumber: ''
+      // });
       
-      console.log('New order mutation result:', response);
-      // 2. Extract the order_no
-      const orderNo = response.data?.order_no;
+      // console.log('New order mutation result:', response);
+      // // 2. Extract the order_no
+      // const orderNo = response.data?.order_no;
 
-      if (!orderNo) {
-        throw new Error(response.data?.message || 'Failed to retrieve order number from the server.');
-      }
+      // if (!orderNo) {
+      //   throw new Error(response.data?.message || 'Failed to retrieve order number from the server.');
+      // }
    
       const amount = 
       loadType === 'COMMERCIAL' ? selectedPreset : 
@@ -102,7 +102,6 @@ export default function LoadScreen() {
 
       console.log('Amount to process:', amount);
       console.log('payload for load selling', {
-        order_no: orderNo,
         mobile_number: mobileNumber,
         load_type: loadType,
         amount: amount,
@@ -110,8 +109,7 @@ export default function LoadScreen() {
         promo: selectedPromo ?? null
       });
       console.log('payment_details', payment_details);
-      processLoadSellingMutation.mutate({
-        order_no: orderNo,
+      const orderNo = await processLoadSellingMutation.mutateAsync({
         load_type: loadType,
         mobile_number: mobileNumber,
         network: selectedNetwork?.telco ?? null,
@@ -119,6 +117,12 @@ export default function LoadScreen() {
         amount: amount,
         sku: loadType === 'COMMERCIAL' ? '349315' : loadType === 'REGULAR' ? '322304' : null
       })
+      console.log('dsadsadasdas',orderNo);
+
+      if (!orderNo) {
+        throw new Error('Failed to retrieve order number from the server.');
+      }
+
       
       switch (payment_details.method){
 
@@ -126,9 +130,9 @@ export default function LoadScreen() {
           try {
             await pwalletDebitMutation.mutateAsync({
               reference_no: payment_details?.referenceNumber ?? "",
-              amount: amount!,
+              amount: Number(amount!),
               store_code: 801,
-              order_no:orderNo!,
+              order_no:orderNo.toString(),
               payment_method:payment_details.method
             });
           } catch (error:any) {
@@ -165,10 +169,20 @@ export default function LoadScreen() {
 
         case 'CREDIT_DEBIT_CARD':
           try {
+            console.log('Processing credit card payment with details:', {
+              amount:amount!,
+              payment_method:payment_details.method,
+              order_no:orderNo.toString(),
+              reference_no:payment_details.referenceNumber!,
+              qr_code_data:payment_details.ccQrData,
+              terminal_type:payment_details.terminalType,
+              card_type:payment_details.cardType ?? null,
+
+          })
             await creditCardPaymentMutation.mutateAsync({
               amount:amount!,
               payment_method:payment_details.method,
-              order_no:orderNo!,
+              order_no:orderNo.toString(),
               reference_no:payment_details.referenceNumber!,
               qr_code_data:payment_details.ccQrData,
               terminal_type:payment_details.terminalType,
@@ -185,7 +199,7 @@ export default function LoadScreen() {
         case 'GCASH':
           try {
             const gcashResponse = await processPaymentMutation.mutateAsync({
-              order_no:orderNo!,
+              order_no:orderNo.toString(),
               payment_method:payment_details.method,
               amount:amount!,
               reference_no:payment_details.referenceNumber!
@@ -202,7 +216,7 @@ export default function LoadScreen() {
         case 'SHOPEE_PAY':
           try {
             const shopeePayResponse = await processPaymentMutation.mutateAsync({
-              order_no:orderNo!,
+              order_no:orderNo.toString(),
               payment_method:payment_details.method,
               amount:amount!,
               reference_no:payment_details.referenceNumber!
@@ -219,7 +233,7 @@ export default function LoadScreen() {
         case 'HOME_CREDIT':
           try {
             const homeCreditResponse = await processPaymentMutation.mutateAsync({
-              order_no:orderNo!,
+              order_no:orderNo.toString(),
               payment_method:payment_details.method,
               amount:amount!,
               reference_no:payment_details.referenceNumber!
@@ -239,7 +253,7 @@ export default function LoadScreen() {
             await skyroPaymentMutation.mutateAsync({
               amount:amount!,
               payment_method:payment_details.method,
-              order_no:orderNo!,
+              order_no:orderNo.toString(),
               reference_no:payment_details.referenceNumber!
             });
           } catch (error:any) {
@@ -271,19 +285,26 @@ export default function LoadScreen() {
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
         
         {/* 1. Mobile Number Input (Always Visible) */}
-        <View style={styles.section}>
-        <Text style={styles.label}>Mobile Number</Text>
-        <View style={styles.inputContainer}>
-            <Ionicons name="call-outline" size={20} color="#666" style={styles.inputIcon} />
-            <TextInput
+        
+        <View style={styles.inputWrapper}>
+          <Ionicons name="call-outline" size={20} color="#8E8E93" />
+          
+          {/* 🔥 THE STATIC PREFIX */}
+          <Text style={styles.staticPrefix}>+63 9</Text>
+
+          <TextInput
             style={styles.input}
-            placeholder="0917 123 4567"
-            keyboardType="phone-pad"
+            placeholder="12 345 6789" // Guides them on the remaining digits
+            placeholderTextColor="#8E8E93"
+            keyboardType="numeric"
+            maxLength={10} // A standard PH number has exactly 10 digits after '+639'
             value={mobileNumber}
-            onChangeText={setMobileNumber}
-            maxLength={11}
-            />
-        </View>
+            onChangeText={(text) => {
+              // Safety check: instantly remove any non-numeric characters (like spaces or dashes)
+              const cleaned = text.replace(/[^0-9]/g, '');
+              setMobileNumber(cleaned);
+            }}
+          />
         </View>
 
         {/* 2. Load Type Selection */}
@@ -493,7 +514,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 50,
     fontSize: 16,
-    color: '#333',
+    color: '#333'
   },
   typeContainer: {
     flexDirection: 'row',
@@ -622,6 +643,27 @@ const styles = StyleSheet.create({
     marginTop: 10, 
     color: '#666', 
     fontSize: 14
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    borderRadius: 12,
+    marginBottom: 16,
+    height: 56,
+    paddingHorizontal: 16,
+  },
+  staticPrefix: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1C1C1E',
+    marginLeft: 8,
+    marginRight: 8,
+    borderRightWidth: 1,
+    borderRightColor: '#ddd', // Creates a nice divider line
+    paddingRight: 8,
   },
 });
 

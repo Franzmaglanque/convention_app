@@ -173,6 +173,8 @@ export default function CartScreen() {
   const [showItemList,setShowItemList] = useState(false);
   const [ccQrData,setCcQrData] = useState('');
   const [isCartSynced, setIsCartSynced] = useState(false);
+  const [remainingBalance, setRemainingBalance] = useState('');
+
 
   ////
 
@@ -252,22 +254,31 @@ export default function CartScreen() {
             customerCardNumber : cardNumber
         },{
         onSuccess: (response) => {
-          console.log('New order mutation result:', response);
-                
-          // Extract order_no from the response
           const orderNo = response.data?.order_no;
-          if (orderNo) {
+          const is_active_transaction = response.data.is_active_transaction;
+          console.log('API response',response.data);
+
+          if(is_active_transaction == 'true'){
+            console.log('is_active_transaction:');
+            showInfo(response.data.message) // This means the user has an active transaction that was not completed. We will resume that transaction instead of creating a new one.
             setOrderNo(orderNo.toString());
-            setCartItems([]);
-            setIsCardedTransaction(isCarded);
-            
-            if (isCarded && cardNumber) {
-              showSuccess(`Carded transaction started: ${orderNo}\nCustomer Card: ${cardNumber}`);
-            } else {
-              showSuccess(`New transaction started: ${orderNo}`);
-            }
-          } else {
-            showError('Failed to get order number from response');
+            setCartItems(response.data.order_items);
+            setPayments(response.data.order_payments)
+          }else{
+              if (orderNo) {
+                console.log('WALANG TRANSACTION', orderNo);
+                setOrderNo(orderNo.toString());
+                setCartItems([]);
+                setIsCardedTransaction(isCarded);
+              
+                if (isCarded && cardNumber) {
+                    showSuccess(`Carded transaction started: ${orderNo}\nCustomer Card: ${cardNumber}`);
+                } else {
+                    showSuccess(`New transaction started: ${orderNo}`);
+                }
+              } else {
+                showError('Failed to get order number from response');
+              }
           }
         },
         onError: (error) => {
@@ -684,15 +695,18 @@ export default function CartScreen() {
       
       case 'CASH':
         try {
-          await cashPaymentMutation.mutateAsync({
+          const cashPaymentResponse = await cashPaymentMutation.mutateAsync({
             cash_bill:payment_details.cashReceived.toString(),
             cash_change:payment_details.change.toString(),
             amount:amountNum,
             payment_method:payment_details.method,
             order_no:orderNo!,
-
           });
+          console.log('CASH PAYMENT RESPONSE',cashPaymentResponse.data);
+          setRemainingBalance(cashPaymentResponse.data.remaining_balance.toString());
+          // console.log('CASH PAYMENT RESPONSE',cashPaymentResponse);
         } catch (error) {
+          console.log('CASH PAYMENT error',error);
           setShowPaymentModal(false)
           showError('Cash Payment Failed.');
           return false; 
@@ -1020,8 +1034,6 @@ export default function CartScreen() {
                     <Text style={styles.paymentRefLabel}>Cash Bill: {payment.cashBill}</Text>
                     <Text style={styles.paymentRefLabel}>Cash Change: {payment.cashChange}</Text>
                   </>
-                 
-
                 )}
               </View>
               <Text style={styles.paymentValue}>
@@ -1030,12 +1042,24 @@ export default function CartScreen() {
             </View>
           ))}
           {payments.length > 0 && (
-            <View style={[styles.summaryRow, styles.totalRow]}>
-              <Text style={styles.totalLabel}>Remaining Balance</Text>
-              <Text style={styles.totalValue}>
-                ₱{calculateRemainingBalance().toFixed(2)}
-              </Text>
-            </View>
+            <>
+              <View style={[styles.summaryRow, styles.totalRow]}>
+                <Text style={styles.totalLabel}>Remaining Balance</Text>
+                <Text style={styles.totalValue}>
+                  {/* ₱{calculateRemainingBalance().toFixed(2)} */}
+                  {`₱${calculateRemainingBalance().toFixed(2)}`}
+                </Text>
+              </View>
+              <View style={[styles.summaryRow, styles.totalRow]}>
+                <Text style={styles.totalLabel}>Remaining Balance</Text>
+                <Text style={styles.totalValue}>
+                  {/* ₱{calculateRemainingBalance().toFixed(2)} */}
+                  {`₱${parseFloat(remainingBalance).toFixed(2)}` }
+                </Text>
+              </View>
+            </>
+           
+            
           )}
         </View>
       )}
