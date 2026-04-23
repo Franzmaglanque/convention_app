@@ -165,7 +165,6 @@ export default function CartScreen() {
   const syncCartMutation = useSyncCart();
   const skyroPaymentMutation = useSkyroPayment();
 
-
   const [showScanner, setShowScanner] = useState(false);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [orderNo, setOrderNo] = useState<string | null>(null);
@@ -174,7 +173,6 @@ export default function CartScreen() {
   const [ccQrData,setCcQrData] = useState('');
   const [isCartSynced, setIsCartSynced] = useState(false);
   const [remainingBalance, setRemainingBalance] = useState('');
-
 
   ////
 
@@ -231,6 +229,8 @@ export default function CartScreen() {
                 onSuccess: () => {
                   setCartItems([]);
                   setOrderNo(null);
+                  setRemainingBalance('');
+                  setPayments([]);
                   showSuccess('Order cancelled successfully');
                 },
                 onError: (error) => {
@@ -263,10 +263,14 @@ export default function CartScreen() {
             showInfo(response.data.message) // This means the user has an active transaction that was not completed. We will resume that transaction instead of creating a new one.
             setOrderNo(orderNo.toString());
             setCartItems(response.data.order_items);
-            setPayments(response.data.order_payments)
+            setPayments(response.data.order_payments);
+            setIsCartSynced(true);
+            if (response.data.remaining_balance !== undefined) {
+              console.log('setting remaining balance', response.data.remaining_balance);
+              setRemainingBalance(response.data.remaining_balance.toString());
+            }
           }else{
               if (orderNo) {
-                console.log('WALANG TRANSACTION', orderNo);
                 setOrderNo(orderNo.toString());
                 setCartItems([]);
                 setIsCardedTransaction(isCarded);
@@ -412,7 +416,13 @@ export default function CartScreen() {
   };
 
   const calculateRemainingBalance = () => {
+    
+    if (remainingBalance !== '' && remainingBalance !== null) {
+      console.log('remainingBalance',remainingBalance)
+      return parseFloat(remainingBalance);
+    }
     const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
+
     return calculateTotal() - totalPaid;
   };
 
@@ -551,6 +561,7 @@ export default function CartScreen() {
         setPayments([]);
         setCartItems([]);
         setOrderNo(null);
+        setRemainingBalance('');
         showSuccess(`Order # ${orderNo} has been completed`);
       },
       onError: () => {
@@ -588,6 +599,7 @@ export default function CartScreen() {
 
   const handleAdd = (item:CartItem['product']) => {
     setIsCartSynced(false);
+    setRemainingBalance('');
     setCartItems(prev => {
       const existingItem = prev.find(i => i.product.id === item.id)
       if(existingItem){
@@ -603,6 +615,7 @@ export default function CartScreen() {
 
   const handleRemove = (item:CartItem['product']) => {
     setIsCartSynced(false);
+    setRemainingBalance('');
     setCartItems(prev => {
       const existingItem = prev.find(i => i.product.id === item.id)
       if (existingItem) {
@@ -631,10 +644,14 @@ export default function CartScreen() {
 
           if (!orderNo) throw new Error("Missing Order Number");
           console.log('cart items',cartItems);
-          await syncCartMutation.mutateAsync({
+          const syncResponse = await syncCartMutation.mutateAsync({
             order_no: orderNo,
             cart_items: cartItems
           });
+
+          if (syncResponse?.data?.remaining_balance !== undefined) {
+             setRemainingBalance(syncResponse.data.remaining_balance.toString());
+          }
 
           setIsCartSynced(true);
           setShowPaymentModal(true);
@@ -678,13 +695,15 @@ export default function CartScreen() {
 
       case 'PWALLET':
         try {
-          await pwalletDebitMutation.mutateAsync({
+          const pwalletResponse = await pwalletDebitMutation.mutateAsync({
             reference_no: payment_details?.referenceNumber ?? "",
             amount: amountNum,
             store_code: 901,
             order_no:orderNo!,
             payment_method:payment_details.method
           });
+          console.log('PWALLET PAYMENT RESPONSE',pwalletResponse.data);
+          setRemainingBalance(pwalletResponse.data.remaining_balance.toString());
         } catch (error:any) {
           console.log('PWALLET error',error.message);
           setShowPaymentModal(false)
@@ -715,7 +734,7 @@ export default function CartScreen() {
 
       case 'CREDIT_DEBIT_CARD':
         try {
-          await creditCardPaymentMutation.mutateAsync({
+          const ccResponse = await creditCardPaymentMutation.mutateAsync({
             amount:amountNum,
             payment_method:payment_details.method,
             order_no:orderNo!,
@@ -725,6 +744,9 @@ export default function CartScreen() {
             card_type:payment_details.cardType ?? null,
 
           });
+          console.log('CREDIT/DEBIT CARD PAYMENT RESPONSE',ccResponse.data);
+
+          setRemainingBalance(ccResponse.data.remaining_balance.toString());
         } catch (error) {
           setShowPaymentModal(false)
           showError('Credit Card Payment Failed.');
@@ -740,6 +762,7 @@ export default function CartScreen() {
             amount:amountNum,
             reference_no:payment_details.referenceNumber!
           });
+          setRemainingBalance(gcashResponse.data.remaining_balance.toString());
           console.log('GCASH RESPONSE',gcashResponse);
         } catch (error:any) {
           console.log('GCASH error',error);
@@ -757,6 +780,7 @@ export default function CartScreen() {
             amount:amountNum,
             reference_no:payment_details.referenceNumber!
           });
+          setRemainingBalance(shopeePayResponse.data.remaining_balance.toString());
           console.log('SHOPEE PAY RESPONSE',shopeePayResponse);
         } catch (error:any) {
           console.log('SHOPEE PAY error',error);
@@ -774,6 +798,7 @@ export default function CartScreen() {
             amount:amountNum,
             reference_no:payment_details.referenceNumber!
           });
+          setRemainingBalance(homeCreditResponse.data.remaining_balance.toString());
           console.log('HOME CREDIT RESPONSE',homeCreditResponse);
         } catch (error:any) {
           console.log('HOME CREDIT error',error);
@@ -786,12 +811,13 @@ export default function CartScreen() {
       case 'SKYRO':
         try {
           
-          await skyroPaymentMutation.mutateAsync({
+          const skyroResponse = await skyroPaymentMutation.mutateAsync({
             amount:amountNum,
             payment_method:payment_details.method,
             order_no:orderNo!,
             reference_no:payment_details.referenceNumber!
           });
+          setRemainingBalance(skyroResponse.data.remaining_balance.toString());
         } catch (error:any) {
           console.log('SKYRO error',error);
           setShowPaymentModal(false)
@@ -1042,24 +1068,12 @@ export default function CartScreen() {
             </View>
           ))}
           {payments.length > 0 && (
-            <>
-              <View style={[styles.summaryRow, styles.totalRow]}>
-                <Text style={styles.totalLabel}>Remaining Balance</Text>
-                <Text style={styles.totalValue}>
-                  {/* ₱{calculateRemainingBalance().toFixed(2)} */}
-                  {`₱${calculateRemainingBalance().toFixed(2)}`}
-                </Text>
-              </View>
-              <View style={[styles.summaryRow, styles.totalRow]}>
-                <Text style={styles.totalLabel}>Remaining Balance</Text>
-                <Text style={styles.totalValue}>
-                  {/* ₱{calculateRemainingBalance().toFixed(2)} */}
-                  {`₱${parseFloat(remainingBalance).toFixed(2)}` }
-                </Text>
-              </View>
-            </>
-           
-            
+            <View style={[styles.summaryRow, styles.totalRow]}>
+              <Text style={styles.totalLabel}>Remaining Balance</Text>
+              <Text style={styles.totalValue}>
+                {`₱${calculateRemainingBalance().toFixed(2)}`}
+              </Text>
+            </View>
           )}
         </View>
       )}
@@ -1149,7 +1163,7 @@ export default function CartScreen() {
                 styles.buttonLabel,
                 (cartItems.length === 0 || calculateRemainingBalance() <= 0.01) && styles.buttonLabelDisabled
               ]}>
-                Pay
+                Pay{calculateRemainingBalance()}
               </Text>
             )}
           </TouchableOpacity>

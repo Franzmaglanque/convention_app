@@ -6,7 +6,13 @@ export interface ScanPwalletQrResponse {
 }
 
 export interface pwalletDebitResponse  {
-  status: String;
+  status: string;             // Use lowercase 'string', not 'String'
+  message: string;            // Added from your backend response
+  data: {
+    status: string;
+    message: string;
+    remaining_balance: number;
+  };
 }
 
 export interface pwalletDebitParams {
