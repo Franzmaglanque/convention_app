@@ -53,6 +53,7 @@ export const API_ENDPOINTS = {
     DASHBOARD_SALES: 'supplier/app/dashboard_sales',
     TOP_SELLING_PRODUCTS: (vendor_code:string) => `supplier/app/supplier-top-selling-products/${vendor_code}`,
     DASHBOARD_PAYMENT_BREAKDOWN: (vendor_code:string) => `supplier/app/supplier-payment-breakdown/${vendor_code}`,
+    CASHIER_ANALYTICS: (selectedDate:string) => `supplier/app/cashier-analytics/${selectedDate}`,
     FETCH_CASHIERS: `supplier/app/fetch-cashiers`,
   },
 

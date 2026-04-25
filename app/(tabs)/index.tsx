@@ -51,7 +51,11 @@ export default function HomeScreen() {
     setRefreshing(true);
     try {
       // This actually triggers the Elysia backend to get fresh data!
-      await refetch(); 
+      await Promise.all([
+        refetch(),
+        refetchTopProducts(),
+        refetchPaymentBreakdown()
+      ]);
       console.log('Dashboard data refreshed!');
     } catch (error) {
       console.error('Error refreshing dashboard data:', error);

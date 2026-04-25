@@ -22,9 +22,17 @@ export function useFetchPaymentBreakdown(vendor_code:string) {
     })
 }
 
-export function useFetchCashiers() {
+export function useCashierAnalytics(selectedDate?:string) {
     return useQuery({
-        queryKey: ['supplier-cashiers'],
+        queryKey: ['cashier-analytics', selectedDate],
+        queryFn: () => supplierService.fetchCashierAnalytics(selectedDate),
+        enabled: !!selectedDate
+    })
+}
+
+export function useFetchCashiers(selectedDate?:string) {
+    return useQuery({
+        queryKey: ['supplier-cashiers', selectedDate],
         queryFn: () => supplierService.fetchCashiers(),
     })
 }

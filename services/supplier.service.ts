@@ -18,6 +18,11 @@ class SupplierService {
         return response.data;
     }
 
+    async fetchCashierAnalytics(selectedDate?: string){
+        const response = await apiClient.get(API_ENDPOINTS.SUPPLIER.CASHIER_ANALYTICS(selectedDate!))
+        return response.data;
+    }
+
     async fetchCashiers(){
         const response = await apiClient.get(API_ENDPOINTS.SUPPLIER.FETCH_CASHIERS)
         return response.data;
