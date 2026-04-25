@@ -17,7 +17,12 @@ class SupplierService {
         const response = await apiClient.get(API_ENDPOINTS.SUPPLIER.DASHBOARD_PAYMENT_BREAKDOWN(vendor_code))
         return response.data;
     }
-    
+
+    async fetchCashiers(){
+        const response = await apiClient.get(API_ENDPOINTS.SUPPLIER.FETCH_CASHIERS)
+        return response.data;
+    }
+
 }
 
 export const supplierService = new SupplierService();

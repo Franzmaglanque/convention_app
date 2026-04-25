@@ -22,3 +22,10 @@ export function useFetchPaymentBreakdown(vendor_code:string) {
     })
 }
 
+export function useFetchCashiers() {
+    return useQuery({
+        queryKey: ['supplier-cashiers'],
+        queryFn: () => supplierService.fetchCashiers(),
+    })
+}
+

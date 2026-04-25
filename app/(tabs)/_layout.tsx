@@ -103,7 +103,29 @@ export default function TabsLayout() {
               <Ionicons name="phone-portrait-outline" size={size} color={color} />
             ),
             // Use your existing logic here to hide/show this for cashiers/managers
-            href : '/load', 
+            href : isSupplierCashier ? '/load' : null,
+          }}
+        />
+
+        <Tabs.Screen
+          name="remittance"
+          options={{
+            title: 'Remittance',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="cash-outline" size={size} color={color} />
+            ),
+            href: isSupplierManager ? '/remittance' : null,
+          }}
+        />
+
+        <Tabs.Screen
+          name="cashier"
+          options={{
+            title: 'Cashier',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="people-outline" size={size} color={color} />
+            ),
+            href: isSupplierManager ? '/cashier' : null,
           }}
         />
        
