@@ -4,11 +4,13 @@ import { TRANSACTION_STATUS_COLORS } from '@/constants/transaction';
 import { fetchSupplierOrders } from '@/hooks/useOrder';
 import { Ionicons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function TransactionsScreen() {
   const [searchQuery,setSearchQuery] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  
   
   const {
       data: transactions,
@@ -59,6 +61,107 @@ export default function TransactionsScreen() {
       });
     }, [transactions, searchQuery])
 
+
+  const renderItem = ({ item:transaction }: any) => {
+    console.log("Rendering transaction:", transaction); // Debug log to check transaction data
+    return (
+      <View key={transaction?.id} style={styles.transactionCard}>
+        {/* ROW 1: Order Number & Status */}
+        <View style={styles.transactionHeader}>
+          <Text style={styles.orderNumber} numberOfLines={1}>
+            Order # {transaction?.order_no}
+          </Text>
+          <View style={[
+            styles.statusBadge, 
+            { 
+              backgroundColor: TRANSACTION_STATUS_COLORS[transaction?.order_status as keyof typeof TRANSACTION_STATUS_COLORS] || '#666'
+            }
+          ]}>
+            <Text style={styles.statusText}>{transaction?.order_status}</Text>
+          </View>
+        </View>
+
+        {/* ROW 2: Date & Cashier Name (Prevents Overflow!) */}
+        <View style={styles.transactionSubHeader}>
+          <View style={styles.metaDataContainer}>
+            <Ionicons name="calendar-outline" size={14} color="#666" style={styles.metaIcon} />
+            <Text style={styles.transactionDate}>
+              {formatDate(transaction?.created_at)}
+            </Text>
+          </View>
+          <View style={styles.metaDataContainer}>
+            <Ionicons name="person-outline" size={14} color="#666" style={styles.metaIcon} />
+            {/* NOTE: Change 'cashier_name' to whatever exact property your backend returns */}
+            <Text style={styles.cashierName} numberOfLines={1}>
+              {transaction?.full_name || 'N/A'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Divider Line */}
+        <View style={styles.divider} />
+
+        {/* ROW 3: Transaction Details */}
+        <View style={styles.transactionDetails}>
+          <View style={styles.detailRow}>
+            <View style={styles.detailLabelContainer}>
+              <Ionicons name="cash-outline" size={16} color="#666" />
+              <Text style={styles.detailLabel}>Total Amount:</Text>
+            </View>
+            <Text style={styles.detailValue}>{transaction?.total}</Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <View style={styles.detailLabelContainer}>
+              <Ionicons name="cube-outline" size={16} color="#666" />
+              <Text style={styles.detailLabel}>Items:</Text>
+            </View>
+            <Text style={styles.detailValue}>{transaction?.item_count} items</Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <View style={styles.detailLabelContainer}>
+              <Ionicons name="card-outline" size={16} color="#666" />
+              <Text style={styles.detailLabel}>Card Number:</Text>
+            </View>
+            <Text style={styles.detailValue}>{transaction?.customer_card_no}</Text>
+          </View>
+        </View>
+
+        {/* Actions */}
+        <View style={styles.transactionActions}>
+          <Pressable 
+            style={styles.actionButton}
+            onPress={() => handleViewItems(transaction)}
+          >
+            <Ionicons name="list-outline" size={18} color="#0066cc" />
+            <Text style={styles.actionButtonText}>View Items</Text>
+          </Pressable>
+          <Pressable 
+            style={styles.actionButton}
+            onPress={() => handleViewPayments(transaction)}
+          >
+            <Ionicons name="receipt-outline" size={18} color="#666" />
+            <Text style={[styles.actionButtonText, styles.actionButtonTextSecondary]}>View Payments</Text>
+          </Pressable>
+        </View>
+      </View>
+    )
+  }
+
+  const onRefresh = async () => {
+      setRefreshing(true);
+      try {
+      if (refetch) {
+          await refetch(); // Call your API again to get fresh data
+      }
+      } catch (error) {
+        console.error("Failed to refresh data", error);
+      } finally {
+        setRefreshing(false); // Stop the spinning loader
+      }
+  };
+
   if(isLoading){
     return(
         <View style={styles.loadingContainer}>
@@ -67,7 +170,7 @@ export default function TransactionsScreen() {
         </View>
     )
   }
-  // console.log('filteredData',filteredData);
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -93,113 +196,18 @@ export default function TransactionsScreen() {
           </TouchableOpacity>
         )}
       </View>
-      {/* Transactions List */}
-      <ScrollView 
-        style={styles.transactionsList}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefetching} // Spinner visible while refetching
-            onRefresh={refetch}        // Calls the hook's refetch function
-            colors={['#0066cc']}      // Spinner color (Android)
-            tintColor={'#0066cc'}     // Spinner color (iOS)
-          />
-        }  
-      >
       
-        {transactions.data.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="receipt-outline" size={64} color="#CCCCCC" />
-            <Text style={styles.emptyText}>No transactions found</Text>
-            <Text style={styles.emptySubtext}>
-              You have not made any transactions yet
-            </Text>
-          </View>
-        ) :  (
-          filteredData.map((transaction:any) => (
-            <View key={transaction.id} style={styles.transactionCard}>
-              {/* ROW 1: Order Number & Status */}
-              <View style={styles.transactionHeader}>
-                <Text style={styles.orderNumber} numberOfLines={1}>
-                  Order # {transaction.order_no}
-                </Text>
-                <View style={[
-                  styles.statusBadge, 
-                  { 
-                    backgroundColor: TRANSACTION_STATUS_COLORS[transaction.order_status as keyof typeof TRANSACTION_STATUS_COLORS] || '#666'
-                  }
-                ]}>
-                  <Text style={styles.statusText}>{transaction.order_status}</Text>
-                </View>
-              </View>
-
-              {/* ROW 2: Date & Cashier Name (Prevents Overflow!) */}
-              <View style={styles.transactionSubHeader}>
-                <View style={styles.metaDataContainer}>
-                  <Ionicons name="calendar-outline" size={14} color="#666" style={styles.metaIcon} />
-                  <Text style={styles.transactionDate}>
-                    {formatDate(transaction.created_at)}
-                  </Text>
-                </View>
-                <View style={styles.metaDataContainer}>
-                  <Ionicons name="person-outline" size={14} color="#666" style={styles.metaIcon} />
-                  {/* NOTE: Change 'cashier_name' to whatever exact property your backend returns */}
-                  <Text style={styles.cashierName} numberOfLines={1}>
-                    {transaction.full_name || 'N/A'}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Divider Line */}
-              <View style={styles.divider} />
-
-              {/* ROW 3: Transaction Details */}
-              <View style={styles.transactionDetails}>
-                <View style={styles.detailRow}>
-                  <View style={styles.detailLabelContainer}>
-                    <Ionicons name="cash-outline" size={16} color="#666" />
-                    <Text style={styles.detailLabel}>Total Amount:</Text>
-                  </View>
-                  <Text style={styles.detailValue}>{transaction.total}</Text>
-                </View>
-
-                <View style={styles.detailRow}>
-                  <View style={styles.detailLabelContainer}>
-                    <Ionicons name="cube-outline" size={16} color="#666" />
-                    <Text style={styles.detailLabel}>Items:</Text>
-                  </View>
-                  <Text style={styles.detailValue}>{transaction.item_count} items</Text>
-                </View>
-
-                <View style={styles.detailRow}>
-                  <View style={styles.detailLabelContainer}>
-                    <Ionicons name="card-outline" size={16} color="#666" />
-                    <Text style={styles.detailLabel}>Card Number:</Text>
-                  </View>
-                  <Text style={styles.detailValue}>{transaction.customer_card_no}</Text>
-                </View>
-              </View>
-
-              {/* Actions */}
-              <View style={styles.transactionActions}>
-                <Pressable 
-                  style={styles.actionButton}
-                  onPress={() => handleViewItems(transaction)}
-                >
-                  <Ionicons name="list-outline" size={18} color="#0066cc" />
-                  <Text style={styles.actionButtonText}>View Items</Text>
-                </Pressable>
-                <Pressable 
-                  style={styles.actionButton}
-                  onPress={() => handleViewPayments(transaction)}
-                >
-                  <Ionicons name="receipt-outline" size={18} color="#666" />
-                  <Text style={[styles.actionButtonText, styles.actionButtonTextSecondary]}>View Payments</Text>
-                </Pressable>
-              </View>
-            </View>
-          ))
-        )}
-      </ScrollView>
+      {/* Transactions List */}
+      <FlatList
+          data={filteredData || []}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          // contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+      />
 
       <OrderItemList 
         order_no={selectedOrder}
