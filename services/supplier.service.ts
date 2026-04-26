@@ -28,6 +28,16 @@ class SupplierService {
         return response.data;
     }
 
+    async fetchConventionDates(){
+        const response = await apiClient.get(API_ENDPOINTS.SUPPLIER.FETCH_CONVENTION_DATES)
+        return response.data;
+    }
+
+    async fetchVendorRemittances(convention_date: string){
+        const response = await apiClient.get(API_ENDPOINTS.SUPPLIER.FETCH_REMITTANCES(convention_date))
+        return response.data;
+    }
+
 }
 
 export const supplierService = new SupplierService();

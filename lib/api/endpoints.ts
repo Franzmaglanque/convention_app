@@ -55,6 +55,8 @@ export const API_ENDPOINTS = {
     DASHBOARD_PAYMENT_BREAKDOWN: (vendor_code:string) => `supplier/app/supplier-payment-breakdown/${vendor_code}`,
     CASHIER_ANALYTICS: (selectedDate:string) => `supplier/app/cashier-analytics/${selectedDate}`,
     FETCH_CASHIERS: `supplier/app/fetch-cashiers`,
+    FETCH_CONVENTION_DATES: `supplier/app/fetch-convention-dates`,
+    FETCH_REMITTANCES: (convention_date:string) => `supplier/app/vendor-remittances/${convention_date}`
   },
 
   LOAD:{

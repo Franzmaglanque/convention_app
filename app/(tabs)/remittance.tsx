@@ -1,80 +1,45 @@
+import { useAuth } from '@/hooks/useAuth';
+import { useFetchConventionDates, useFetchVendorRemittances } from '@/hooks/useSupplier';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo, useState } from 'react';
 import {
-    FlatList,
-    LayoutAnimation,
-    Platform,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    UIManager,
-    View
+  FlatList,
+  LayoutAnimation,
+  Platform,
+  RefreshControl,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  UIManager,
+  View
 } from 'react-native';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-// --- Updated Mock Data for 3-Day Convention ---
-const mockData = [
-  {
-    id: '1',
-    receipt_no: '000035',
-    convention_day: 'Day 3',
-    date: 'Apr 24, 2026',
-    amount: 85000.00,
-    remitted_by: 'Lovely Doris Tibar',
-    short_name: 'Lovely Doris',
-    verified_by: 'Admin',
-    supplier_code: '11460',
-    type: 'FULL'
-  },
-  {
-    id: '2',
-    receipt_no: '000030',
-    convention_day: 'Day 2',
-    date: 'Apr 23, 2026',
-    amount: 71334.00,
-    remitted_by: 'Lovely Doris Tibar',
-    short_name: 'Lovely Doris',
-    verified_by: 'Dionela, Daiserie',
-    supplier_code: '11460',
-    type: 'FULL'
-  },
-  {
-    id: '3',
-    receipt_no: '000029',
-    convention_day: 'Day 1',
-    date: 'Apr 22, 2026',
-    amount: 42500.00,
-    remitted_by: 'Marco Reyes',
-    short_name: 'Marco Reyes',
-    verified_by: 'Admin',
-    supplier_code: '11460',
-    type: 'PARTIAL'
-  },
-  {
-    id: '4',
-    receipt_no: '000028',
-    convention_day: 'Day 1',
-    date: 'Apr 22, 2026',
-    amount: 20000.00,
-    remitted_by: 'Marco Reyes',
-    short_name: 'Marco Reyes',
-    verified_by: 'Admin',
-    supplier_code: '11460',
-    type: 'FULL'
-  }
-];
-
 export default function RemittanceScreen() {
-  const [selectedDay, setSelectedDay] = useState('All');
+  const { user } = useAuth();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const { data: conventionDatesData } = useFetchConventionDates();
+  const { data: vendorRemittancesData,refetch} = useFetchVendorRemittances(selectedDate!);
+  const datesArray = conventionDatesData?.data?.convention_dates ?? [];
+  const [refreshing, setRefreshing] = useState(false);
+  
 
   const toggleExpand = (id: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpandedId(expandedId === id ? null : id);
+  };
+
+  const formatDisplayDate = (dateString: string) => {
+    if (!dateString) return '';
+    const [year, month, day] = dateString.split('-');
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${months[parseInt(month, 10) - 1]} ${parseInt(day, 10)}, ${year}`;
   };
 
   const formatCurrency = (amount: number) => {
@@ -89,20 +54,14 @@ export default function RemittanceScreen() {
     return `₱${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  // --- Dynamic Calculations based on selected filter ---
-  const filteredData = useMemo(() => {
-    if (selectedDay === 'All') return mockData;
-    return mockData.filter(item => item.convention_day === selectedDay);
-  }, [selectedDay]);
-
-  const summary = useMemo(() => {
-    return filteredData.reduce((acc, item) => {
-      acc.total += item.amount;
-      if (item.type === 'FULL') acc.full += item.amount;
-      if (item.type === 'PARTIAL') acc.partial += item.amount;
+  const remittanceSummary = useMemo(() => {
+    return vendorRemittancesData?.data?.reduce((acc: any, item: any) => {
+      acc.total += parseFloat(item.total_amount);
+      if (item.remittance_type === 'full') acc.full += parseFloat(item.total_amount);
+      if (item.remittance_type === 'partial') acc.partial += parseFloat(item.total_amount);
       return acc;
     }, { total: 0, full: 0, partial: 0 });
-  }, [filteredData]);
+  },[vendorRemittancesData])
 
   // --- Header & Summaries Component ---
   const ListHeader = () => (
@@ -110,7 +69,7 @@ export default function RemittanceScreen() {
       <View style={styles.blueHeader}>
         <View style={styles.headerTopRow}>
           <View>
-            <Text style={styles.supplierText}>SUPPLIER #11460</Text>
+            <Text style={styles.supplierText}>SUPPLIER #{user?.supplier_code}</Text>
             <Text style={styles.pageTitle}>Remittances</Text>
           </View>
         </View>
@@ -119,47 +78,73 @@ export default function RemittanceScreen() {
         <View style={styles.summaryRow}>
           <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>GRAND TOTAL</Text>
-            <Text style={styles.summaryValue}>{formatCurrency(summary.total)}</Text>
+            <Text style={styles.summaryValue}>{formatCurrency(remittanceSummary?.total || 0) }</Text>
           </View>
           <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>FULL</Text>
-            <Text style={styles.summaryValue}>{formatCurrency(summary.full)}</Text>
+            <Text style={styles.summaryValue}>{formatCurrency(remittanceSummary?.full || 0) }</Text>
           </View>
           <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>PARTIAL</Text>
-            <Text style={styles.summaryValue}>{formatCurrency(summary.partial)}</Text>
+            <Text style={styles.summaryValue}>{formatCurrency(remittanceSummary?.partial || 0) }</Text>
           </View>
         </View>
       </View>
 
       {/* Convention Day Filters */}
-      <View style={styles.filterRow}>
-        {['All', 'Day 1', 'Day 2', 'Day 3'].map((day, index) => {
-          const isActive = selectedDay === day;
+      {/* <View style={styles.filterRow}>
+        {datesArray.map((dateStr:string) => {
+          const isSelected = selectedDate === dateStr;
+          
           return (
             <TouchableOpacity 
-              key={index} 
-              style={[styles.filterPill, isActive && styles.filterPillActive]}
-              onPress={() => {
-                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                setSelectedDay(day);
-                setExpandedId(null); // Close any open accordion when switching tabs
-              }}
+              key={dateStr}
+              // Apply active styles if this is the chosen date
+              style={[styles.datePill, isSelected && styles.datePillActive]}
+              onPress={() => setSelectedDate(dateStr)}
             >
-              <Text style={[styles.filterText, isActive && styles.filterTextActive]}>
-                {day}
+              <Text style={[styles.datePillText, isSelected && styles.datePillTextActive]}>
+                {formatDisplayDate(dateStr)}
               </Text>
             </TouchableOpacity>
           );
         })}
-      </View>
+      </View> */}
+
+      <View style={styles.container}>
+      <Text style={styles.label}>SELECT CONVENTION DATE</Text>
+      
+      {/* 4. The Horizontal ScrollView */}
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false} 
+        contentContainerStyle={styles.scrollContent}
+      >
+        {datesArray.map((dateStr:string) => {
+          const isSelected = selectedDate === dateStr;
+          
+          return (
+            <TouchableOpacity 
+              key={dateStr}
+              // Apply active styles if this is the chosen date
+              style={[styles.datePill, isSelected && styles.datePillActive]}
+              onPress={() => setSelectedDate(dateStr)}
+            >
+              <Text style={[styles.datePillText, isSelected && styles.datePillTextActive]}>
+                {formatDisplayDate(dateStr)}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </View>
+    
     </View>
   );
 
-  // --- Individual Card Component ---
-  const renderItem = ({ item }: { item: typeof mockData[0] }) => {
+  const renderItem = ({ item }: any) => {
     const isExpanded = expandedId === item.id;
-    const isFull = item.type === 'FULL';
+    const isFull = item.remittance_type === 'full';
 
     return (
       <View style={styles.card}>
@@ -169,17 +154,17 @@ export default function RemittanceScreen() {
               <Ionicons name="receipt-outline" size={20} color="#fff" />
             </View>
             <View>
-              <Text style={styles.receiptNo}>Receipt #{item.receipt_no}</Text>
-              <Text style={styles.dateText}>{item.convention_day} • {item.date}</Text>
+              <Text style={styles.receiptNo}>Receipt #{item.remittance_no}</Text>
+              <Text style={styles.dateText}>{selectedDate}</Text>
             </View>
           </View>
           
           <View style={styles.cardTopRight}>
-            <Text style={styles.mainAmount}>{formatFullCurrency(item.amount)}</Text>
+            <Text style={styles.mainAmount}>{formatFullCurrency(item.total_amount)}</Text>
             <View style={[styles.statusPill, isFull ? styles.statusFull : styles.statusPartial]}>
               <View style={[styles.statusDot, isFull ? styles.dotFull : styles.dotPartial]} />
               <Text style={[styles.statusText, isFull ? styles.textFull : styles.textPartial]}>
-                {item.type}
+                {item.remittance_type.toUpperCase()}
               </Text>
             </View>
           </View>
@@ -190,15 +175,15 @@ export default function RemittanceScreen() {
         <TouchableOpacity style={styles.toggleRow} onPress={() => toggleExpand(item.id)}>
           <View style={styles.toggleLeft}>
             <Ionicons name="person-outline" size={16} color="#868e96" />
-            <Text style={styles.toggleLabel}> By: <Text style={styles.toggleName}>{item.short_name}</Text></Text>
+            <Text style={styles.toggleLabel}> By: <Text style={styles.toggleName}>{item.remitted_by}</Text></Text>
           </View>
           <Ionicons name={isExpanded ? "chevron-up" : "chevron-down"} size={20} color="#adb5bd" />
         </TouchableOpacity>
 
         {isExpanded && (
           <View style={styles.expandedContent}>
-            <DetailRow icon="document-text-outline" label="Receipt No." value={`#${item.receipt_no}`} />
-            <DetailRow icon="business-outline" label="Supplier Code" value={item.supplier_code} />
+            <DetailRow icon="document-text-outline" label="Receipt No." value={`#${item.remittance_no}`} />
+            <DetailRow icon="business-outline" label="Supplier Code" value={item.vendor_code} />
             <DetailRow icon="person-outline" label="Remitted By" value={item.remitted_by} />
             <DetailRow icon="checkmark-circle-outline" label="Verified By" value={item.verified_by} />
             
@@ -209,7 +194,7 @@ export default function RemittanceScreen() {
                </View>
                <View style={[styles.statusPill, isFull ? styles.statusFull : styles.statusPartial]}>
                  <View style={[styles.statusDot, isFull ? styles.dotFull : styles.dotPartial]} />
-                 <Text style={[styles.statusText, isFull ? styles.textFull : styles.textPartial]}>{item.type}</Text>
+                 <Text style={[styles.statusText, isFull ? styles.textFull : styles.textPartial]}>{item.remittance_type.toUpperCase()}</Text>
                </View>
             </View>
           </View>
@@ -218,15 +203,31 @@ export default function RemittanceScreen() {
     );
   };
 
+  const onRefresh = async () => {
+      setRefreshing(true);
+      try {
+      if (refetch) {
+          await refetch(); // Call your API again to get fresh data
+      }
+      } catch (error) {
+        console.error("Failed to refresh data", error);
+      } finally {
+        setRefreshing(false); // Stop the spinning loader
+      }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <FlatList
-        data={filteredData}
+        data={vendorRemittancesData?.data || []}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={ListHeader}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       />
     </SafeAreaView>
   );
@@ -309,4 +310,38 @@ const styles = StyleSheet.create({
   totalBox: { backgroundColor: '#e7f1fc', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderRadius: 12, marginTop: 8 },
   totalBoxLabel: { color: '#0a6cdc', fontWeight: '600', fontSize: 14 },
   totalBoxAmount: { color: '#0a6cdc', fontWeight: 'bold', fontSize: 18 },
+  datePill: {
+    paddingVertical: 8, 
+    paddingHorizontal: 16,
+    backgroundColor: '#e9ecef', // Light gray for unselected
+    borderRadius: 20,
+    borderWidth: 1, 
+    borderColor: 'transparent'
+  },
+  datePillActive: {
+    backgroundColor: '#0a6cdc', // Vivid blue for selected
+  },
+  datePillText: {
+    color: '#495057', // Dark gray text
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  datePillTextActive: {
+    color: '#ffffff', // White text when selected
+  },
+  container: {
+    marginVertical: 16,
+  },
+  label: {
+    color: '#868e96',
+    fontSize: 11,
+    fontWeight: '700',
+    marginLeft: 20,
+    marginBottom: 8,
+    letterSpacing: 0.5,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    gap: 10, // Adds space between the pills
+  },
 });

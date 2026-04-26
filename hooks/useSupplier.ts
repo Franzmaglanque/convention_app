@@ -37,3 +37,18 @@ export function useFetchCashiers(selectedDate?:string) {
     })
 }
 
+export function useFetchConventionDates() {
+    return useQuery({
+        queryKey: ['convention-dates'],
+        queryFn: () => supplierService.fetchConventionDates(),
+    })
+}
+
+export function useFetchVendorRemittances(convention_date: string) {
+    return useQuery({
+        queryKey: ['vendor-remittances', convention_date],
+        queryFn: () => supplierService.fetchVendorRemittances(convention_date),
+        enabled: !!convention_date
+    })
+}
+
