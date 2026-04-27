@@ -25,3 +25,12 @@ export function useProcessLoadSelling() {
   });
 }
 
+export function useFetchLoadDetails(order_no:string) {
+  return useQuery({
+    queryKey: ['fetch-load-details', order_no],
+    queryFn: () => loadService.fetchLoadDetails(order_no),
+    enabled: !!order_no
+  });
+}
+
+

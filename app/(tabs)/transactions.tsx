@@ -1,3 +1,4 @@
+import LoadOrderItems from '@/components/LoadOrderItems';
 import OrderItemList from '@/components/OrderItems';
 import OrderPaymentList from '@/components/OrderPayments';
 import ReturnedItemsList from '@/components/ReturnedItems';
@@ -23,6 +24,7 @@ export default function TransactionsScreen() {
 
   // State for modal visibility and selected order
   const [isItemsModalVisible, setIsItemsModalVisible] = useState(false);
+  const [isLoadModalVisible, setIsLoadModalVisible] = useState(false);
   const [isPaymentsModalVisible, setIsPaymentsModalVisible] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
 
@@ -30,8 +32,10 @@ export default function TransactionsScreen() {
   const [selectedReturnId, setSelectedReturnId] = useState<any>(null);
 
   const handleViewItems = (transaction: any) => {
+    console.log("Selected Transaction:", transaction); // Debug log to check transaction data
+
     setSelectedOrder(transaction.order_no);
-    setIsItemsModalVisible(true);
+    transaction?.order_type === 'LOAD' ? setIsLoadModalVisible(true) : setIsItemsModalVisible(true);
   };
 
   const handleViewPayments = (transaction: any) => {
@@ -264,6 +268,12 @@ export default function TransactionsScreen() {
         order_no={selectedOrder}
         visible={isItemsModalVisible}
         onClose={() => setIsItemsModalVisible(false)}
+      />
+
+      <LoadOrderItems 
+        order_no={selectedOrder}
+        visible={isLoadModalVisible}
+        onClose={() => setIsLoadModalVisible(false)}
       />
 
       <ReturnedItemsList 

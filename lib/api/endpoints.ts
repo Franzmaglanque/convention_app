@@ -64,7 +64,7 @@ export const API_ENDPOINTS = {
     FETCH_TELOCOS: 'load/fetch-telcos',
     FETCH_DATA_PROMOS: (telco:string) => `load/fetch-telco-promos/${telco}`,
     PROCESS_LOAD_SELLING: `load/process-load-selling`,
-
+    FETCH_LOAD_DETAILS: (order_no:string) => `load/app/fetch-load-items/${order_no}`,
   }
 
 } as const;

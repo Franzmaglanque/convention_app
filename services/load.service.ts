@@ -17,6 +17,11 @@ class LoadService {
         const response = await apiClient.post(API_ENDPOINTS.LOAD.PROCESS_LOAD_SELLING, payload)
         return response.data;
     }
+
+    async fetchLoadDetails(order_no: string){
+        const response = await apiClient.get(API_ENDPOINTS.LOAD.FETCH_LOAD_DETAILS(order_no))
+        return response.data;
+    }
 }
 
 // export const storeService = new StoreService();
