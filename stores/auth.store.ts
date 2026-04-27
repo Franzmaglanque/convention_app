@@ -6,7 +6,7 @@ export interface User {
   id: number;
   fullname: string;
   supplier_code: string;
-  supplier_name: string;
+  supplierName: string;
   username: string;
   department: 'SUPPLIER' | 'ADMIN'; // Add other departments as needed
   role: 'MANAGER' | 'CASHIER' | null;

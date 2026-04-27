@@ -64,16 +64,6 @@ export default function TabsLayout() {
         />
 
         <Tabs.Screen
-          name="profile"
-          options={{
-            title: 'Profile',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="person" size={size} color={color} />
-            ),
-          }}
-        />
-
-        <Tabs.Screen
           name="transactions"
           options={{
             title: transactionsTitle,
@@ -81,17 +71,6 @@ export default function TabsLayout() {
               <Ionicons name="receipt-outline" size={size} color={color} />
             ),
             href: isSupplierManager ? '/transactions' : null,
-          }}
-        />
-
-        <Tabs.Screen
-          name="vendorQrScreen"
-          options={{
-            title: 'Vendor QR',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="qr-code-outline" size={size} color={color} />
-            ),
-            href: isSupplierManager ? '/vendorQrScreen' : null,
           }}
         />
 
@@ -126,6 +105,27 @@ export default function TabsLayout() {
               <Ionicons name="people-outline" size={size} color={color} />
             ),
             href: isSupplierManager ? '/cashier' : null,
+          }}
+        />
+
+        <Tabs.Screen
+          name="vendorQrScreen"
+          options={{
+            title: 'Vendor QR',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="qr-code-outline" size={size} color={color} />
+            ),
+            href: isSupplierManager ? '/vendorQrScreen' : null,
+          }}
+        />
+
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: 'Profile',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="person" size={size} color={color} />
+            ),
           }}
         />
        

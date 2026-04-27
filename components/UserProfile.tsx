@@ -81,7 +81,7 @@ export default function UserProfile() {
                 </View>
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Supplier Name</Text>
-                  <Text style={styles.infoValue}>{user.supplier_name}</Text>
+                  <Text style={styles.infoValue}>{user.supplierName}</Text>
                 </View>
               </View>
             </View>
@@ -124,9 +124,6 @@ export default function UserProfile() {
             <Text style={styles.logoutButtonText}>Logout</Text>
           </Pressable>
 
-          <Text style={styles.footerText}>
-            All your information is securely stored on your device
-          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>
