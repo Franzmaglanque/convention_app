@@ -25,6 +25,7 @@ export const API_ENDPOINTS = {
     CANCEL_ORDER: '/order/cancel',
     SUPPLIER_ORDER_LIST: '/order/list',
     ORDER_ITEM_LIST: (order_no:string) => `order/items-list/${order_no}`,
+    RETURNED_ITEM_LIST: (returned_id:string) => `order/returned-items/${returned_id}`,
     ORDER_PAYMENT_LIST: (order_no:string) => `order/payments-list/${order_no}`,
     VALIDATE_RETURN_ORDER: (order_no:string) => `order/return/validate/${order_no}`,
     RETURN_REPLACE_FETCH_ORIGINAL_ORDER_ITEMS: (order_no:string) => `order/return/fetch-items/${order_no}`,

@@ -1,5 +1,6 @@
 import OrderItemList from '@/components/OrderItems';
 import OrderPaymentList from '@/components/OrderPayments';
+import ReturnedItemsList from '@/components/ReturnedItems';
 import { TRANSACTION_STATUS_COLORS } from '@/constants/transaction';
 import { fetchSupplierOrders } from '@/hooks/useOrder';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,6 +25,9 @@ export default function TransactionsScreen() {
   const [isItemsModalVisible, setIsItemsModalVisible] = useState(false);
   const [isPaymentsModalVisible, setIsPaymentsModalVisible] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+
+  const [isReturnedItemsModalVisible, setIsReturnedItemsModalVisible] = useState(false);
+  const [selectedReturnId, setSelectedReturnId] = useState<any>(null);
 
   const handleViewItems = (transaction: any) => {
     setSelectedOrder(transaction.order_no);
@@ -62,92 +66,134 @@ export default function TransactionsScreen() {
     }, [transactions, searchQuery])
 
 
-  const renderItem = ({ item:transaction }: any) => {
-    console.log("Rendering transaction:", transaction); // Debug log to check transaction data
-    return (
-      <View key={transaction?.id} style={styles.transactionCard}>
-        {/* ROW 1: Order Number & Status */}
-        <View style={styles.transactionHeader}>
-          <Text style={styles.orderNumber} numberOfLines={1}>
-            Order # {transaction?.order_no}
-          </Text>
-          <View style={[
-            styles.statusBadge, 
-            { 
-              backgroundColor: TRANSACTION_STATUS_COLORS[transaction?.order_status as keyof typeof TRANSACTION_STATUS_COLORS] || '#666'
-            }
-          ]}>
-            <Text style={styles.statusText}>{transaction?.order_status}</Text>
-          </View>
-        </View>
+    const renderItem = ({ item: transaction }: any) => {
+      // Check if this transaction has a return attached
+      const isReturned = transaction?.return_id !== null && transaction?.return_id !== undefined;
 
-        {/* ROW 2: Date & Cashier Name (Prevents Overflow!) */}
-        <View style={styles.transactionSubHeader}>
-          <View style={styles.metaDataContainer}>
-            <Ionicons name="calendar-outline" size={14} color="#666" style={styles.metaIcon} />
-            <Text style={styles.transactionDate}>
-              {formatDate(transaction?.created_at)}
-            </Text>
-          </View>
-          <View style={styles.metaDataContainer}>
-            <Ionicons name="person-outline" size={14} color="#666" style={styles.metaIcon} />
-            {/* NOTE: Change 'cashier_name' to whatever exact property your backend returns */}
-            <Text style={styles.cashierName} numberOfLines={1}>
-              {transaction?.full_name || 'N/A'}
-            </Text>
-          </View>
-        </View>
+      return (
+        
+        <View key={transaction?.id} style={styles.transactionCard}>
+          {/* ROW 1: Order Number & Status */}
+          <View style={styles.transactionHeader}>
+            <View style={styles.orderNumberContainer}>
+              <Text style={styles.orderNumber} numberOfLines={1}>
+                Order # {transaction?.order_no}
+              </Text>
 
-        {/* Divider Line */}
-        <View style={styles.divider} />
+              {/* NEW: Display E-Load Badge if applicable */}
+              {transaction?.order_type === 'LOAD' && (
+                <View style={styles.loadBadge}>
+                  <Ionicons name="phone-portrait-outline" size={12} color="#0066cc" />
+                  <Text style={styles.loadText}>E-Load Transaction</Text>
+                </View>
+              )}
 
-        {/* ROW 3: Transaction Details */}
-        <View style={styles.transactionDetails}>
-          <View style={styles.detailRow}>
-            <View style={styles.detailLabelContainer}>
-              <Ionicons name="cash-outline" size={16} color="#666" />
-              <Text style={styles.detailLabel}>Total Amount:</Text>
+
+              {/* NEW: Display Replacement Order No. if applicable */}
+              {isReturned && transaction?.new_order_no && (
+                <View style={styles.exchangeBadge}>
+                  <Ionicons name="swap-horizontal" size={12} color="#e53935" />
+                  <Text style={styles.exchangeText}>
+                    Exchanged to #{transaction.new_order_no}
+                  </Text>
+                </View>
+              )}
             </View>
-            <Text style={styles.detailValue}>{transaction?.total}</Text>
+            
+            <View style={[
+              styles.statusBadge, 
+              { 
+                backgroundColor: TRANSACTION_STATUS_COLORS[transaction?.order_status as keyof typeof TRANSACTION_STATUS_COLORS] || '#666'
+              }
+            ]}>
+              <Text style={styles.statusText}>{transaction?.order_status}</Text>
+            </View>
           </View>
 
-          <View style={styles.detailRow}>
-            <View style={styles.detailLabelContainer}>
-              <Ionicons name="cube-outline" size={16} color="#666" />
-              <Text style={styles.detailLabel}>Items:</Text>
+          {/* ROW 2: Date & Cashier Name */}
+          <View style={styles.transactionSubHeader}>
+            <View style={styles.metaDataContainer}>
+              <Ionicons name="calendar-outline" size={14} color="#666" style={styles.metaIcon} />
+              <Text style={styles.transactionDate}>
+                {formatDate(transaction?.created_at)}
+              </Text>
             </View>
-            <Text style={styles.detailValue}>{transaction?.item_count} items</Text>
+            <View style={styles.metaDataContainer}>
+              <Ionicons name="person-outline" size={14} color="#666" style={styles.metaIcon} />
+              <Text style={styles.cashierName} numberOfLines={1}>
+                {transaction?.full_name || 'N/A'}
+              </Text>
+            </View>
           </View>
 
-          <View style={styles.detailRow}>
-            <View style={styles.detailLabelContainer}>
-              <Ionicons name="card-outline" size={16} color="#666" />
-              <Text style={styles.detailLabel}>Card Number:</Text>
+          {/* Divider Line */}
+          <View style={styles.divider} />
+
+          {/* ROW 3: Transaction Details */}
+          <View style={styles.transactionDetails}>
+            <View style={styles.detailRow}>
+              <View style={styles.detailLabelContainer}>
+                <Ionicons name="cash-outline" size={16} color="#666" />
+                <Text style={styles.detailLabel}>Total Amount:</Text>
+              </View>
+              <Text style={styles.detailValue}>{transaction?.total}</Text>
             </View>
-            <Text style={styles.detailValue}>{transaction?.customer_card_no}</Text>
+
+            <View style={styles.detailRow}>
+              <View style={styles.detailLabelContainer}>
+                <Ionicons name="cube-outline" size={16} color="#666" />
+                <Text style={styles.detailLabel}>Items:</Text>
+              </View>
+              <Text style={styles.detailValue}>{transaction?.item_count} items</Text>
+            </View>
+
+            <View style={styles.detailRow}>
+              <View style={styles.detailLabelContainer}>
+                <Ionicons name="card-outline" size={16} color="#666" />
+                <Text style={styles.detailLabel}>Card Number:</Text>
+              </View>
+              <Text style={styles.detailValue}>{transaction?.customer_card_no}</Text>
+            </View>
+          </View>
+
+          {/* Actions */}
+          <View style={styles.transactionActions}>
+            <Pressable 
+              style={styles.actionButton}
+              onPress={() => handleViewItems(transaction)}
+            >
+              <Ionicons name="list-outline" size={16} color="#0066cc" />
+              <Text style={styles.actionButtonText} numberOfLines={1} adjustsFontSizeToFit>
+                Items
+              </Text>
+            </Pressable>
+
+            {/* Conditionally Rendered Returns Button */}
+            {isReturned && (
+              <Pressable 
+                style={[styles.actionButton, { backgroundColor: '#ffebee' }]}
+                onPress={() => handleViewReturnedItems(transaction)}
+              >
+                <Ionicons name="return-down-back" size={16} color="#e53935" />
+                <Text style={[styles.actionButtonText, { color: '#e53935' }]} numberOfLines={1} adjustsFontSizeToFit>
+                  Returns
+                </Text>
+              </Pressable>
+            )}
+
+            <Pressable 
+              style={styles.actionButton}
+              onPress={() => handleViewPayments(transaction)}
+            >
+              <Ionicons name="receipt-outline" size={16} color="#495057" />
+              <Text style={[styles.actionButtonText, { color: '#495057' }]} numberOfLines={1} adjustsFontSizeToFit>
+                Payments
+              </Text>
+            </Pressable>
           </View>
         </View>
-
-        {/* Actions */}
-        <View style={styles.transactionActions}>
-          <Pressable 
-            style={styles.actionButton}
-            onPress={() => handleViewItems(transaction)}
-          >
-            <Ionicons name="list-outline" size={18} color="#0066cc" />
-            <Text style={styles.actionButtonText}>View Items</Text>
-          </Pressable>
-          <Pressable 
-            style={styles.actionButton}
-            onPress={() => handleViewPayments(transaction)}
-          >
-            <Ionicons name="receipt-outline" size={18} color="#666" />
-            <Text style={[styles.actionButtonText, styles.actionButtonTextSecondary]}>View Payments</Text>
-          </Pressable>
-        </View>
-      </View>
-    )
-  }
+      )
+    }
 
   const onRefresh = async () => {
       setRefreshing(true);
@@ -160,6 +206,11 @@ export default function TransactionsScreen() {
       } finally {
         setRefreshing(false); // Stop the spinning loader
       }
+  };
+
+  const handleViewReturnedItems = (transaction: any) => {
+    setSelectedReturnId(transaction.return_id); // Pass the return_id to your future modal
+    setIsReturnedItemsModalVisible(true);
   };
 
   if(isLoading){
@@ -196,7 +247,7 @@ export default function TransactionsScreen() {
           </TouchableOpacity>
         )}
       </View>
-      
+
       {/* Transactions List */}
       <FlatList
           data={filteredData || []}
@@ -213,6 +264,12 @@ export default function TransactionsScreen() {
         order_no={selectedOrder}
         visible={isItemsModalVisible}
         onClose={() => setIsItemsModalVisible(false)}
+      />
+
+      <ReturnedItemsList 
+        returned_id={selectedReturnId}
+        visible={isReturnedItemsModalVisible}
+        onClose={() => setIsReturnedItemsModalVisible(false)}
       />
 
       <OrderPaymentList
@@ -642,5 +699,40 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0F0F0',
     marginBottom: 12,
   },
-  
+  orderNumberContainer: {
+    flex: 1,
+    marginRight: 8,
+  },
+  exchangeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    backgroundColor: '#ffebee', // light red background
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+  },
+  exchangeText: {
+    fontSize: 11,
+    color: '#e53935',
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  loadBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    backgroundColor: '#e7f1fc', // Light blue background
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+  },
+  loadText: {
+    fontSize: 11,
+    color: '#0066cc', // Matches the globe/load theme
+    fontWeight: '600',
+    marginLeft: 4,
+  },
 });

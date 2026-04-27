@@ -85,6 +85,14 @@ export function useFetchOrderItems(orderNo: string) {
   });
 }
 
+export function useFetchReturnedItems(returnedId: string) {
+  return useQuery({
+    queryKey: ['returned-items', returnedId],
+    queryFn: () => orderService.fetchReturnedItemsList(returnedId),
+    enabled: !!returnedId,
+  });
+}
+
 export function useFetchOrderPayments(orderNo: string) {
   return useQuery({
     queryKey: ['order-payments', orderNo], 
