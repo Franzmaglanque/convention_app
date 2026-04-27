@@ -1163,7 +1163,7 @@ export default function CartScreen() {
                 styles.buttonLabel,
                 (cartItems.length === 0 || calculateRemainingBalance() <= 0.01) && styles.buttonLabelDisabled
               ]}>
-                Pay{calculateRemainingBalance()}
+                Pay
               </Text>
             )}
           </TouchableOpacity>

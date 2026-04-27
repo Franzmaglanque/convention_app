@@ -64,8 +64,9 @@ export default function TransactionsScreen() {
         const matchOrderNo = transaction.order_no?.toLowerCase().includes(lowerCaseQuery);
         const matchCustomerCard = transaction.customer_card_no?.toLowerCase().includes(lowerCaseQuery);
         const matchStatus = transaction.order_status?.toLowerCase().includes(lowerCaseQuery);
+        const matchCashier = transaction.full_name?.toLowerCase().includes(lowerCaseQuery);
         
-        return matchOrderNo || matchCustomerCard || matchStatus;
+        return matchOrderNo || matchCustomerCard || matchStatus || matchCashier;
       });
     }, [transactions, searchQuery])
 
