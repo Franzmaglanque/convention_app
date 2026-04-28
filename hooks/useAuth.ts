@@ -1,7 +1,6 @@
 import { authService } from '@/services/auth.service';
 import { useAuthStore } from '@/stores/auth.store';
 import { useMutation } from '@tanstack/react-query';
-import { router } from 'expo-router';
 
 export function useLogin() {
     const { login } = useAuthStore();
@@ -40,10 +39,19 @@ export function useAuth() {
 // Optional: Add a hook for logout
 export function useLogout() {
     const { logout } = useAuthStore();
+
+     return useMutation({
+        mutationKey: ['logout'],
+        mutationFn: () => authService.logout(),
+        onSuccess: (responseData) => {
+            console.log('Logout successful:', responseData);
+            logout();
+        },
+        onError: (error) => {
+            console.log('Logout failed:', error);
+           
+        }
+    })
     
-    return () => {
-        logout();
-        router.replace('/(auth)/login');
-    };
 }
 

@@ -59,9 +59,10 @@ export default function LoginScreen() {
         onSuccess: (responseData) => {
           showSuccess('Welcome to the Convention!');
         },
-        onError: (error) => {
+        onError: (error:any) => {
           console.log('Login failed:', error);
-          showError('Login failed. Please check your credentials.');
+          // showError('Login failed. Please check your credentials.');
+          showError(error?.response?.data?.message || 'Login failed. Please check your credentials.');
         }
       }
     );

@@ -15,6 +15,11 @@ class AuthService {
         console.log('login response',response)
         return response.data;
     }
+
+    async logout(){
+        const response = await apiClient.post(API_ENDPOINTS.AUTH.LOGOUT, {})
+        return response.data;
+    }
 }
 
 // export const storeService = new StoreService();

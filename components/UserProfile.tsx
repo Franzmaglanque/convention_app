@@ -5,7 +5,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function UserProfile() {
   const { user, isAuthenticated } = useAuth();
-  const logout = useLogout();
+
+  const logoutMutation = useLogout();
+
+  const handleLogout = async() => {
+
+    const foo = await logoutMutation.mutateAsync();
+    
+  }
+
 
   if (!isAuthenticated || !user) {
     return (
@@ -119,7 +127,7 @@ export default function UserProfile() {
           </View>
 
           {/* Logout Button */}
-          <Pressable style={styles.logoutButton} onPress={logout}>
+          <Pressable style={styles.logoutButton} onPress={handleLogout}>
             <Ionicons name="log-out-outline" size={22} color="#FFFFFF" style={styles.logoutIcon} />
             <Text style={styles.logoutButtonText}>Logout</Text>
           </Pressable>
