@@ -5,6 +5,7 @@ import ReturnedItemsList from '@/components/ReturnedItems';
 import { TRANSACTION_STATUS_COLORS } from '@/constants/transaction';
 import { fetchSupplierOrders } from '@/hooks/useOrder';
 import { Ionicons } from '@expo/vector-icons';
+import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -44,14 +45,9 @@ export default function TransactionsScreen() {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    if (!dateString) return 'N/A';
+    
+    return dayjs(dateString).format('MMM D, YYYY, hh:mm A');
   };
 
   const filteredData = useMemo(() => {

@@ -425,124 +425,7 @@ export default function CartScreen() {
 
     return calculateTotal() - totalPaid;
   };
-
-  const handleAddPayment = async (data: PaymentFormData) => {
-    console.log('handle add payment data', data);
-
-    // Ensure paymentType is defined
-    if (!data.paymentType) {
-      showError('Please select a payment method');
-      return false;
-    }
-
-    // Validate reference number for PWALLET/GCASH
-    if ((data.paymentType === 'PWALLET' || data.paymentType === 'GCASH') && 
-        (!data.referenceNumber || data.referenceNumber.trim().length === 0)) {
-      showError('Reference number is required for PWALLET and GCASH');
-      return false;
-    }
-
-    const amountNum = parseFloat(data.amount);
-    const remainingBalance = Number(calculateRemainingBalance().toFixed(2));
-    console.log('amountNum', amountNum);
-    console.log('remainingBalance', remainingBalance);
-
-    // Additional validation for amount exceeding remaining balance
-    if (amountNum > remainingBalance) {
-      showError('Payment amount cannot exceed remaining balance');
-      return false;
-    }
-    
-    switch (data.paymentType){
-      case 'PWALLET':
-        try {
-          await pwalletDebitMutation.mutateAsync({
-            reference_no: data?.referenceNumber ?? "",
-            amount: amountNum,
-            store_code: 901,
-            order_no:orderNo!,
-            payment_method:data.paymentType
-          });
-        } catch (error) {
-          setShowPaymentModal(false)
-          showError('Debit failed. Please try again.');
-          return false; 
-        }
-        break;
-      
-      case 'CASH':
-        try {
-          await cashPaymentMutation.mutateAsync({
-            cash_bill:data.cashBill!,
-            cash_change:data.cashChange!,
-            amount:amountNum,
-            payment_method:data.paymentType,
-            order_no:orderNo!,
-
-          });
-        } catch (error) {
-          setShowPaymentModal(false)
-          showError('Cash Payment Failed.');
-          return false; 
-        }
-        break;
-      case 'CREDIT_DEBIT_CARD':
-        try {
-          await creditCardPaymentMutation.mutateAsync({
-            amount:amountNum,
-            payment_method:data.paymentType,
-            order_no:orderNo!,
-            reference_no:data.referenceNumber!,
-            qr_code_data:ccQrData
-          });
-        } catch (error) {
-          setShowPaymentModal(false)
-          showError('Credit Card Payment Failed.');
-          return false; 
-        }
-        break;
-      case 'GCASH':
-        try {
-          const gcashResponse = await processPaymentMutation.mutateAsync({
-            order_no:orderNo!,
-            payment_method:data.paymentType,
-            amount:amountNum,
-            reference_no:data.referenceNumber!
-          });
-          console.log('GCASH RESPONSE',gcashResponse);
-        } catch (error) {
-
-          setShowPaymentModal(false)
-          showError('Credit Card Payment Failed.');
-          return false; 
-        }
-        break;
-    }
-    
-    // For CASH payments, include cashBill and cashChange
-    const newPayment = {
-      type: data.paymentType,
-      amount: amountNum,
-      referenceNumber: (data.paymentType === 'PWALLET' || data.paymentType === 'GCASH' || data.paymentType === 'CREDIT_DEBIT_CARD') ? data.referenceNumber : undefined,
-      cashBill: data.paymentType === 'CASH' ? parseFloat(data.cashBill || '0') : undefined,
-      cashChange: data.paymentType === 'CASH' ? parseFloat(data.cashChange || '0') : undefined
-    };
-
-    setPayments([...payments, newPayment]);
-    
-    showSuccess(`Payment of ₱${amountNum.toFixed(2)} added. Remaining balance: ₱${(remainingBalance - amountNum).toFixed(2)}`);
-    
-    // Reset form
-    reset({
-      paymentType: undefined,
-      amount: '',
-      referenceNumber: '',
-      cashBill: '',
-      cashChange: '0.00'
-    });
-    setShowPaymentModal(false)
-  };
-
+  
   const handleCompleteTransaction = async(customerNumber?:string) => {
     
     setShowSmsModal(false);
@@ -572,30 +455,6 @@ export default function CartScreen() {
       }
     })
   }
-
-  // Create a debounced version of computeChange
-  const computeChange = useCallback(() => {
-    const cashBill = parseFloat(watch('cashBill') || '0');
-    const amount = parseFloat(watch('amount') || '0');
-    
-    if (cashBill > 0 && amount > 0) {
-      if (cashBill >= amount) {
-        const change = cashBill - amount;
-        setValue('cashChange', change.toFixed(2));
-        console.log('Change calculated:', change);
-      } else {
-        // If cashBill is less than amount, set change to 0 or negative
-        const change = cashBill - amount;
-        setValue('cashChange', change.toFixed(2));
-        console.log('Change calculated (negative):', change);
-      }
-    } else {
-      setValue('cashChange', '0.00');
-    }
-  }, [watch, setValue]);
-
-  // Create debounced function with 500ms delay
-  const debouncedComputeChange = useDebounce(computeChange, 500);
 
   const handleAdd = (item:CartItem['product']) => {
     setIsCartSynced(false);
@@ -703,9 +562,11 @@ export default function CartScreen() {
             payment_method:payment_details.method
           });
           console.log('PWALLET PAYMENT RESPONSE',pwalletResponse.data);
+          showSuccess('Pwallet payment success');
           setRemainingBalance(pwalletResponse.data.remaining_balance.toString());
+          
         } catch (error:any) {
-          console.log('PWALLET error',error.message);
+          console.log('P-WALLET error',error.message);
           setShowPaymentModal(false)
           showError(error.message);
           return false; 
@@ -722,6 +583,7 @@ export default function CartScreen() {
             order_no:orderNo!,
           });
           console.log('CASH PAYMENT RESPONSE',cashPaymentResponse.data);
+          showSuccess('Cash payment success');
           setRemainingBalance(cashPaymentResponse.data.remaining_balance.toString());
           // console.log('CASH PAYMENT RESPONSE',cashPaymentResponse);
         } catch (error) {
@@ -1187,7 +1049,7 @@ export default function CartScreen() {
             <Text style={[
               styles.buttonLabel,
               (cartItems.length === 0 || payments.length === 0 || calculateRemainingBalance() > 0.01) && styles.buttonLabelDisabled
-            ]}>Post</Text>
+            ]}>Send SMS</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -1289,7 +1151,8 @@ export default function CartScreen() {
                 style={styles.textInput}
                 placeholder="Scan or enter card number"
                 value={customerCardNumber}
-                onChangeText={setCustomerCardNumber}
+                onChangeText={(text) => setCustomerCardNumber(text.replace(/[^0-9]/g, ''))}
+                keyboardType="numeric"
                 autoFocus={true}
               />
               
