@@ -20,7 +20,14 @@ class AuthService {
         const response = await apiClient.post(API_ENDPOINTS.AUTH.LOGOUT, {})
         return response.data;
     }
+
+    async validateTrsPin(body:{pin_code:string}){
+        const response = await apiClient.post(
+            API_ENDPOINTS.AUTH.VALIDATE_TRS_PIN,
+            body
+        )
+        return response.data;
+    }
 }
 
-// export const storeService = new StoreService();
 export const authService = new AuthService();

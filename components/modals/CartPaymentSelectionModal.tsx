@@ -1,4 +1,5 @@
 import { CardType, TerminalType } from '@/app/(tabs)/cart';
+import { useValidatePin } from '@/hooks/useAuth';
 import { useScanPwalletQr } from '@/hooks/usePayment';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
@@ -16,6 +17,7 @@ import {
   View
 } from 'react-native';
 import BarcodeScanner from '../BarcodeScanner';
+import { useToast } from '../ToastProvider';
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('en-PH', {
@@ -58,6 +60,8 @@ export default function PaymentSelectionModal({
   isProcessing
 }: PaymentSelectionModalProps) {
   
+  const { showSuccess, showError, showInfo } = useToast();
+  
   // --- STATE ---
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
   const [paymentScanner, setPaymentScanner] = useState(false);
@@ -65,6 +69,8 @@ export default function PaymentSelectionModal({
   // ✨ NEW: Credit Card Sub-flow States
   const [terminalType, setTerminalType] = useState<TerminalType | null>(null);
   const [cardType, setCardType] = useState<CardType | null>(null);
+
+  const { mutate: validatePin, isPending } = useValidatePin();
   
   // ✨ UPDATE: Reset the sub-states when changing methods
   // const handleMethodSelect = (method: PaymentMethod) => {
@@ -84,6 +90,14 @@ export default function PaymentSelectionModal({
   const [cashReceived, setCashReceived] = useState('');
   const [referenceNo, setReferenceNo] = useState('');
 
+
+  // const [isOverrideVisible, setIsOverrideVisible] = useState(false);
+  const [isPinModalVisible, setIsPinModalVisible] = useState(false);
+  const [treasuryPin, setTreasuryPin] = useState('');
+  const [pinError, setPinError] = useState('');
+  const [isTangentAuthorized, setIsTangentAuthorized] = useState(false);
+
+
   const scanPwalletQrMutation = useScanPwalletQr();
   
 
@@ -94,6 +108,11 @@ export default function PaymentSelectionModal({
       setInputAmount(''); // Starts empty
       setCashReceived('');
       setReferenceNo('');
+
+      // ✨ NEW: Reset Tangent authorization
+      setIsTangentAuthorized(false);
+      setTreasuryPin('');
+      setPinError('');
     }
   }, [visible, balanceDue]);
 
@@ -258,7 +277,11 @@ export default function PaymentSelectionModal({
 
                 <TouchableOpacity 
                   style={[styles.toggleBtn, terminalType === 'TANGENT' && styles.toggleBtnActive]}
-                  onPress={() => setTerminalType('TANGENT')}
+                  onPress={() => {
+                    // setIsOverrideVisible(true);
+                    // setTerminalType('TANGENT');
+                    setIsPinModalVisible(true)
+                  }}
                 >
                   <Text style={[styles.toggleBtnText, terminalType === 'TANGENT' && styles.toggleBtnTextActive]}>Tangent Terminal</Text>
                 </TouchableOpacity>
@@ -427,6 +450,40 @@ export default function PaymentSelectionModal({
     }
   };
 
+  // const handleAuthorizeTangent = () => {
+   
+  //   // if (treasuryPin === '1234') { 
+  //   //   setIsTangentAuthorized(true);
+  //   //   setTerminalType('TANGENT');
+  //   //   setIsPinModalVisible(false);
+  //   //   setTreasuryPin('');
+  //   //   setPinError('');
+  //   // } else {
+  //   //   setPinError('Invalid PIN. Please try again.');
+  //   // }
+  // };
+
+  const handleAuthorizeTangent = () => {
+
+    console.log('pin',treasuryPin);
+    validatePin({
+      pin_code:treasuryPin
+    }, {
+      onSuccess: (data) => {
+        console.log('handleAuthorizeTangent',data);
+        setIsTangentAuthorized(true);
+        setTerminalType('TANGENT');
+        setIsPinModalVisible(false);
+        setTreasuryPin('');
+        setPinError('');
+      },
+      onError: (error) => {
+        console.log('validatePin',error);
+        showError('Invalid PIN. Please try again.')
+      }
+    });
+  };
+
   return (
     <>
       <Modal visible={visible} transparent animationType="slide">
@@ -471,6 +528,70 @@ export default function PaymentSelectionModal({
         scanDelay={1000}
       />
 
+          <Modal
+            visible={isPinModalVisible}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setIsPinModalVisible(false)}
+          >
+            <KeyboardAvoidingView 
+              style={styles.pinModalOverlay} 
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            >
+              <View style={styles.pinModalContent}>
+                <View style={styles.pinHeaderIcon}>
+                  <Ionicons name="lock-closed" size={32} color="#007AFF" />
+                </View>
+                <Text style={styles.pinModalTitle}>Treasury Authorization</Text>
+                <Text style={styles.pinModalSubtitle}>
+                  Tangent terminal is restricted. Please ask Treasury to enter their PIN to proceed.
+                </Text>
+
+                <TextInput
+                  style={styles.pinInput}
+                  secureTextEntry
+                  keyboardType="numeric"
+                  maxLength={6}
+                  value={treasuryPin}
+                  onChangeText={(text) => {
+                    setTreasuryPin(text);
+                    setPinError('');
+                  }}
+                  placeholder="Enter PIN"
+                  autoFocus={true}
+                  editable={!isPending}
+                />
+
+                <View style={styles.pinActions}>
+                  <TouchableOpacity 
+                    style={styles.pinCancelButton}
+                    onPress={() => {
+                      setIsPinModalVisible(false);
+                      setTreasuryPin('');
+                      setPinError('');
+                    }}
+                  >
+                    <Text style={styles.pinCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[
+                      styles.pinConfirmButton,
+                      isPending && { opacity: 0.7 } // Dim button while loading
+                    ]}
+                    onPress={handleAuthorizeTangent}
+                    disabled={isPending} // ✨ Prevent double taps
+                  >
+                    {/* ✨ Swap text for a spinner so the UI feels responsive */}
+                    {isPending ? (
+                      <ActivityIndicator color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.pinConfirmText}>Authorize</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </KeyboardAvoidingView>
+          </Modal>
     </>
   );
 }
@@ -535,5 +656,96 @@ const styles = StyleSheet.create({
   },
   toggleBtnTextActive: {
     color: '#FFFFFF',
+  },
+
+  // ✨ NEW: PIN Modal Styles
+  pinModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pinModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    width: '85%',
+    maxWidth: 400,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  pinHeaderIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#E5F1FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  pinModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1C1C1E',
+    marginBottom: 8,
+  },
+  pinModalSubtitle: {
+    fontSize: 14,
+    color: '#8E8E93',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  pinInput: {
+    backgroundColor: '#F2F2F7',
+    borderRadius: 12,
+    width: '100%',
+    padding: 16,
+    fontSize: 24,
+    letterSpacing: 8,
+    textAlign: 'center',
+    color: '#1C1C1E',
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  pinErrorText: {
+    color: '#FF3B30',
+    fontSize: 14,
+    marginBottom: 16,
+    fontWeight: '500',
+  },
+  pinActions: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+    marginTop: 16,
+  },
+  pinCancelButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#F2F2F7',
+    alignItems: 'center',
+  },
+  pinCancelText: {
+    color: '#1C1C1E',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  pinConfirmButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#007AFF',
+    alignItems: 'center',
+  },
+  pinConfirmText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

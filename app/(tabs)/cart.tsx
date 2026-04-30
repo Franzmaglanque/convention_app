@@ -264,6 +264,11 @@ export default function CartScreen() {
             setOrderNo(orderNo.toString());
             setCartItems(response.data.order_items);
             setPayments(response.data.order_payments);
+
+            // setCustomerCardNumber(response.data.customer_card_no);
+            // setCustomerCardNumber("423432");
+            setIsCardedTransaction(response.data.isCarded)
+
             setIsCartSynced(true);
             if (response.data.remaining_balance !== undefined) {
               console.log('setting remaining balance', response.data.remaining_balance);

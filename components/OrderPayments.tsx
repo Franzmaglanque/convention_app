@@ -70,7 +70,9 @@ const PaymentItem = ({ item }: { item: Payment }) => {
                     <Text style={styles.methodText}>{item.payment_method}</Text>
                 </View>
                 <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
-                    <Text style={styles.statusText}>{item.status}</Text>
+                    {/* <Text style={styles.statusText}>{item.status}</Text> */}
+                    <Text style={styles.statusText}>{item.status == 'completed' ? 'success' : item.status}</Text>
+
                 </View>
             </View>
 

@@ -10,6 +10,7 @@ export const API_ENDPOINTS = {
     REFRESH: '/auth/refresh',
     ME: '/auth/me',
     VERIFY_TOKEN: '/auth/verify',
+    VALIDATE_TRS_PIN: '/auth/trs/pin',
   },
 
   STORES: {

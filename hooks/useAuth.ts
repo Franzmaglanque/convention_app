@@ -55,3 +55,19 @@ export function useLogout() {
     
 }
 
+export function useValidatePin() {
+
+     return useMutation({
+        mutationKey: ['validate-pin'],
+        mutationFn: (body:{pin_code:string}) => authService.validateTrsPin(body),
+        onSuccess: (responseData) => {
+            console.log('Pin validation response', responseData);
+        },
+        onError: (error) => {
+            console.log('Pin validation failed:', error);
+           
+        }
+    })
+    
+}
+
