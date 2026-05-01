@@ -1,9 +1,9 @@
+import UpdateModal from '@/components/modals/UpdateModal';
 import ToastProvider from '@/components/ToastProvider';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import LoadingSpinner from '@/components/LoadingSpinner';
 
 export default function RootLayout() {
     const [queryClient] = useState(() => new QueryClient());
@@ -32,6 +32,8 @@ export default function RootLayout() {
                     {/* Always include not-found */}
                     <Stack.Screen name="+not-found" />
                 </Stack>
+
+                <UpdateModal />
             </ToastProvider>
         </QueryClientProvider>
     );
