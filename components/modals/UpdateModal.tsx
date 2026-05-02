@@ -56,7 +56,7 @@ export default function UpdateModal() {
           {/* Optional: Add a Cancel button if forceUpdate is false */}
           {!downloadInfo?.forceUpdate && !isDownloading && (
              <TouchableOpacity onPress={() => setUpdateAvailable(false)}>
-               <Text style={styles.cancelText}>Later</Text>
+               <Text style={styles.cancelText}>cancel</Text>
              </TouchableOpacity>
           )}
         </View>
