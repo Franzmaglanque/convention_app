@@ -1,8 +1,6 @@
 import LoadPaymentSelectionModal from '@/components/modals/LoadPaymentSelectionModal';
 import { useToast } from '@/components/ToastProvider';
-import { useAuth } from '@/hooks/useAuth';
 import { useFetchDataPromos, useFetchTelcos, useProcessLoadSelling } from '@/hooks/useLoad';
-import { newOrder } from '@/hooks/useOrder';
 import { useProcessPayment, usePwalletDebit, useSaveCashPayment, useSaveCreditCardPayment, useSkyroPayment } from '@/hooks/usePayment';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
@@ -22,7 +20,6 @@ type DataPromo = {
 };
 
 export default function LoadScreen() {
-    const { user } = useAuth();
     const [mobileNumber, setMobileNumber] = useState('');
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const { showSuccess, showError, showInfo } = useToast();
@@ -37,8 +34,7 @@ export default function LoadScreen() {
     const [selectedPromo, setSelectedPromo] = useState<DataPromo | null>(null);
 
     const COMMERCIAL_PRESETS = [500, 1000, 1500, 2000];
-    
-    const newOrderMutation = newOrder();
+
     const pwalletDebitMutation = usePwalletDebit();
     const cashPaymentMutation = useSaveCashPayment();
     const creditCardPaymentMutation = useSaveCreditCardPayment();
@@ -80,20 +76,6 @@ export default function LoadScreen() {
     };
 
     const handleConfirmPayment = async(payment_details:any) => {
-
-      // const response = await newOrderMutation.mutateAsync({
-      //   user_id: user?.id || null,
-      //   vendor_code: user?.supplier_code || null,
-      //   customerCardNumber: ''
-      // });
-      
-      // console.log('New order mutation result:', response);
-      // // 2. Extract the order_no
-      // const orderNo = response.data?.order_no;
-
-      // if (!orderNo) {
-      //   throw new Error(response.data?.message || 'Failed to retrieve order number from the server.');
-      // }
    
       const amount = 
       loadType === 'COMMERCIAL' ? selectedPreset : 

@@ -449,20 +449,7 @@ export default function PaymentSelectionModal({
         break;
     }
   };
-
-  // const handleAuthorizeTangent = () => {
-   
-  //   // if (treasuryPin === '1234') { 
-  //   //   setIsTangentAuthorized(true);
-  //   //   setTerminalType('TANGENT');
-  //   //   setIsPinModalVisible(false);
-  //   //   setTreasuryPin('');
-  //   //   setPinError('');
-  //   // } else {
-  //   //   setPinError('Invalid PIN. Please try again.');
-  //   // }
-  // };
-
+  
   const handleAuthorizeTangent = () => {
 
     console.log('pin',treasuryPin);
