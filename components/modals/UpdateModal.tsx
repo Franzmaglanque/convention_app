@@ -12,8 +12,9 @@ export default function UpdateModal() {
   useEffect(() => {
     // Check for update on mount
     UpdateService.checkForUpdate().then((updateData) => {
+      console.log('updateData',updateData);
       if (updateData) {
-        setDownloadInfo(updateData);
+        setDownloadInfo(updateData.data);
         setUpdateAvailable(true);
       }
     });
@@ -36,7 +37,10 @@ export default function UpdateModal() {
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
           <Text style={styles.title}>Update Available</Text>
-          <Text style={styles.notes}>{downloadInfo?.releaseNotes}</Text>
+          <Text style={styles.notes}>Version: {downloadInfo?.latestVersion}</Text>
+          <Text style={styles.notes}>APK Notes: {downloadInfo?.releaseNotes}</Text>
+          
+
           
           {isDownloading ? (
             <View style={styles.progressContainer}>
