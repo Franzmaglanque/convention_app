@@ -1,9 +1,11 @@
 import { UpdateService } from '@/services/Update.service';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useToast } from '../ToastProvider';
 
 // ✨ 1. Renamed to UpdateModal
 export default function UpdateModal() {
+  const { showSuccess, showError } = useToast();
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [downloadInfo, setDownloadInfo] = useState<any>(null);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -12,7 +14,7 @@ export default function UpdateModal() {
   useEffect(() => {
     // Check for update on mount
     UpdateService.checkForUpdate().then((updateData) => {
-      console.log('updateData',updateData);
+      
       if (updateData) {
         setDownloadInfo(updateData.data);
         setUpdateAvailable(true);
@@ -39,6 +41,8 @@ export default function UpdateModal() {
           <Text style={styles.title}>Update Available</Text>
           <Text style={styles.notes}>Version: {downloadInfo?.latestVersion}</Text>
           <Text style={styles.notes}>APK Notes: {downloadInfo?.releaseNotes}</Text>
+          <Text style={styles.notes}>URL: {downloadInfo?.downloadUrl}</Text>
+
           
 
           

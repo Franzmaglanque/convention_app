@@ -10,7 +10,7 @@ import { useProcessPayment, usePwalletDebit, useSaveCashPayment, useSaveCreditCa
 import { useScanProduct } from '@/hooks/useProduct';
 import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
@@ -91,21 +91,6 @@ interface CartItem {
     barcode?: string;
   };
   quantity: number;
-}
-
-// Debounce function
-function useDebounce(callback: Function, delay: number) {
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
-  return useCallback((...args: any[]) => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    
-    timeoutRef.current = setTimeout(() => {
-      callback(...args);
-    }, delay);
-  }, [callback, delay]);
 }
 
 export default function CartScreen() {
