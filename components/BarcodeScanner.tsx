@@ -1,21 +1,23 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { 
-  StyleSheet, 
-  View, 
-  Text, 
-  Button, 
-  TouchableOpacity,
-  Modal,
-  ActivityIndicator 
-} from 'react-native';
-import { 
-  CameraView, 
-  CameraType, 
-  useCameraPermissions,
-  BarcodeScanningResult 
-} from 'expo-camera';
-import { Ionicons } from '@expo/vector-icons';
 import { useToast } from '@/components/ToastProvider';
+import { Ionicons } from '@expo/vector-icons';
+import {
+  BarcodeScanningResult,
+  CameraType,
+  CameraView,
+  useCameraPermissions
+} from 'expo-camera';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Button,
+  Dimensions,
+  LayoutChangeEvent,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native';
 
 interface BarcodeScannerProps {
   isVisible: boolean;
@@ -36,6 +38,9 @@ export default function BarcodeScanner({
   const [isLoading, setIsLoading] = useState(true);
   const cameraRef = useRef<CameraView>(null);
   const { showError } = useToast();
+  const [frameLayout, setFrameLayout] = useState({ x: 0, y: 0, width: 0, height: 0 });
+  const screenWidth = Dimensions.get('window').width;
+  const screenHeight = Dimensions.get('window').height;
 
   // Request permissions when component mounts
   useEffect(() => {
@@ -44,23 +49,52 @@ export default function BarcodeScanner({
     }
   }, [isVisible]);
 
-  const handleBarcodeScanned = ({ data, type }: BarcodeScanningResult) => {
-    if (!scanned && data) {
-      setScanned(true);
-      console.log(`Scanned barcode: ${data} (type: ${type})`);
+  const onFrameLayout = (event: LayoutChangeEvent) => {
+    // We need to calculate absolute coordinates relative to the screen
+    // Since the frame is centered in an overlay, we estimate its position
+    const { width, height } = event.nativeEvent.layout;
+    const x = (screenWidth - width) / 2;
+    const y = (screenHeight - height) / 2.5; // Matches 'justifyContent: center' offset
+    setFrameLayout({ x, y, width, height });
+  };
+
+  // const handleBarcodeScanned = ({ data, type }: BarcodeScanningResult) => {
+  //   if (!scanned && data) {
+  //     setScanned(true);
+  //     console.log(`Scanned barcode: ${data} (type: ${type})`);
       
-      // Pass the scanned data to parent component
-      onBarcodeScanned(data);
+  //     // Pass the scanned data to parent component
+  //     onBarcodeScanned(data);
       
-      // Reset scanner after delay to allow next scan
-      setTimeout(() => setScanned(false), scanDelay);
+  //     // Reset scanner after delay to allow next scan
+  //     setTimeout(() => setScanned(false), scanDelay);
+  //   }
+  // };
+  const handleBarcodeScanned = (result: BarcodeScanningResult) => {
+    const { data, bounds } = result;
+
+    if (!scanned && data && bounds) {
+      const { origin, size } = bounds;
+      
+      // ✨ BOX CONSTRAINT LOGIC: 
+      // Check if the center of the barcode is within our frameLayout
+      const barcodeCenterX = origin.x + size.width / 2;
+      const barcodeCenterY = origin.y + size.height / 2;
+
+      const isInside = 
+        barcodeCenterX >= frameLayout.x &&
+        barcodeCenterX <= (frameLayout.x + frameLayout.width) &&
+        barcodeCenterY >= frameLayout.y &&
+        barcodeCenterY <= (frameLayout.y + frameLayout.height);
+
+      if (isInside) {
+        setScanned(true);
+        onBarcodeScanned(data);
+        setTimeout(() => setScanned(false), scanDelay);
+      }
     }
   };
-
-  const toggleCameraFacing = () => {
-    setFacing(current => (current === 'back' ? 'front' : 'back'));
-  };
-
+  
   const handleCameraReady = () => {
     setIsLoading(false);
   };
@@ -130,7 +164,7 @@ export default function BarcodeScanner({
         >
           <View style={styles.overlay}>
             {/* Scanner frame overlay */}
-            <View style={styles.scannerFrame}>
+            {/* <View style={styles.scannerFrame}>
               <View style={[styles.corner, styles.topLeft]} />
               <View style={[styles.corner, styles.topRight]} />
               <View style={[styles.corner, styles.bottomLeft]} />
@@ -139,17 +173,20 @@ export default function BarcodeScanner({
             
             <Text style={styles.scannerText}>
               {scanned ? 'Processing...' : 'Align barcode within frame'}
-            </Text>
+            </Text> */}
+            <View style={styles.scannerFrame} onLayout={onFrameLayout}>
+              <View style={[styles.corner, styles.topLeft]} />
+              <View style={[styles.corner, styles.topRight]} />
+              <View style={[styles.corner, styles.bottomLeft]} />
+              <View style={[styles.corner, styles.bottomRight]} />
+              
+              {/* ✨ VISUAL FEEDBACK: A scanning line animation could go here */}
+              <View style={styles.scanLine} />
+            </View>
           </View>
         </CameraView>
 
         <View style={styles.controls}>
-          {/* FIXED: Using valid Ionicons name */}
-          <TouchableOpacity style={styles.controlButton} onPress={toggleCameraFacing}>
-            <Ionicons name="camera-reverse" size={28} color="#FFFFFF" />
-            <Text style={styles.controlButtonText}>Flip</Text>
-          </TouchableOpacity>
-          
           {/* FIXED: Using valid Ionicons name */}
           <TouchableOpacity style={styles.closeControlButton} onPress={onClose}>
             <Ionicons name="close-circle" size={48} color="#FF3B30" />
@@ -177,17 +214,30 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)', // Darker background for focus
     justifyContent: 'center',
     alignItems: 'center',
   },
   scannerFrame: {
-    width: 250,
-    height: 150,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    width: 280, // Slightly wider for EAN-13 barcodes
+    height: 180,
+    borderWidth: 2,
+    borderColor: '#FFFFFF', // White border makes the box pop
     position: 'relative',
-    marginBottom: 20,
+    backgroundColor: 'transparent', // This creates the "hole" effect
+  },
+  scanLine: {
+    position: 'absolute',
+    left: 10,
+    right: 10,
+    top: '50%',
+    height: 2,
+    backgroundColor: '#007AFF',
+    opacity: 0.5,
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 10,
   },
   corner: {
     position: 'absolute',

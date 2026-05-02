@@ -619,7 +619,7 @@ export default function CartScreen() {
         } catch (error:any) {
           console.log('GCASH error',error);
           setShowPaymentModal(false)
-          showError(`Credit Card Payment Failed: ${error.message}`);
+          showError(`Gcash Payment Failed`);
           return false; 
         }
         break;
@@ -637,7 +637,7 @@ export default function CartScreen() {
         } catch (error:any) {
           console.log('SHOPEE PAY error',error);
           setShowPaymentModal(false)
-          showError(`Shopee Pay Payment Failed: ${error.message}`);
+          showError(`Shopee Pay Payment Failed:`);
           return false; 
         }
         break;
@@ -655,7 +655,7 @@ export default function CartScreen() {
         } catch (error:any) {
           console.log('HOME CREDIT error',error);
           setShowPaymentModal(false)
-          showError(`Home Credit Payment Failed: ${error.message}`);
+          showError(`Home Credit Payment Failed`);
           return false; 
         }
         break;
@@ -673,7 +673,7 @@ export default function CartScreen() {
         } catch (error:any) {
           console.log('SKYRO error',error);
           setShowPaymentModal(false)
-          showError(`Skyro Payment Failed: ${error.message}`);
+          showError(`Skyro Payment Failed`);
           return false; 
         }
         break;

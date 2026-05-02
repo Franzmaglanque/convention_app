@@ -4,7 +4,17 @@ import { useFetchDataPromos, useFetchTelcos, useProcessLoadSelling } from '@/hoo
 import { useProcessPayment, usePwalletDebit, useSaveCashPayment, useSaveCreditCardPayment, useSkyroPayment } from '@/hooks/usePayment';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View
+} from 'react-native';
 
 type LoadType = 'COMMERCIAL' | 'DATA' | 'REGULAR' | null;
 type TelcoNetwork = {
@@ -12,7 +22,6 @@ type TelcoNetwork = {
   telco: string;
 };
 
-// 1. Define the Promo Type
 type DataPromo = {
   command: string;
   description: string;
@@ -26,14 +35,11 @@ export default function LoadScreen() {
     
     const [loadType, setLoadType] = useState<LoadType>(null);
     
-    // Conditional States
-    const [selectedPreset, setSelectedPreset] = useState<number | null>(null);
+    // ✨ CHANGED: Replaced selectedPreset with commercialAmount
+    const [commercialAmount, setCommercialAmount] = useState('');
     const [selectedNetwork, setSelectedNetwork] = useState<TelcoNetwork | null>(null);
     const [customAmount, setCustomAmount] = useState('');
-
     const [selectedPromo, setSelectedPromo] = useState<DataPromo | null>(null);
-
-    const COMMERCIAL_PRESETS = [500, 1000, 1500, 2000];
 
     const pwalletDebitMutation = usePwalletDebit();
     const cashPaymentMutation = useSaveCashPayment();
@@ -46,12 +52,8 @@ export default function LoadScreen() {
         data: telcos,
         isLoading,
         isError,
-        refetch,
-        isRefetching
-    } = useFetchTelcos(loadType == 'DATA' ? true : false);
+    } = useFetchTelcos(loadType === 'DATA');
 
-    // 3. Fetch Promos ONLY when a network is actually selected
-    // Note: You need to create this hook in your useLoad.ts file!
     const {
         data: promosRes,
         isLoading: isPromosLoading,
@@ -59,9 +61,9 @@ export default function LoadScreen() {
     } = useFetchDataPromos(selectedNetwork?.telco!);
 
     const isFormValid = () => {
-      console.log('loadType:', loadType);
         if (mobileNumber.length < 10) return false;
-        if (loadType === 'COMMERCIAL' && !selectedPreset) return false;
+        // ✨ CHANGED: Validate the new commercialAmount input
+        if (loadType === 'COMMERCIAL' && (!commercialAmount || isNaN(Number(commercialAmount)))) return false;
         if (loadType === 'DATA' && (!selectedNetwork || !selectedPromo)) return false;
         if (loadType === 'REGULAR' && (!customAmount || isNaN(Number(customAmount)))) return false;
         return true;
@@ -69,391 +71,320 @@ export default function LoadScreen() {
 
     const handleLoadTypeChange = (type: LoadType) => {
         setLoadType(type);
-        setSelectedPreset(null);
+        // ✨ CHANGED: Reset the new commercialAmount
+        setCommercialAmount('');
         setSelectedNetwork(null);
         setCustomAmount('');
         setSelectedPromo(null);
     };
 
-    const handleConfirmPayment = async(payment_details:any) => {
-   
+    const handleConfirmPayment = async(payment_details: any) => {
+      // ✨ CHANGED: Calculate amount based on commercialAmount input
       const amount = 
-      loadType === 'COMMERCIAL' ? selectedPreset : 
-      loadType === 'DATA' ? selectedPromo?.amount : 
-      loadType === 'REGULAR' ? Number(customAmount) : 0
+        loadType === 'COMMERCIAL' ? Number(commercialAmount) : 
+        loadType === 'DATA' ? selectedPromo?.amount : 
+        loadType === 'REGULAR' ? Number(customAmount) : 0;
 
-      console.log('Amount to process:', amount);
-      console.log('payload for load selling', {
-        mobile_number: mobileNumber,
-        load_type: loadType,
-        amount: amount,
-        network: selectedNetwork?.telco ?? null,
-        promo: selectedPromo ?? null
-      });
-      console.log('payment_details', payment_details);
-      const orderNo = await processLoadSellingMutation.mutateAsync({
-        load_type: loadType,
-        mobile_number: mobileNumber,
-        network: selectedNetwork?.telco ?? null,
-        promo: selectedPromo ?? null,
-        amount: amount,
-        sku: loadType === 'COMMERCIAL' ? '349315' : loadType === 'REGULAR' ? '322304' : null
-      })
-      console.log('dsadsadasdas',orderNo);
+      try {
+        const orderNo = await processLoadSellingMutation.mutateAsync({
+          load_type: loadType,
+          mobile_number: mobileNumber,
+          network: selectedNetwork?.telco ?? null,
+          promo: selectedPromo ?? null,
+          amount: amount,
+          sku: loadType === 'COMMERCIAL' ? '349315' : loadType === 'REGULAR' ? '322304' : null
+        });
 
-      if (!orderNo) {
-        throw new Error('Failed to retrieve order number from the server.');
-      }
+        if (!orderNo) throw new Error('Failed to retrieve order number from the server.');
 
-      
-      switch (payment_details.method){
-
-        case 'PWALLET':
-          try {
+        switch (payment_details.method){
+          case 'PWALLET':
             await pwalletDebitMutation.mutateAsync({
               reference_no: payment_details?.referenceNumber ?? "",
               amount: Number(amount!),
               store_code: 801,
-              order_no:orderNo.toString(),
-              payment_method:payment_details.method
+              order_no: orderNo.toString(),
+              payment_method: payment_details.method
             });
-          } catch (error:any) {
-            console.log('PWALLET error',error.message);
-            setShowPaymentModal(false)
-            showError(error.message);
-            return false; 
-          }
-          break;
-        
-        case 'CASH':
-          try {
-            console.log('Processing cash payment with details:', {
-              cash_bill:payment_details.cashReceived.toString(),
-              cash_change:payment_details.change.toString(),    
-              amount:amount!,
-              payment_method:payment_details.method,
-              order_no:orderNo!,
-            });
+            break;
+          case 'CASH':
             await cashPaymentMutation.mutateAsync({
-              cash_bill:payment_details.cashReceived.toString(),
-              cash_change:payment_details.change.toString(),
-              amount:Number(amount!),
-              payment_method:payment_details.method,
-              order_no:orderNo.toString(),
-
+              cash_bill: payment_details.cashReceived.toString(),
+              cash_change: payment_details.change.toString(),
+              amount: Number(amount!),
+              payment_method: payment_details.method,
+              order_no: orderNo.toString(),
             });
-          } catch (error) {
-            setShowPaymentModal(false)
-            showError('Cash Payment Failed.');
-            return false; 
-          }
-          break;
-
-        case 'CREDIT_DEBIT_CARD':
-          try {
-            console.log('Processing credit card payment with details:', {
-              amount:amount!,
-              payment_method:payment_details.method,
-              order_no:orderNo.toString(),
-              reference_no:payment_details.referenceNumber!,
-              qr_code_data:payment_details.ccQrData,
-              terminal_type:payment_details.terminalType,
-              card_type:payment_details.cardType ?? null,
-
-          })
+            break;
+          case 'CREDIT_DEBIT_CARD':
             await creditCardPaymentMutation.mutateAsync({
-              amount:amount!,
-              payment_method:payment_details.method,
-              order_no:orderNo.toString(),
-              reference_no:payment_details.referenceNumber!,
-              qr_code_data:payment_details.ccQrData,
-              terminal_type:payment_details.terminalType,
-              card_type:payment_details.cardType ?? null,
-
+              amount: amount!,
+              payment_method: payment_details.method,
+              order_no: orderNo.toString(),
+              reference_no: payment_details.referenceNumber!,
+              qr_code_data: payment_details.ccQrData,
+              terminal_type: payment_details.terminalType,
+              card_type: payment_details.cardType ?? null,
             });
-          } catch (error) {
-            setShowPaymentModal(false)
-            showError('Credit Card Payment Failed.');
-            return false; 
-          }
-          break;
-
-        case 'GCASH':
-          try {
-            const gcashResponse = await processPaymentMutation.mutateAsync({
-              order_no:orderNo.toString(),
-              payment_method:payment_details.method,
-              amount:amount!,
-              reference_no:payment_details.referenceNumber!
+            break;
+          case 'GCASH':
+          case 'SHOPEE_PAY':
+          case 'HOME_CREDIT':
+            await processPaymentMutation.mutateAsync({
+              order_no: orderNo.toString(),
+              payment_method: payment_details.method,
+              amount: amount!,
+              reference_no: payment_details.referenceNumber!
             });
-            console.log('GCASH RESPONSE',gcashResponse);
-          } catch (error:any) {
-            console.log('GCASH error',error);
-            setShowPaymentModal(false)
-            showError(`Credit Card Payment Failed: ${error.message}`);
-            return false; 
-          }
-          break;
-
-        case 'SHOPEE_PAY':
-          try {
-            const shopeePayResponse = await processPaymentMutation.mutateAsync({
-              order_no:orderNo.toString(),
-              payment_method:payment_details.method,
-              amount:amount!,
-              reference_no:payment_details.referenceNumber!
-            });
-            console.log('SHOPEE PAY RESPONSE',shopeePayResponse);
-          } catch (error:any) {
-            console.log('SHOPEE PAY error',error);
-            setShowPaymentModal(false)
-            showError(`Shopee Pay Payment Failed: ${error.message}`);
-            return false; 
-          }
-          break;
-        
-        case 'HOME_CREDIT':
-          try {
-            const homeCreditResponse = await processPaymentMutation.mutateAsync({
-              order_no:orderNo.toString(),
-              payment_method:payment_details.method,
-              amount:amount!,
-              reference_no:payment_details.referenceNumber!
-            });
-            console.log('HOME CREDIT RESPONSE',homeCreditResponse);
-          } catch (error:any) {
-            console.log('HOME CREDIT error',error);
-            setShowPaymentModal(false)
-            showError(`Home Credit Payment Failed: ${error.message}`);
-            return false; 
-          }
-          break;
-
-        case 'SKYRO':
-          try {
-            
+            break;
+          case 'SKYRO':
             await skyroPaymentMutation.mutateAsync({
-              amount:amount!,
-              payment_method:payment_details.method,
-              order_no:orderNo.toString(),
-              reference_no:payment_details.referenceNumber!
+              amount: amount!,
+              payment_method: payment_details.method,
+              order_no: orderNo.toString(),
+              reference_no: payment_details.referenceNumber!
             });
-          } catch (error:any) {
-            console.log('SKYRO error',error);
-            setShowPaymentModal(false)
-            showError(`Skyro Payment Failed: ${error.message}`);
-            return false; 
-          }
-          break;
+            break;
+        }
+
+        setShowPaymentModal(false);
+        handleLoadTypeChange(null); // Resets all states
+        setMobileNumber('');
+        showSuccess(`Payment of ₱${amount} added`);
+        
+      } catch (error: any) {
+        setShowPaymentModal(false);
+        showError(error.message || `${payment_details.method} Payment Failed.`);
       }
-      setShowPaymentModal(false)
-      setSelectedPreset(null)
-      setSelectedNetwork(null)
-      setCustomAmount('')
-      setSelectedPromo(null)
-      setLoadType(null)
-      setMobileNumber('')
-      showSuccess(`Payment of ₱${amount} added`);
-      
-    }
+    };
 
     const isProcessingPayment = 
-    cashPaymentMutation.isPending || 
-    creditCardPaymentMutation.isPending || 
-    pwalletDebitMutation.isPending || 
-    processPaymentMutation.isPending;
+      cashPaymentMutation.isPending || 
+      creditCardPaymentMutation.isPending || 
+      pwalletDebitMutation.isPending || 
+      processPaymentMutation.isPending ||
+      skyroPaymentMutation.isPending ||
+      processLoadSellingMutation.isPending;
 
     return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-        
-        {/* 1. Mobile Number Input (Always Visible) */}
-        
-        <View style={styles.inputWrapper}>
-          <Ionicons name="call-outline" size={20} color="#8E8E93" />
-          
-          {/* 🔥 THE STATIC PREFIX */}
-          <Text style={styles.staticPrefix}>+63 9</Text>
-
-          <TextInput
-            style={styles.input}
-            placeholder="12 345 6789" // Guides them on the remaining digits
-            placeholderTextColor="#8E8E93"
-            keyboardType="numeric"
-            maxLength={10} // A standard PH number has exactly 10 digits after '+639'
-            value={mobileNumber}
-            onChangeText={(text) => {
-              // Safety check: instantly remove any non-numeric characters (like spaces or dashes)
-              const cleaned = text.replace(/[^0-9]/g, '');
-              setMobileNumber(cleaned);
-            }}
-          />
-        </View>
-
-        {/* 2. Load Type Selection */}
-        <View style={styles.section}>
-        <Text style={styles.label}>Select Load Type</Text>
-        <View style={styles.typeContainer}>
-            <Pressable 
-            style={[styles.typeCard, loadType === 'COMMERCIAL' && styles.typeCardActive]}
-            onPress={() => handleLoadTypeChange('COMMERCIAL')}
-            >
-            <Ionicons name="briefcase-outline" size={24} color={loadType === 'COMMERCIAL' ? '#0066cc' : '#666'} />
-            <Text style={[styles.typeText, loadType === 'COMMERCIAL' && styles.typeTextActive]}>Commercial</Text>
-            </Pressable>
-
-            <Pressable 
-            style={[styles.typeCard, loadType === 'DATA' && styles.typeCardActive]}
-            onPress={() => handleLoadTypeChange('DATA')}
-            >
-            <Ionicons name="wifi-outline" size={24} color={loadType === 'DATA' ? '#0066cc' : '#666'} />
-            <Text style={[styles.typeText, loadType === 'DATA' && styles.typeTextActive]}>Data Load</Text>
-            </Pressable>
-
-            <Pressable 
-            style={[styles.typeCard, loadType === 'REGULAR' && styles.typeCardActive]}
-            onPress={() => handleLoadTypeChange('REGULAR')}
-            >
-            <Ionicons name="phone-portrait-outline" size={24} color={loadType === 'REGULAR' ? '#0066cc' : '#666'} />
-            <Text style={[styles.typeText, loadType === 'REGULAR' && styles.typeTextActive]}>Regular</Text>
-            </Pressable>
-        </View>
-        </View>
-
-        {/* 3. Conditional Rendering based on Load Type */}
-        {loadType === 'COMMERCIAL' && (
-        <View style={styles.section}>
-            <Text style={styles.label}>Select Preset Amount</Text>
-            <View style={styles.gridContainer}>
-            {COMMERCIAL_PRESETS.map((amount) => (
-                <Pressable
-                key={amount}
-                style={[styles.gridItem, selectedPreset === amount && styles.gridItemActive]}
-                onPress={() => setSelectedPreset(amount)}
-                >
-                <Text style={[styles.gridItemText, selectedPreset === amount && styles.gridItemTextActive]}>
-                    ₱{amount}
-                </Text>
-                </Pressable>
-            ))}
-            </View>
-        </View>
-        )}
-
-        {loadType === 'DATA' && (
-        <View style={styles.section}>
-            <Text style={styles.label}>Select Network Provider</Text>
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
             
-            {/* Show Spinner if loading */}
-            {isLoading ? (
-            <View style={{ padding: 20, alignItems: 'center', justifyContent: 'center' }}>
-                <ActivityIndicator size="large" color="#0066cc" />
-                <Text style={{ marginTop: 10, color: '#666', fontSize: 14 }}>
-                Loading networks...
-                </Text>
+            {/* 1. Mobile Number Input */}
+            <View style={styles.section}>
+              <Text style={styles.label}>Customer Mobile Number</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons name="call-outline" size={20} color="#8E8E93" />
+                <Text style={styles.staticPrefix}>+63</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="917 123 4567" 
+                  placeholderTextColor="#8E8E93"
+                  keyboardType="numeric"
+                  maxLength={10} 
+                  value={mobileNumber}
+                  onChangeText={(text) => setMobileNumber(text.replace(/[^0-9]/g, ''))}
+                />
+              </View>
             </View>
-            ) : isError ? (
-            /* Optional: Show error state if the fetch fails */
-            <View style={{ padding: 20, alignItems: 'center' }}>
-                <Text style={{ color: 'red' }}>Failed to load networks.</Text>
-            </View>
-            ) : (
-            /* Show Grid when loading is done */
-            <View style={styles.gridContainer}>
-                {telcos.data.map((network: any) => (
-                <Pressable
-                    key={network.telco}
-                    // Pro-tip: Compare IDs instead of the whole object to ensure the active style applies correctly!
-                    style={[styles.gridItem, selectedNetwork?.telco === network.telco && styles.gridItemActive]}
-                    onPress={() => setSelectedNetwork(network)}
-                >
-                    <Text style={[styles.gridItemText, selectedNetwork?.telco === network.telco && styles.gridItemTextActive]}>
-                    {network.telco}
+
+            {/* 2. Load Type Selection */}
+            <View style={styles.section}>
+            <Text style={styles.label}>Select Load Type</Text>
+            <View style={styles.typeContainer}>
+                {(['COMMERCIAL', 'DATA', 'REGULAR'] as LoadType[]).map((type) => (
+                  <Pressable 
+                    key={type}
+                    style={({ pressed }) => [
+                      styles.typeCard, 
+                      loadType === type && styles.activeCardStyle,
+                      pressed && { opacity: 0.7 }
+                    ]}
+                    onPress={() => handleLoadTypeChange(type)}
+                  >
+                    <Ionicons 
+                      name={type === 'COMMERCIAL' ? 'briefcase-outline' : type === 'DATA' ? 'wifi-outline' : 'phone-portrait-outline'} 
+                      size={24} 
+                      color={loadType === type ? '#0066cc' : '#666'} 
+                    />
+                    <Text style={[styles.typeText, loadType === type && styles.activeTextHeavy]}>
+                      {type === 'COMMERCIAL' ? 'Commercial' : type === 'DATA' ? 'Data Load' : 'Regular'}
                     </Text>
-                </Pressable>
+                  </Pressable>
                 ))}
             </View>
-            )}
-        </View>
-        )}
+            </View>
 
-        {/* 5. NEW: Promo List Section (Only shows when Network is selected) */}
-        {loadType === 'DATA' && selectedNetwork && (
+            {/* 3. Conditional Rendering based on Load Type */}
+            
+            {/* ✨ CHANGED: Commercial is now an input field instead of a preset grid */}
+            {loadType === 'COMMERCIAL' && (
             <View style={styles.section}>
-                <Text style={styles.label}>Select Promo Data</Text>
+                <Text style={styles.label}>Enter Commercial Amount (₱)</Text>
+                <View style={styles.inputWrapper}>
+                <Ionicons name="briefcase-outline" size={20} color="#8E8E93" style={styles.inputIcon} />
+                <TextInput
+                    style={styles.input}
+                    placeholder="e.g. 1500"
+                    placeholderTextColor="#8E8E93"
+                    keyboardType="numeric"
+                    value={commercialAmount}
+                    onChangeText={setCommercialAmount}
+                />
+                </View>
+            </View>
+            )}
 
-                {isPromosLoading ? (
+            {loadType === 'DATA' && (
+              <View style={styles.section}>
+                <Text style={styles.label}>Select Network Provider</Text>
+                {isLoading ? (
                     <View style={styles.loaderContainer}>
                         <ActivityIndicator size="large" color="#0066cc" />
-                        <Text style={styles.loaderText}>Fetching promos for {selectedNetwork.telco}...</Text>
+                        <Text style={styles.loaderText}>Loading networks...</Text>
                     </View>
-                ) : isPromosError ? (
-                    <View style={styles.loaderContainer}><Text style={{ color: 'red' }}>Failed to fetch promos.</Text></View>
+                ) : isError ? (
+                    <View style={styles.loaderContainer}>
+                        <Text style={{ color: '#E53935' }}>Failed to load networks.</Text>
+                    </View>
                 ) : (
-                    <View style={styles.promoListContainer}>
-                        {promosRes?.data?.map((promo: DataPromo) => (
-                            <Pressable
-                                key={promo.command}
-                                style={[styles.promoCard, selectedPromo?.command === promo.command && styles.promoCardActive]}
-                                onPress={() => setSelectedPromo(promo)}
-                            >
-                                <View style={styles.promoHeader}>
-                                    <Text style={[styles.promoTitle, selectedPromo?.command === promo.command && styles.promoTextActive]}>
-                                        {promo.command}
-                                    </Text>
-                                    <Text style={[styles.promoPrice, selectedPromo?.command === promo.command && styles.promoTextActive]}>
-                                        ₱{promo.amount}
-                                    </Text>
-                                </View>
-                                <Text style={[styles.promoDesc, selectedPromo?.command === promo.command && styles.promoTextActive]}>
-                                    {promo.description}
-                                </Text>
-                            </Pressable>
+                    <View style={styles.networkContainer}>
+                        {telcos.data.map((network: any) => (
+                        <Pressable
+                            key={network.telco}
+                            style={({ pressed }) => [
+                                styles.networkCard, 
+                                selectedNetwork?.telco === network.telco && styles.activeCardStyle,
+                                pressed && { opacity: 0.7 }
+                            ]}
+                            onPress={() => setSelectedNetwork(network)}
+                        >
+                            <Text style={[
+                                styles.networkCardText, 
+                                selectedNetwork?.telco === network.telco && styles.activeTextHeavy
+                            ]}>
+                            {network.telco}
+                            </Text>
+                        </Pressable>
                         ))}
                     </View>
                 )}
-            </View>
-        )}
+              </View>
+            )}
 
-        {loadType === 'REGULAR' && (
-        <View style={styles.section}>
-            <Text style={styles.label}>Enter Load Amount (₱)</Text>
-            <View style={styles.inputContainer}>
-            <Ionicons name="cash-outline" size={20} color="#666" style={styles.inputIcon} />
-            <TextInput
-                style={styles.input}
-                placeholder="e.g. 50"
-                keyboardType="numeric"
-                value={customAmount}
-                onChangeText={setCustomAmount}
+            {/* Promo List Section */}
+            {loadType === 'DATA' && selectedNetwork && (
+                <View style={styles.section}>
+                    <Text style={styles.label}>Select Promo Data</Text>
+                    {isPromosLoading ? (
+                        <View style={styles.loaderContainer}>
+                            <ActivityIndicator size="large" color="#0066cc" />
+                            <Text style={styles.loaderText}>Fetching promos for {selectedNetwork.telco}...</Text>
+                        </View>
+                    ) : isPromosError ? (
+                        <View style={styles.loaderContainer}>
+                          <Text style={{ color: '#E53935' }}>Failed to fetch promos.</Text>
+                        </View>
+                    ) : (
+                        <ScrollView 
+                            style={styles.promoListScroll}
+                            contentContainerStyle={styles.promoListContent}
+                            nestedScrollEnabled={true} 
+                            showsVerticalScrollIndicator={true} 
+                            indicatorStyle="black" 
+                        >
+                            {promosRes?.data?.map((promo: DataPromo) => {
+                                const isActive = selectedPromo?.command === promo.command;
+                                
+                                return (
+                                <Pressable
+                                    key={promo.command}
+                                    style={({ pressed }) => [
+                                      styles.promoCard, 
+                                      isActive && styles.activeCardStyle,
+                                      pressed && { transform: [{ scale: 0.98 }] } 
+                                    ]}
+                                    onPress={() => setSelectedPromo(promo)}
+                                >
+                                    <View style={styles.promoHeader}>
+                                        <View style={styles.promoTitleWrapper}>
+                                            {isActive && (
+                                                <Ionicons name="checkmark-circle" size={20} color="#0066cc" style={{ marginRight: 6 }} />
+                                            )}
+                                            <Text 
+                                              style={[styles.promoTitle, isActive && styles.activeTextHeavy]}
+                                              numberOfLines={1}
+                                            >
+                                                {promo.command}
+                                            </Text>
+                                        </View>
+                                        
+                                        <View style={[styles.priceBadge, isActive && styles.activePriceBadge]}>
+                                            <Text style={[styles.promoPrice, isActive && styles.activePriceText]}>
+                                                ₱{promo.amount}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                    <Text style={[styles.promoDesc, isActive && styles.activePromoDesc]}>
+                                        {promo.description}
+                                    </Text>
+                                </Pressable>
+                                );
+                            })}
+                        </ScrollView>
+                    )}
+                </View>
+            )}
+
+            {loadType === 'REGULAR' && (
+            <View style={styles.section}>
+                <Text style={styles.label}>Enter Load Amount (₱)</Text>
+                <View style={styles.inputWrapper}>
+                <Ionicons name="cash-outline" size={20} color="#8E8E93" style={styles.inputIcon} />
+                <TextInput
+                    style={styles.input}
+                    placeholder="e.g. 50"
+                    placeholderTextColor="#8E8E93"
+                    keyboardType="numeric"
+                    value={customAmount}
+                    onChangeText={setCustomAmount}
+                />
+                </View>
+            </View>
+            )}
+
+            {/* 4. Payment Button */}
+            <View style={styles.footer}>
+            <Pressable 
+                style={({ pressed }) => [
+                  styles.paymentButton, 
+                  !isFormValid() && styles.paymentButtonDisabled,
+                  pressed && isFormValid() && { opacity: 0.8 }
+                ]}
+                disabled={!isFormValid()}
+                onPress={() => setShowPaymentModal(true)}
+            >
+                <Text style={styles.paymentButtonText}>Proceed to Payment</Text>
+                <Ionicons name="arrow-forward" size={20} color="#fff" />
+            </Pressable>
+            </View>
+            
+            <LoadPaymentSelectionModal
+              visible={showPaymentModal}
+              onClose={() => setShowPaymentModal(false)}
+              // ✨ CHANGED: Pass the correct amount based on current loadType
+              amount={
+                loadType === 'COMMERCIAL' ? Number(commercialAmount) : 
+                (selectedPromo ? selectedPromo.amount : Number(customAmount))
+              }
+              onConfirmPayment={handleConfirmPayment}
+              isProcessing={isProcessingPayment}
             />
-            </View>
-        </View>
-        )}
-
-        {/* 4. Payment Button */}
-        <View style={styles.footer}>
-        <Pressable 
-            style={[styles.paymentButton, !isFormValid() && styles.paymentButtonDisabled]}
-            disabled={!isFormValid()}
-            // onPress={handleConfirmPayment}
-            onPress={() =>setShowPaymentModal(true)}
-
-        >
-            <Text style={styles.paymentButtonText}>Proceed to Payment</Text>
-            <Ionicons name="arrow-forward" size={20} color="#fff" />
-        </Pressable>
-        </View>
-        <LoadPaymentSelectionModal
-          visible={showPaymentModal}
-          onClose={() => setShowPaymentModal(false)}
-          // onSelectPayment={handlePaymentSelected}
-          amount={selectedPreset || (selectedPromo ? selectedPromo.amount : Number(customAmount))}
-          // onConfirmPayment={handlePayment}
-          onConfirmPayment={handleConfirmPayment}
-
-          isProcessing={isProcessingPayment}
-        />
-    </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     );
 }
 
@@ -469,162 +400,26 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08, 
+    shadowRadius: 4,
+    elevation: 3,
   },
   label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: 14, 
+    fontWeight: '700',
+    color: '#1C1C1E',
     marginBottom: 12,
+    textTransform: 'uppercase', 
+    letterSpacing: 0.5,
   },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#fafafa',
-  },
-  inputIcon: {
-    marginRight: 8,
-  },
-  input: {
-    flex: 1,
-    height: 50,
-    fontSize: 16,
-    color: '#333'
-  },
-  typeContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  typeCard: {
-    flex: 1,
-    alignItems: 'center',
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    backgroundColor: '#fafafa',
-  },
-  typeCardActive: {
+  activeCardStyle: {
     borderColor: '#0066cc',
     backgroundColor: '#e6f0fa',
   },
-  typeText: {
-    marginTop: 8,
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#666',
-  },
-  typeTextActive: {
+  activeTextHeavy: {
     color: '#0066cc',
     fontWeight: '700',
-  },
-  gridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  gridItem: {
-    width: '47%',
-    paddingVertical: 16,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    alignItems: 'center',
-    backgroundColor: '#fafafa',
-  },
-  gridItemActive: {
-    borderColor: '#0066cc',
-    backgroundColor: '#0066cc',
-  },
-  gridItemText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  gridItemTextActive: {
-    color: '#fff',
-  },
-  footer: {
-    marginTop: 8,
-  },
-  paymentButton: {
-    backgroundColor: '#0066cc',
-    flexDirection: 'row',
-    height: 56,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-  },
-  paymentButtonDisabled: {
-    backgroundColor: '#a0c4e8',
-  },
-  paymentButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  
-
-  // --- NEW STYLES FOR PROMO CARDS ---
-
-  promoListContainer: {
-    gap: 12,
-  },
-  promoCard: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 16,
-    backgroundColor: '#fafafa',
-  },
-  promoCardActive: {
-    borderColor: '#0066cc',
-    backgroundColor: '#e6f0fa',
-  },
-  promoHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  promoTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#333',
-    flex: 1,
-  },
-  promoPrice: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#0066cc',
-    marginLeft: 12,
-  },
-  promoDesc: {
-    fontSize: 13,
-    color: '#666',
-    lineHeight: 18,
-  },
-  promoTextActive: {
-    color: '#005bb5',
-  },
-  loaderContainer: {
-    padding: 20, 
-    alignItems: 'center', 
-    justifyContent: 'center'
-  },
-  loaderText: {
-    marginTop: 10, 
-    color: '#666', 
-    fontSize: 14
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -633,7 +428,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E5EA',
     borderRadius: 12,
-    marginBottom: 16,
     height: 56,
     paddingHorizontal: 16,
   },
@@ -644,8 +438,177 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     marginRight: 8,
     borderRightWidth: 1,
-    borderRightColor: '#ddd', // Creates a nice divider line
+    borderRightColor: '#ddd',
     paddingRight: 8,
   },
+  inputIcon: {
+    marginRight: 8,
+  },
+  input: {
+    flex: 1,
+    height: 50,
+    fontSize: 18, 
+    fontWeight: '500',
+    color: '#1C1C1E'
+  },
+  typeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  typeCard: {
+    flex: 1,
+    alignItems: 'center',
+    padding: 14,
+    borderWidth: 1.5, 
+    borderColor: '#E5E5EA',
+    borderRadius: 10,
+    backgroundColor: '#fff',
+  },
+  typeText: {
+    marginTop: 8,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#8E8E93',
+  },
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  gridItem: {
+    width: '48%', 
+    paddingVertical: 16,
+    borderWidth: 1.5,
+    borderColor: '#E5E5EA',
+    borderRadius: 10,
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  gridItemText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  promoListContainer: {
+    gap: 12,
+  },
+  promoCard: {
+    borderWidth: 1.5,
+    borderColor: '#E5E5EA',
+    borderRadius: 12,
+    padding: 16,
+    backgroundColor: '#fff',
+  },
+  promoHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  promoTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1C1C1E',
+    flexShrink: 1,
+  },
+  promoPrice: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1C1C1E',
+  },
+  promoDesc: {
+    fontSize: 13,
+    color: '#8E8E93', 
+    lineHeight: 18,
+  },
+  footer: {
+    marginTop: 8,
+  },
+  paymentButton: {
+    backgroundColor: '#0066cc',
+    flexDirection: 'row',
+    height: 60, 
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    shadowColor: '#0066cc',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  paymentButtonDisabled: {
+    backgroundColor: '#D1D1D6',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  paymentButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  loaderContainer: {
+    padding: 30, 
+    alignItems: 'center', 
+    justifyContent: 'center'
+  },
+  loaderText: {
+    marginTop: 12, 
+    color: '#8E8E93', 
+    fontSize: 14,
+    fontWeight: '500'
+  },
+  networkContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between', 
+    gap: 8,
+  },
+  networkCard: {
+    width: '31.5%', 
+    paddingVertical: 14,
+    borderWidth: 1.5,
+    borderColor: '#E5E5EA',
+    borderRadius: 10,
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  networkCardText: {
+    fontSize: 14, 
+    fontWeight: '700',
+    color: '#333',
+  },
+  promoTitleWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    paddingRight: 12, 
+  },
+  priceBadge: {
+    backgroundColor: '#F2F2F7', 
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  activePriceBadge: {
+    backgroundColor: '#0066cc', 
+  },
+  activePriceText: {
+    color: '#ffffff', 
+  },
+  activePromoDesc: {
+    color: '#004a99', 
+  },
+  promoListScroll: {
+    maxHeight: 280, 
+    marginTop: 4,
+    borderRadius: 12, 
+  },
+  promoListContent: {
+    gap: 12,
+    paddingRight: 6, 
+    paddingBottom: 8, 
+  },
 });
-
