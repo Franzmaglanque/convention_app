@@ -166,6 +166,16 @@ export default function LoadScreen() {
       skyroPaymentMutation.isPending ||
       processLoadSellingMutation.isPending;
 
+    const handleAmount =  () => {
+      const discount = Math.floor(Number(commercialAmount) / 10000) * 400;
+
+      const amount = loadType === 'COMMERCIAL' 
+      ? (Number(commercialAmount) - discount) 
+      : (selectedPromo ? selectedPromo.amount : Number(customAmount));
+
+      return amount;
+    }
+
     return (
       <KeyboardAvoidingView 
         style={{ flex: 1 }} 
@@ -374,12 +384,9 @@ export default function LoadScreen() {
             
             <LoadPaymentSelectionModal
               visible={showPaymentModal}
-              onClose={() => setShowPaymentModal(false)}
-              // ✨ CHANGED: Pass the correct amount based on current loadType
-              amount={
-                loadType === 'COMMERCIAL' ? Number(commercialAmount) : 
-                (selectedPromo ? selectedPromo.amount : Number(customAmount))
-              }
+              onClose={() => setShowPaymentModal(false)}   
+              amount={handleAmount()}
+              discount={Math.floor(Number(commercialAmount) / 10000) * 400}
               onConfirmPayment={handleConfirmPayment}
               isProcessing={isProcessingPayment}
             />

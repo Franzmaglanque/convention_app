@@ -42,6 +42,7 @@ interface PaymentSelectionModalProps {
   visible: boolean;
   onClose: () => void;
   amount: number;
+  discount: number;
   onConfirmPayment: (details: PaymentDetails) => void;
   isProcessing: boolean; // ✨ NEW: Tell the modal when the API is running
 }
@@ -55,7 +56,8 @@ export default function LoadPaymentSelectionModal({
   onClose,
   onConfirmPayment,
   isProcessing,
-  amount
+  amount,
+  discount
 }: PaymentSelectionModalProps) {
   
   // --- STATE ---
@@ -163,25 +165,6 @@ export default function LoadPaymentSelectionModal({
     </ScrollView>
   );
 
-  // Helper function to render the reusable "Amount to Pay" row with the auto-fill button
-  // const renderAmountInputSection = () => (
-  //   <>
-  //     <View style={styles.amountHeaderRow}>
-  //       <Text style={styles.inputLabelClean}>Amount to Pay</Text>
-  //       <TouchableOpacity onPress={() => setInputAmount(roundMoney(amount).toString())}>
-  //         <Text style={styles.fillBalanceText}>Pay Full: {formatCurrency(amount)}</Text>
-  //       </TouchableOpacity>
-  //     </View>
-  //     <TextInput
-  //       style={styles.textInput}
-  //       keyboardType="decimal-pad"
-  //       value={inputAmount}
-  //       onChangeText={setInputAmount}
-  //       placeholder="0.00"
-  //       autoFocus
-  //     />
-  //   </>
-  // );
   const renderAmountInputSection = () => {
     if (selectedMethod === 'CASH') {
       return (
@@ -485,13 +468,29 @@ export default function LoadPaymentSelectionModal({
               </TouchableOpacity>
             </View>
 
-            {!selectedMethod && (
+            {/* {!selectedMethod && (
               <View style={styles.balanceContainer}>
                 <Text style={styles.balanceLabel}>Amount Due</Text>
                 <Text style={styles.balanceValue}>{formatCurrency(amount)}</Text>
               </View>
-            )}
+            )} */}
+            {!selectedMethod && (
+              <View style={styles.balanceContainer}>
+                <Text style={styles.balanceLabel}>Amount Due</Text>
+                
+                {discount > 0 && (
+                  <View style={styles.discountBadge}>
+                    <Ionicons name="pricetag" size={14} color="#34C759" />
+                    <Text style={styles.discountText}>
+                      Discount Applied: -{formatCurrency(discount)}
+                    </Text>
+                  </View>
+                )}
 
+                <Text style={styles.balanceValue}>{formatCurrency(amount)}</Text>
+              </View>
+            )}
+  
             {selectedMethod ? renderPaymentForm() : renderMethodList()}
 
           </View>
@@ -568,5 +567,21 @@ const styles = StyleSheet.create({
   },
   toggleBtnTextActive: {
     color: '#FFFFFF',
+  },
+  discountBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5E9', // Light green background
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  discountText: {
+    color: '#34C759', // Success green
+    fontSize: 12,
+    fontWeight: '600',
+    marginLeft: 4,
   },
 });
