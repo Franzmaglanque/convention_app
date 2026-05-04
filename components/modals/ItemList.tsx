@@ -78,7 +78,15 @@ const ProductItem = React.memo(({ item,onAdd,currentQty,onRemove }:{
   );
 }, (prevProps, nextProps) => {
   // ✨ PERFORMANCE BOOST: Only re-render if the quantity changes!
-  return prevProps.currentQty === nextProps.currentQty;
+  // return prevProps.currentQty === nextProps.currentQty;
+  const qtyIsSame = prevProps.currentQty === nextProps.currentQty;
+  
+  // Check if the actual product data (like price or description) changed
+  // React Query returns new object references when data changes, so a simple equality check works perfectly!
+  const itemIsSame = prevProps.item === nextProps.item;
+
+  // Only skip the re-render if BOTH are exactly the same
+  return qtyIsSame && itemIsSame;
 });
 
 // const ItemList: React.FC<ItemListProps> = ({ visible, onClose,onAdd,cartItemsMap }) => {
