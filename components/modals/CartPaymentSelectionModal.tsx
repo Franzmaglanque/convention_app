@@ -72,19 +72,6 @@ export default function PaymentSelectionModal({
 
   const { mutate: validatePin, isPending } = useValidatePin();
   
-  // ✨ UPDATE: Reset the sub-states when changing methods
-  // const handleMethodSelect = (method: PaymentMethod) => {
-  //   setSelectedMethod(method);
-  //   setAmountPaid(balanceDue.toString());
-  //   setReferenceNumber('');
-  //   setCashReceived('');
-  //   setChange(0);
-  //   setCcQrData('');
-  //   // Reset terminal choices
-  //   setTerminalType(null);
-  //   setCardType(null);
-  // };
-
   // Form States
   const [inputAmount, setInputAmount] = useState(''); // Starts empty now!
   const [cashReceived, setCashReceived] = useState('');
@@ -192,24 +179,27 @@ export default function PaymentSelectionModal({
   );
 
   // Helper function to render the reusable "Amount to Pay" row with the auto-fill button
-  const renderAmountInputSection = () => (
-    <>
-      <View style={styles.amountHeaderRow}>
-        <Text style={styles.inputLabelClean}>Amount to Pay</Text>
-        <TouchableOpacity onPress={() => setInputAmount(roundMoney(balanceDue).toString())}>
-          <Text style={styles.fillBalanceText}>Pay Full: {formatCurrency(balanceDue)}</Text>
-        </TouchableOpacity>
-      </View>
-      <TextInput
-        style={styles.textInput}
-        keyboardType="decimal-pad"
-        value={inputAmount}
-        onChangeText={setInputAmount}
-        placeholder="0.00"
-        autoFocus
-      />
-    </>
-  );
+  const renderAmountInputSection = () => {
+    const shouldDisable = selectedMethod === 'CREDIT_DEBIT_CARD' && terminalType === 'GCASH';
+    return (
+      <>
+        <View style={styles.amountHeaderRow}>
+          <Text style={styles.inputLabelClean}>Amount to Pay</Text>
+          <TouchableOpacity onPress={() => setInputAmount(roundMoney(balanceDue).toString())}>
+            <Text style={styles.fillBalanceText}>Pay Full: {formatCurrency(balanceDue)}</Text>
+          </TouchableOpacity>
+        </View>
+        <TextInput
+          style={styles.textInput}
+          keyboardType="decimal-pad"
+          value={inputAmount}
+          onChangeText={setInputAmount}
+          placeholder="0.00"
+          editable={!shouldDisable}
+        />
+      </>
+    )
+  };
 
   const renderPaymentForm = () => {
     const numericCashReceived = parseFloat(cashReceived) || 0;
@@ -317,8 +307,9 @@ export default function PaymentSelectionModal({
                     placeholder="Enter or scan code"
                     value={referenceNo}
                     onChangeText={setReferenceNo}
+                    editable={terminalType !== 'GCASH'}
                   />
-                  <TouchableOpacity style={styles.scanButton} onPress={() => setPaymentScanner(true)}>
+                  <TouchableOpacity style={styles.scanButton} onPress={() => setPaymentScanner(true)} disabled={terminalType !== 'GCASH'}>
                     <Ionicons name="scan-outline" size={24} color="#FFFFFF" />
                   </TouchableOpacity>
                 </View>
