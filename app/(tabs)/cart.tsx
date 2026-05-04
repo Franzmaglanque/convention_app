@@ -422,7 +422,8 @@ export default function CartScreen() {
     await completeOrderMutation.mutate({
       order_no:orderNo,
       customer_no:customerNumber || null,
-      total:calculateTotal().toFixed(2)
+      total:calculateTotal().toFixed(2),
+      cart_items: cartItems
     },{
       onSuccess: (response) => {
         console.log('handleCompleteTransaction',response);

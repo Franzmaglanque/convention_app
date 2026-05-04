@@ -14,6 +14,18 @@ export function newOrder() {
   })
 }
 
+export function newLoadOrder() {
+  return useMutation({
+    mutationKey: ['new-load-order'],
+    mutationFn: () => orderService.newLoadOrder(),  // ← Accept params here
+    onSuccess: (response) => {
+
+    },
+    onError: (error) => {
+    }
+  })
+}
+
 export function useCompleteOrder() {
   return useMutation({
     mutationKey: ['complete-order'],

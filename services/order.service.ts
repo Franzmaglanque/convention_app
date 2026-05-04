@@ -13,6 +13,13 @@ class OrderService {
         return response.data;
     }
 
+    async newLoadOrder(): Promise<AxiosResponse<any>> {
+        const response: AxiosResponse<any> = await apiClient.post(
+            API_ENDPOINTS.ORDER.NEW_LOAD_ORDER,
+        );
+        return response.data;
+    }
+
     async completeOrder(params:any){
         const response = await apiClient.post(
             API_ENDPOINTS.ORDER.COMPLETE_ORDER,

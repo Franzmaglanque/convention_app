@@ -1,6 +1,7 @@
 import LoadPaymentSelectionModal from '@/components/modals/LoadPaymentSelectionModal';
 import { useToast } from '@/components/ToastProvider';
 import { useFetchDataPromos, useFetchTelcos, useProcessLoadSelling } from '@/hooks/useLoad';
+import { newLoadOrder } from '@/hooks/useOrder';
 import { useProcessPayment, usePwalletDebit, useSaveCashPayment, useSaveCreditCardPayment, useSkyroPayment } from '@/hooks/usePayment';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
@@ -47,6 +48,7 @@ export default function LoadScreen() {
     const processPaymentMutation = useProcessPayment();
     const skyroPaymentMutation = useSkyroPayment();
     const processLoadSellingMutation = useProcessLoadSelling();
+    const orderLoadMutation = newLoadOrder();    
 
     const {
         data: telcos,
@@ -80,20 +82,33 @@ export default function LoadScreen() {
 
     const handleConfirmPayment = async(payment_details: any) => {
       // ✨ CHANGED: Calculate amount based on commercialAmount input
-      const amount = 
-        loadType === 'COMMERCIAL' ? Number(commercialAmount) : 
-        loadType === 'DATA' ? selectedPromo?.amount : 
-        loadType === 'REGULAR' ? Number(customAmount) : 0;
+      // const amount = 
+      //   loadType === 'COMMERCIAL' ? Number(commercialAmount) : 
+      //   loadType === 'DATA' ? selectedPromo?.amount : 
+      //   loadType === 'REGULAR' ? Number(customAmount) : 0;
+
+      const discount = Math.floor(Number(commercialAmount) / 10000) * 400;
+
+      const amount = loadType === 'COMMERCIAL' 
+      ? (Number(commercialAmount) - discount) 
+      : (selectedPromo ? selectedPromo.amount : Number(customAmount));
+      console.log('amount payment',amount);
+      console.log('discount payment',discount);
+      
+
+      // await processLoadSellingMutation.mutateAsync({
+      //     load_type: loadType,
+      //     mobile_number: mobileNumber,
+      //     network: selectedNetwork?.telco ?? null,
+      //     promo: selectedPromo ?? null,
+      //     amount: amount,
+      //     discount:discount,
+      //     sku: loadType === 'COMMERCIAL' ? '349315' : loadType === 'REGULAR' ? '322304' : null,
+      //     order_no:orderNo
+      //   });
 
       try {
-        const orderNo = await processLoadSellingMutation.mutateAsync({
-          load_type: loadType,
-          mobile_number: mobileNumber,
-          network: selectedNetwork?.telco ?? null,
-          promo: selectedPromo ?? null,
-          amount: amount,
-          sku: loadType === 'COMMERCIAL' ? '349315' : loadType === 'REGULAR' ? '322304' : null
-        });
+        const orderNo = await orderLoadMutation.mutateAsync();
 
         if (!orderNo) throw new Error('Failed to retrieve order number from the server.');
 
@@ -146,6 +161,18 @@ export default function LoadScreen() {
             });
             break;
         }
+
+        const loadResponse = await processLoadSellingMutation.mutateAsync({
+          load_type: loadType,
+          mobile_number: mobileNumber,
+          network: selectedNetwork?.telco ?? null,
+          promo: selectedPromo ?? null,
+          amount: amount,
+          discount:discount,
+          sku: loadType === 'COMMERCIAL' ? '349315' : loadType === 'REGULAR' ? '322304' : null,
+          order_no:orderNo
+        });
+        console.log('loadResponse',loadResponse);
 
         setShowPaymentModal(false);
         handleLoadTypeChange(null); // Resets all states
@@ -361,6 +388,7 @@ export default function LoadScreen() {
                     keyboardType="numeric"
                     value={customAmount}
                     onChangeText={setCustomAmount}
+                    maxLength={3}
                 />
                 </View>
             </View>
