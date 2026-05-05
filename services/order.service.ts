@@ -1,6 +1,6 @@
 import { apiClient } from '@/lib/api/client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
-import { PostReturnPayload, ProcessReturnPayload, SyncExchangeCartPayload } from '@/types/order.types';
+import { PostReturnPayload, ProcessReturnPayload, SaveLoyaltyCardPayload, SyncExchangeCartPayload } from '@/types/order.types';
 import { AxiosResponse } from 'axios';
 
 class OrderService {
@@ -117,6 +117,14 @@ class OrderService {
     async syncCart(params:any){
         const response = await apiClient.post(
             API_ENDPOINTS.ORDER.SYNC_CART,
+            params
+        )
+        return response.data;
+    }
+
+    async saveLoyaltyCard(params:SaveLoyaltyCardPayload){
+        const response = await apiClient.post(
+            API_ENDPOINTS.ORDER.SAVE_LOYALTY_CARD,
             params
         )
         return response.data;

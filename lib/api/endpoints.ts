@@ -34,7 +34,9 @@ export const API_ENDPOINTS = {
     PROCESS_RETURN: 'order/return/process',
     POST_RETURN: 'order/return/post',
     SYNC_EXCHANGE_CART: 'order/return/sync-cart',
-    SYNC_CART: 'order/sync-cart'
+    SYNC_CART: 'order/sync-cart',
+    SAVE_LOYALTY_CARD: 'order/loyalty_card/save'
+
   },
 
   PRODUCTS: {

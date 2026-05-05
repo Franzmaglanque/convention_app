@@ -5,7 +5,7 @@ import ItemList from '@/components/modals/ItemList';
 import SMSModal from '@/components/modals/SmsModal';
 import { useToast } from '@/components/ToastProvider';
 import { useAuth } from '@/hooks/useAuth';
-import { newOrder, useCancelOrder, useCompleteOrder, useSyncCart } from '@/hooks/useOrder';
+import { newOrder, useCancelOrder, useCompleteOrder, useSaveLoyaltyCard, useSyncCart } from '@/hooks/useOrder';
 import { useProcessPayment, usePwalletDebit, useSaveCashPayment, useSaveCreditCardPayment, useScanPwalletQr, useSkyroPayment } from '@/hooks/usePayment';
 import { useScanProduct } from '@/hooks/useProduct';
 import { Ionicons } from '@expo/vector-icons';
@@ -149,15 +149,16 @@ export default function CartScreen() {
   const processPaymentMutation = useProcessPayment();
   const syncCartMutation = useSyncCart();
   const skyroPaymentMutation = useSkyroPayment();
+  const saveLoyaltyCardMutation = useSaveLoyaltyCard();
 
   const [showScanner, setShowScanner] = useState(false);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [orderNo, setOrderNo] = useState<string | null>(null);
   const [isCreatingTransaction, setIsCreatingTransaction] = useState(false);
   const [showItemList,setShowItemList] = useState(false);
-  const [ccQrData,setCcQrData] = useState('');
   const [isCartSynced, setIsCartSynced] = useState(false);
   const [remainingBalance, setRemainingBalance] = useState('');
+  const [cardModalMode, setCardModalMode] = useState('new');
 
   ////
 
@@ -752,11 +753,22 @@ export default function CartScreen() {
                 <Ionicons name="document-text-outline" size={16} color="#007AFF" />
                 <Text style={styles.orderNoText}>{orderNo}</Text>
               </View>
-              {isCardedTransaction && (
+              {isCardedTransaction ? (
                 <View style={styles.cardedBadge}>
                   <Ionicons name="id-card-outline" size={14} color="#007AFF" />
                   <Text style={styles.cardedBadgeText}>Carded</Text>
                 </View>
+              ) : (
+                <TouchableOpacity 
+                  style={styles.uncardedBadge}
+                  onPress={() =>{
+                    setCardModalMode('convert');
+                    setShowCardInputModal(true)
+                  }}
+                >
+                  <Ionicons name="person-outline" size={14} color="#8E8E93" />
+                  <Text style={styles.uncardedBadgeText}>Uncarded</Text>
+                </TouchableOpacity>
               )}
             </View>
             <Text style={styles.headerStatsText}>
@@ -1091,6 +1103,7 @@ export default function CartScreen() {
                 style={[styles.transactionTypeOption, styles.uncardedOption]}
                 onPress={() => {
                   setShowTransactionTypeModal(false);
+                  setCardModalMode('new');
                   createNewTransaction(false);
                 }}
               >
@@ -1173,10 +1186,28 @@ export default function CartScreen() {
               <TouchableOpacity 
                 style={[styles.processButton, !customerCardNumber && styles.processButtonDisabled]}
                 disabled={!customerCardNumber}
-                onPress={() => {
+                onPress={async() => {
                   if (customerCardNumber.trim()) {
                     setShowCardInputModal(false);
-                    createNewTransaction(true, customerCardNumber.trim());
+                    console.log('cardModalMode',cardModalMode);
+                    if(cardModalMode == 'convert'){
+                      // setIsCardedTransaction(true);
+                      try {
+                        // 1. We WAIT for the database to confirm it saved
+                        await saveLoyaltyCardMutation.mutateAsync({
+                          order_no: orderNo!, // whatever your payload is
+                          loyalty_card: customerCardNumber.trim()
+                        });
+                        setIsCardedTransaction(true);
+                        setShowCardInputModal(false);
+                        setCustomerCardNumber('');
+                      } catch (error) {
+                        showError('Failed to save loyalty card.');
+                      }
+                    }else{
+                      createNewTransaction(true, customerCardNumber.trim());
+                    }
+                    
                     setCustomerCardNumber('');
                   }
                 }}
@@ -1314,6 +1345,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#007AFF',
+  },
+  uncardedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F2F2F7', // Light gray background
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#C7C7CC', // Gray border
+  },
+  uncardedBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#8E8E93', // Darker gray text
   },
   orderNoText: {
     fontSize: 14,

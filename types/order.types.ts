@@ -27,6 +27,11 @@ export interface SyncExchangeCartPayload {
   }>;
 }
 
+export interface SaveLoyaltyCardPayload {
+  order_no: string;
+  loyalty_card:string;
+}
+
 // export interface SyncCartPayload {
 //   order_no: string;
 //   cart_items: Array<{

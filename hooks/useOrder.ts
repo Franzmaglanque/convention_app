@@ -1,5 +1,5 @@
 import { orderService } from '@/services/order.service';
-import { PostReturnPayload, ProcessReturnPayload, SyncCartPayload, SyncExchangeCartPayload } from '@/types/order.types';
+import { PostReturnPayload, ProcessReturnPayload, SaveLoyaltyCardPayload, SyncCartPayload, SyncExchangeCartPayload } from '@/types/order.types';
 import { useMutation, useQuery } from '@tanstack/react-query';
 
 export function newOrder() {
@@ -153,5 +153,12 @@ export function useSyncCart(){
   return useMutation({
     mutationKey: ['sync-cart'],
     mutationFn: (body:SyncCartPayload) => orderService.syncCart(body),
+  })
+}
+
+export function useSaveLoyaltyCard(){
+  return useMutation({
+    mutationKey: ['save-loyalty-card'],
+    mutationFn: (body:SaveLoyaltyCardPayload) => orderService.saveLoyaltyCard(body),
   })
 }
