@@ -3,7 +3,7 @@ import { useFetchPaymentBreakdown, useFetchTodaySales, useFetchTopSellingProduct
 import { Ionicons } from '@expo/vector-icons';
 import { Redirect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Dimensions, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Dimensions, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 
@@ -21,7 +21,8 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const screenWidth = Dimensions.get('window').width;
   const [refreshing, setRefreshing] = useState(false);
-
+  const [showAllTopItems, setShowAllTopItems] = useState(false);
+  const [showTransactionBreakdown, setShowTransactionBreakdown] = useState(false);
   const {
         data: dashboardSales,
         isLoading,
@@ -106,8 +107,8 @@ export default function HomeScreen() {
     return <Redirect href="/(tabs)/cart" />;
   }
 
-  console.log('paymentBreakdown', paymentBreakdown);
-
+  const topItems = topSellingProducts?.data || [];
+  const displayTopItems = showAllTopItems ? topItems : topItems.slice(0, 5);
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Dynamic Header */}
@@ -133,37 +134,68 @@ export default function HomeScreen() {
           />
         }  
       >
-        {/* At-a-Glance Summary Cards */}
+          {/* At-a-Glance Summary Cards */}
         <View style={styles.summaryGrid}>
+          {/* ... Today's Revenue Card remains unchanged ... */}
           <View style={[styles.summaryCard, styles.todayCard]}>
             <View style={styles.cardHeader}>
               <Text style={styles.summaryLabelLight}>Today's Revenue</Text>
               <Ionicons name="trending-up" size={20} color="#E8F4FF" />
             </View>
-            {/* <Text style={styles.summaryValueLight}>{formatCurrency(salesData.currentDay)}</Text> */}
             <Text style={styles.summaryValueLight}>{formatCurrency(dashboardSales?.data.today_sales)}</Text>
-
+            <Text style={styles.summarySubtextLight}>
+              {dashboardSales?.data.today_transactions || 0} transactions
+            </Text>
           </View>
 
-          <View style={[styles.summaryCard, styles.overallCard]}>
-             <View style={styles.cardHeader}>
+          {/* ✨ UPDATED: Expandable Total Convention Card */}
+          <TouchableOpacity 
+            style={[styles.summaryCard, styles.overallCard]}
+            activeOpacity={0.8}
+            onPress={() => setShowTransactionBreakdown(!showTransactionBreakdown)}
+          >
+            <View style={styles.cardHeader}>
               <Text style={styles.summaryLabelDark}>Total Convention</Text>
               <Ionicons name="wallet-outline" size={20} color="#8E8E93" />
             </View>
-            {/* <Text style={styles.summaryValueDark}>{formatCurrency(salesData.overallConvention)}</Text> */}
             <Text style={styles.summaryValueDark}>{formatCurrency(dashboardSales?.data.accumulated_sales)}</Text>
+            
+            <View style={styles.transactionCountRow}>
+              <Text style={styles.summarySubtextDark}>
+                {dashboardSales?.data.accumulated_transactions || 0} transactions
+              </Text>
+              <Ionicons 
+                name={showTransactionBreakdown ? "chevron-up" : "chevron-down"} 
+                size={14} 
+                color="#8E8E93" 
+                style={{ marginTop: 4 }}
+              />
+        </View>
 
-          </View>
+            {/* ✨ The Expanded Breakdown List */}
+            {showTransactionBreakdown && dashboardSales?.data.transaction_breakdown && (
+              <View style={styles.breakdownContainer}>
+                {dashboardSales.data.transaction_breakdown.map((item: any, index: number) => (
+                  <View key={index} style={styles.breakdownRow}>
+                    <Text style={styles.breakdownDate}>{item.date}</Text>
+                    <Text style={styles.breakdownCount}>{item.count} txns</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* Top Selling Items */}
+      {/* Top Selling Items */}
         <View style={styles.sectionCard}>
            <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Top Selling Items</Text>
             <Ionicons name="star-outline" size={20} color="#FF9500" />
           </View>
           
-          {topSellingProducts?.data.map((item:any, index:any) => (
+          {/* ✨ Loop over the sliced array instead of the full data */}
+          {displayTopItems.map((item:any, index:any) => (
             <View key={index} style={styles.itemRow}>
               <View style={styles.itemLeft}>
                 <View style={[styles.rankBadge, index === 0 && styles.rankBadgeTop]}>
@@ -174,7 +206,7 @@ export default function HomeScreen() {
                 <View style={styles.itemDetails}>
                   <Text 
                     style={styles.itemName} 
-                    numberOfLines={2} // Allows 2 lines, then truncates
+                    numberOfLines={2} 
                     ellipsizeMode="tail"
                   >
                     {item.description}
@@ -187,6 +219,23 @@ export default function HomeScreen() {
               </View>
             </View>
           ))}
+
+          {/* ✨ Add the Expand/Collapse Button */}
+          {topItems.length > 5 && (
+            <TouchableOpacity 
+              style={styles.viewAllButton}
+              onPress={() => setShowAllTopItems(!showAllTopItems)}
+            >
+              <Text style={styles.viewAllText}>
+                {showAllTopItems ? 'Show Less' : `View All (${topItems.length})`}
+              </Text>
+              <Ionicons 
+                name={showAllTopItems ? 'chevron-up' : 'chevron-down'} 
+                size={16} 
+                color="#007AFF" 
+              />
+            </TouchableOpacity>
+          )}
         </View>
 
           <View style={styles.card}>
@@ -517,5 +566,57 @@ const styles = StyleSheet.create({
     color: '#8E8E93', // System gray for empty states
     textAlign: 'center',
     marginVertical: 20,
+  },
+  viewAllButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 16,
+    marginTop: 4,
+  },
+  viewAllText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#007AFF',
+    marginRight: 4,
+  },
+  summarySubtextLight: {
+    fontSize: 12,
+    color: '#E8F4FF', // Matches the light blue icon color
+    marginTop: 4,
+    fontWeight: '500',
+    opacity: 0.9, // Slightly faded so it doesn't compete with the big number
+  },
+  summarySubtextDark: {
+    fontSize: 12,
+    color: '#8E8E93', // Standard iOS gray
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  transactionCountRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  breakdownContainer: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F2F2F7',
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  breakdownDate: {
+    fontSize: 12,
+    color: '#8E8E93',
+  },
+  breakdownCount: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1C1C1E',
   },
 });
