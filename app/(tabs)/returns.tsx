@@ -3,7 +3,7 @@ import PaymentSelectionModal, { PaymentDetails } from '@/components/modals/Payme
 import ProductCatalogModal from '@/components/modals/ProductCatalogModal';
 import { useToast } from '@/components/ToastProvider';
 import { useOriginalOrderItems, usePostReturn, useProcessReturn, useSyncExchangeCart, useValidateReturnOrderMutation } from '@/hooks/useOrder';
-import { usePwalletDebit, useSaveCashPayment, useSaveCreditCardPayment, useScanPwalletQr } from '@/hooks/usePayment';
+import { useProcessPayment, usePwalletDebit, useSaveCashPayment, useSaveCreditCardPayment, useScanPwalletQr, useSkyroPayment } from '@/hooks/usePayment';
 import { useScanProduct, useScanReturnProduct } from '@/hooks/useProduct';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -38,6 +38,7 @@ export default function ReturnsScreen() {
   const [currentStep, setCurrentStep] = useState<Step>('search');
   const [showBrowseModal, setShowBrowseModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  
 
   // Basic States
   const [searchInput, setSearchInput] = useState(''); // ito yung original order no na i rereturn
@@ -52,6 +53,8 @@ export default function ReturnsScreen() {
   const [appliedPayments, setAppliedPayments] = useState<PaymentDetails[]>([]);  // Tracking ng applied multi-tender payments
   const [isCartSynced, setIsCartSynced] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const skyroPaymentMutation = useSkyroPayment();
+  
 
 
   const validateOrderMutation = useValidateReturnOrderMutation();
@@ -64,6 +67,8 @@ export default function ReturnsScreen() {
   const syncExchangeCartMutation = useSyncExchangeCart();
   const scanReturnProductMutation = useScanReturnProduct();
   const scanProductMutation = useScanProduct();
+  const processPaymentMutation = useProcessPayment();
+  
 
 
   const totalReturnCredit = returnItems.reduce((sum, item) => sum + (item.price * item.returnQty), 0);
@@ -256,77 +261,173 @@ export default function ReturnsScreen() {
   };
 
   // KAPAG MAY SOBRANG PINAMILI
+  // const handleConfirmPayment = async (details: PaymentDetails) => {
+  //   setShowPaymentModal(false);
+  //   try {
+  //     if (!newOrderNo) {
+  //       showError("Missing Order Number!");
+  //       return;
+  //     }
+  //     switch (details.method){
+  //       case 'PWALLET':
+  //       //   try {
+  //       //     await pwalletDebitMutation.mutateAsync({
+  //       //       reference_no: details?.referenceNumber ?? "",
+  //       //       amount: amountNum,
+  //       //       store_code: 901,
+  //       //       order_no:orderNo!,
+  //       //       payment_method:details.paymentType
+  //       //     });
+
+
+      
+  //       //   } catch (error) {
+  //       //     console.log('debit error',error);
+  //       //     showError('Debit failed. Please try again.');
+  //       //     return false; 
+  //       //   }
+  //       //   break;
+  //       case 'CASH':
+  //         try {
+  //           await cashPaymentMutation.mutateAsync({
+  //             cash_bill:(details.cashReceived)!.toString(),
+  //             cash_change:(details.change)!.toString(),
+  //             amount:details.amountPaid,
+  //             payment_method:details.method,
+  //             order_no:newOrderNo.toString(),
+  //           });
+  //         } catch (error) {
+  //           showError('Cash Payment Failed.');
+  //           return false; 
+  //         }
+  //         break;
+
+  //       case 'CREDIT_DEBIT_CARD':
+
+  //         try {
+
+  //           await creditCardPaymentMutation.mutateAsync({
+  //             amount: details.amountPaid,
+  //             payment_method: details.method,
+  //             order_no: newOrderNo.toString(),
+  //             reference_no: details.referenceNumber || '',
+  //             qr_code_data:''
+
+  //           });
+
+  //         } catch (error) {
+  //           showError('Credit Card Payment Failed.');
+  //           return false; 
+  //         }
+  //         break;
+  //     }
+
+  //     // 2. Update local UI to show the payment
+  //     setAppliedPayments(prev => [...prev, details]);
+  //     showSuccess(`Payment of ${formatCurrency(details.amountPaid)} applied!`);
+
+  //   } catch (error) {
+      
+  //   }
+
+  // };
+
   const handleConfirmPayment = async (details: PaymentDetails) => {
-    setShowPaymentModal(false);
-    try {
-      if (!newOrderNo) {
-        showError("Missing Order Number!");
-        return;
-      }
-      switch (details.method){
-        // case 'PWALLET':
-        //   try {
-        //     await pwalletDebitMutation.mutateAsync({
-        //       reference_no: details?.referenceNumber ?? "",
-        //       amount: amountNum,
-        //       store_code: 901,
-        //       order_no:orderNo!,
-        //       payment_method:details.paymentType
-        //     });
+  // 1. Initial Validations
+  const amountNum = details.amountPaid;
+  
+  // Use the remainingBalance variable you already have in the Return Page
+  if (amountNum > remainingBalance) {
+    showError(`Payment amount cannot exceed remaining balance of ₱${remainingBalance.toFixed(2)}`);
+    return;
+  }
 
+  if (!details.method) {
+    showError('Please select a payment method');
+    return;
+  }
 
-      
-        //   } catch (error) {
-        //     console.log('debit error',error);
-        //     showError('Debit failed. Please try again.');
-        //     return false; 
-        //   }
-        //   break;
-        
-        case 'CASH':
-          try {
-            await cashPaymentMutation.mutateAsync({
-              cash_bill:(details.cashReceived)!.toString(),
-              cash_change:(details.change)!.toString(),
-              amount:details.amountPaid,
-              payment_method:details.method,
-              order_no:newOrderNo.toString(),
-            });
-          } catch (error) {
-            showError('Cash Payment Failed.');
-            return false; 
-          }
-          break;
+  // Validate reference number for specific methods
+  const needsRef = ['PWALLET', 'GCASH', 'SHOPEE_PAY', 'HOME_CREDIT', 'SKYRO'].includes(details.method);
+  if (needsRef && (!details.referenceNumber || details.referenceNumber.trim().length === 0)) {
+    showError(`Reference number is required for ${details.method}`);
+    return;
+  }
 
-        case 'CREDIT_CARD':
-
-          try {
-
-            await creditCardPaymentMutation.mutateAsync({
-              amount: details.amountPaid,
-              payment_method: details.method,
-              order_no: newOrderNo.toString(),
-              reference_no: details.referenceNumber || '',
-              qr_code_data:''
-
-            });
-
-          } catch (error) {
-            showError('Credit Card Payment Failed.');
-            return false; 
-          }
-          break;
-      }
-
-      // 2. Update local UI to show the payment
-      setAppliedPayments(prev => [...prev, details]);
-      showSuccess(`Payment of ${formatCurrency(details.amountPaid)} applied!`);
-
-    } catch (error) {
-      
+  try {
+    if (!newOrderNo) {
+      showError("Missing Order Number!");
+      return;
     }
 
-  };
+    // 2. Process Mutations based on Method
+    switch (details.method) {
+      case 'PWALLET':
+        await pwalletDebitMutation.mutateAsync({
+          reference_no: details.referenceNumber ?? "",
+          amount: amountNum,
+          store_code: 901, // Consistent with your checkout logic
+          order_no: newOrderNo.toString(),
+          payment_method: details.method
+        });
+        break;
+
+      case 'CASH':
+        await cashPaymentMutation.mutateAsync({
+          cash_bill: (details.cashReceived || 0).toString(),
+          cash_change: (details.change || 0).toString(),
+          amount: amountNum,
+          payment_method: details.method,
+          order_no: newOrderNo.toString(),
+        });
+        break;
+
+      case 'CREDIT_DEBIT_CARD':
+        console.log('CREDIT_DEBIT_CARD',details);
+        await creditCardPaymentMutation.mutateAsync({
+          amount: amountNum,
+          payment_method: details.method,
+          order_no: newOrderNo.toString(),
+          reference_no: details.referenceNumber || '',
+          qr_code_data: details.ccQrData || '',
+          terminal_type: details.terminalType, // Aligned with checkout
+          card_type: details.cardType,
+        });
+        break;
+
+      case 'GCASH':
+      case 'SHOPEE_PAY':
+      case 'HOME_CREDIT':
+        // These use the generic processPaymentMutation in your checkout logic
+        await processPaymentMutation.mutateAsync({
+          order_no: newOrderNo.toString(),
+          payment_method: details.method,
+          amount: amountNum,
+          reference_no: details.referenceNumber!
+        });
+        break;
+
+      case 'SKYRO':
+        await skyroPaymentMutation.mutateAsync({
+          amount: amountNum,
+          payment_method: details.method,
+          order_no: newOrderNo.toString(),
+          reference_no: details.referenceNumber!
+        });
+        break;
+    }
+
+    // 3. Update local UI state
+    setAppliedPayments(prev => [...prev, details]);
+    showSuccess(`Payment of ${formatCurrency(amountNum)} applied!`);
+    setShowPaymentModal(false);
+
+  } catch (error: any) {
+    console.error(`${details.method} Error:`, error);
+    // Many mutations return an error message in error.message
+    showError(error.message || `${details.method} Payment Failed.`);
+  }
+};
 
   const handleReturnBarcodeScan = async(barcodeData:string) => {
 
@@ -788,6 +889,12 @@ export default function ReturnsScreen() {
     }, {});
   }, [exchangeItems]);
 
+  const isProcessingPayment = 
+    cashPaymentMutation.isPending || 
+    creditCardPaymentMutation.isPending || 
+    pwalletDebitMutation.isPending;
+    // processPaymentMutation.isPending;
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
@@ -842,6 +949,7 @@ export default function ReturnsScreen() {
           balanceDue={remainingBalance}
           // onSelectPayment={handlePaymentSelected}
           onConfirmPayment={handleConfirmPayment}
+          isProcessing={isProcessingPayment}
         />
         <BarcodeScanner
            isVisible={showScanner}

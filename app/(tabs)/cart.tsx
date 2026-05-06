@@ -990,7 +990,7 @@ export default function CartScreen() {
               }
               setShowItemList(true);
             }}
-            disabled={!orderNo}
+            disabled={!orderNo || payments.length > 0}
           >
             <Ionicons 
               name="list-outline" 
@@ -1068,8 +1068,26 @@ export default function CartScreen() {
         {/* Loyalty Card Scanner Modal */}
       <BarcodeScanner
         isVisible={isScanningCard}
-        onBarcodeScanned={(barcodeData) => {
-          createNewTransaction(true, barcodeData);
+        onBarcodeScanned={async(barcodeData) => {
+          if(cardModalMode == 'convert'){
+            // setIsCardedTransaction(true);
+            try {
+              // 1. We WAIT for the database to confirm it saved
+              await saveLoyaltyCardMutation.mutateAsync({
+                order_no: orderNo!, // whatever your payload is
+                loyalty_card: barcodeData.trim()
+              });
+              setIsCardedTransaction(true);
+              setShowCardInputModal(false);
+              setCustomerCardNumber('');
+              setCardModalMode('new')
+            } catch (error) {
+              showError('Failed to save loyalty card.');
+            }
+          }else{
+            createNewTransaction(true, customerCardNumber.trim());
+          }
+          // createNewTransaction(true, barcodeData);
           setCustomerCardNumber('');
           setIsScanningCard(false);
         }}
