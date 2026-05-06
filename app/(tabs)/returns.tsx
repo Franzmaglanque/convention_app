@@ -238,7 +238,7 @@ export default function ReturnsScreen() {
 
       usePostReturnMutation.mutate({
         order_no:newOrderNo?.toString(),
-        total:totalReturnCredit,
+        total:totalExchangeCost,
         balance_due:balanceDue
       }, {
         onSuccess: (res) => {

@@ -109,6 +109,17 @@ export default function TabsLayout() {
         />
 
         <Tabs.Screen
+          name="encode-cashier"
+          options={{
+            title: 'Register',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="people-outline" size={size} color={color} />
+            ),
+            href: isSupplierManager ? '/encode-cashier' : null,
+          }}
+        />
+
+        <Tabs.Screen
           name="vendorQrScreen"
           options={{
             title: 'Vendor QR',

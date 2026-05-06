@@ -129,7 +129,9 @@ const OrderPaymentList: React.FC<OrderPaymentListProps> = ({ order_no, visible, 
         );
     }
 
-    const totalPaid = order_payments?.data.reduce((sum:number, p:Payment) => sum + parseFloat(p.amount), 0);
+    const totalPaid = order_payments?.data.reduce((sum:number, p:Payment) => {
+        return p.status === 'completed' ? sum + parseFloat(p.amount) : sum
+    }, 0);
 
     return (
         <Modal
