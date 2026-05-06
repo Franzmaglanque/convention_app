@@ -93,6 +93,8 @@ interface CartItem {
   quantity: number;
 }
 
+
+
 export default function CartScreen() {
   const { showSuccess, showError, showInfo } = useToast();
   const { user } = useAuth();
@@ -517,6 +519,18 @@ export default function CartScreen() {
     }
   };
 
+  const handlePaymentError = (error: any, methodLabel: string, refNo?: string) => {
+    console.log(`${methodLabel} error:`, error);
+    setShowPaymentModal(false);
+
+    const serverMessage = error.response?.data?.message || "";
+    
+    if (serverMessage.includes("ER_DUP_ENTRY") || serverMessage.includes("Duplicate entry")) {
+      showError(`Duplicate Reference Number: "${refNo}" has already been used.`);
+    } else {
+      showError(`${methodLabel} Payment Failed: ${serverMessage || 'Please try again.'}`);
+    }
+  };
   const handleConfirmPayment = async(payment_details:any) => {
     console.log('handleConfirmPayment',payment_details);
 
@@ -558,10 +572,12 @@ export default function CartScreen() {
           setRemainingBalance(pwalletResponse.data.remaining_balance.toString());
           
         } catch (error:any) {
-          console.log('P-WALLET error',error.message);
-          setShowPaymentModal(false)
-          showError(error.message);
-          return false; 
+          // console.log('P-WALLET error',error.message);
+          // setShowPaymentModal(false)
+          // showError(error.message);
+          // return false; 
+          handlePaymentError(error, payment_details.method, payment_details.referenceNumber);
+          return false;
         }
         break;
       
@@ -602,9 +618,8 @@ export default function CartScreen() {
 
           setRemainingBalance(ccResponse.data.remaining_balance.toString());
         } catch (error) {
-          setShowPaymentModal(false)
-          showError('Credit Card Payment Failed.');
-          return false; 
+          handlePaymentError(error, payment_details.method, payment_details.referenceNumber);
+          return false;
         }
         break;
 
@@ -619,10 +634,8 @@ export default function CartScreen() {
           setRemainingBalance(gcashResponse.data.remaining_balance.toString());
           console.log('GCASH RESPONSE',gcashResponse);
         } catch (error:any) {
-          console.log('GCASH error',error);
-          setShowPaymentModal(false)
-          showError(`Gcash Payment Failed`);
-          return false; 
+          handlePaymentError(error, payment_details.method, payment_details.referenceNumber);
+          return false;
         }
         break;
 
@@ -637,10 +650,8 @@ export default function CartScreen() {
           setRemainingBalance(shopeePayResponse.data.remaining_balance.toString());
           console.log('SHOPEE PAY RESPONSE',shopeePayResponse);
         } catch (error:any) {
-          console.log('SHOPEE PAY error',error);
-          setShowPaymentModal(false)
-          showError(`Shopee Pay Payment Failed:`);
-          return false; 
+          handlePaymentError(error, payment_details.method, payment_details.referenceNumber);
+          return false;
         }
         break;
       
@@ -655,10 +666,8 @@ export default function CartScreen() {
           setRemainingBalance(homeCreditResponse.data.remaining_balance.toString());
           console.log('HOME CREDIT RESPONSE',homeCreditResponse);
         } catch (error:any) {
-          console.log('HOME CREDIT error',error);
-          setShowPaymentModal(false)
-          showError(`Home Credit Payment Failed`);
-          return false; 
+          handlePaymentError(error, payment_details.method, payment_details.referenceNumber);
+          return false;
         }
         break;
 
@@ -671,15 +680,13 @@ export default function CartScreen() {
             order_no:orderNo!,
             reference_no:payment_details.referenceNumber!
           });
+          console.log()
           setRemainingBalance(skyroResponse.data.remaining_balance.toString());
         } catch (error:any) {
-          console.log('SKYRO error',error);
-          setShowPaymentModal(false)
-          showError(`Skyro Payment Failed`);
-          return false; 
+          handlePaymentError(error, payment_details.method, payment_details.referenceNumber);
+          return false;
         }
         break;
-
     }
     
     // For CASH payments, include cashBill and cashChange
@@ -693,7 +700,9 @@ export default function CartScreen() {
 
     setPayments([...payments, newPayment]);
     
-    showSuccess(`Payment of ₱${amountNum.toFixed(2)} added. Remaining balance: ₱${(remainingBalance - amountNum).toFixed(2)}`);
+    // showSuccess(`Payment of ₱${amountNum.toFixed(2)} added. Remaining balance: ₱${(remainingBalance - amountNum).toFixed(2)}`);
+    showSuccess(`Payment Accepted`);
+
     
     // Reset form
     reset({

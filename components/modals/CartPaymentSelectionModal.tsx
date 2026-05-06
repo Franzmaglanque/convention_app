@@ -92,16 +92,27 @@ export default function PaymentSelectionModal({
   useEffect(() => {
     if (visible) {
       setSelectedMethod(null);
-      setInputAmount(''); // Starts empty
+      setInputAmount(''); 
       setCashReceived('');
       setReferenceNo('');
-
-      // ✨ NEW: Reset Tangent authorization
+      
+      // ✨ Hard reset on visibility change
       setIsTangentAuthorized(false);
       setTreasuryPin('');
       setPinError('');
+      setTerminalType(null);
+      setCardType(null);
     }
   }, [visible, balanceDue]);
+
+  useEffect(() => {
+    if (selectedMethod === 'CREDIT_DEBIT_CARD') {
+      setTerminalType('GCASH');
+      // ✨ FIX: Start as null since GCash terminal doesn't specify card type
+      setCardType(null); 
+      setIsTangentAuthorized(false);
+    }
+  }, [selectedMethod]);
 
   // --- CONFIG ---
   const paymentOptions = [
@@ -152,6 +163,12 @@ export default function PaymentSelectionModal({
         terminalType:terminalType ?? undefined,
         cardType:cardType ?? undefined
       });
+
+      if (selectedMethod === 'CREDIT_DEBIT_CARD') {
+        setTerminalType(null);
+        setCardType(null);
+        setIsTangentAuthorized(false);
+      }
     }
   };
 
@@ -258,8 +275,12 @@ export default function PaymentSelectionModal({
                 <TouchableOpacity 
                   style={[styles.toggleBtn, terminalType === 'GCASH' && styles.toggleBtnActive]}
                   onPress={() => {
+                      // setTerminalType(null);
+                      // setCardType(null); // Clear card type if they switch back to GCash
                       setTerminalType('GCASH');
-                      setCardType(null); // Clear card type if they switch back to GCash
+                      setCardType('CREDIT'); // Default back to Credit
+                      setCardType(null);
+                      setIsTangentAuthorized(false); // ✨ Revoke Tangent authorization
                   }}
                 >
                   <Text style={[styles.toggleBtnText, terminalType === 'GCASH' && styles.toggleBtnTextActive]}>GCash Terminal</Text>
@@ -354,9 +375,6 @@ export default function PaymentSelectionModal({
               <Text style={styles.confirmButtonText}>Confirm Payment</Text>
             )}
         </TouchableOpacity>
-        {/* <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
-          <Text style={styles.confirmButtonText}>Confirm Payment</Text>
-        </TouchableOpacity> */}
       </View>
     );
   };
@@ -473,7 +491,12 @@ export default function PaymentSelectionModal({
             
             <View style={styles.sheetHeader}>
               {selectedMethod ? (
-                <TouchableOpacity onPress={() => setSelectedMethod(null)} style={styles.backButton}>
+                <TouchableOpacity onPress={() => {
+                  setSelectedMethod(null);
+                  setTerminalType(null);
+                  setCardType(null);
+                  setIsTangentAuthorized(false);
+                }} style={styles.backButton}>
                   <Ionicons name="arrow-back" size={24} color="#007AFF" />
                 </TouchableOpacity>
               ) : <View style={{ width: 24 }} />}
@@ -482,7 +505,16 @@ export default function PaymentSelectionModal({
                 {selectedMethod ? `Process ${paymentOptions.find(o => o.id === selectedMethod)?.title}` : 'Select Payment'}
               </Text>
 
-              <TouchableOpacity onPress={onClose}>
+              <TouchableOpacity 
+                onPress={() => {
+                  onClose();
+                  // ✨ Reset everything on CLOSE
+                  setSelectedMethod(null);
+                  setTerminalType(null);
+                  setCardType(null);
+                  setIsTangentAuthorized(false);
+                }}
+              >
                 <Ionicons name="close-circle" size={28} color="#C7C7CC" />
               </TouchableOpacity>
             </View>
@@ -499,6 +531,8 @@ export default function PaymentSelectionModal({
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      
       <BarcodeScanner
         isVisible={paymentScanner}
         onBarcodeScanned={handlePaymentScanned}
@@ -506,70 +540,70 @@ export default function PaymentSelectionModal({
         scanDelay={1000}
       />
 
-          <Modal
-            visible={isPinModalVisible}
-            transparent={true}
-            animationType="fade"
-            onRequestClose={() => setIsPinModalVisible(false)}
-          >
-            <KeyboardAvoidingView 
-              style={styles.pinModalOverlay} 
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            >
-              <View style={styles.pinModalContent}>
-                <View style={styles.pinHeaderIcon}>
-                  <Ionicons name="lock-closed" size={32} color="#007AFF" />
-                </View>
-                <Text style={styles.pinModalTitle}>Treasury Authorization</Text>
-                <Text style={styles.pinModalSubtitle}>
-                  Tangent terminal is restricted. Please ask Treasury to enter their PIN to proceed.
-                </Text>
+      <Modal
+        visible={isPinModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsPinModalVisible(false)}
+      >
+        <KeyboardAvoidingView 
+          style={styles.pinModalOverlay} 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={styles.pinModalContent}>
+            <View style={styles.pinHeaderIcon}>
+              <Ionicons name="lock-closed" size={32} color="#007AFF" />
+            </View>
+            <Text style={styles.pinModalTitle}>Treasury Authorization</Text>
+            <Text style={styles.pinModalSubtitle}>
+              Tangent terminal is restricted. Please ask Treasury to enter their PIN to proceed.
+            </Text>
 
-                <TextInput
-                  style={styles.pinInput}
-                  secureTextEntry
-                  keyboardType="numeric"
-                  maxLength={6}
-                  value={treasuryPin}
-                  onChangeText={(text) => {
-                    setTreasuryPin(text);
-                    setPinError('');
-                  }}
-                  placeholder="Enter PIN"
-                  autoFocus={true}
-                  editable={!isPending}
-                />
+            <TextInput
+              style={styles.pinInput}
+              secureTextEntry
+              keyboardType="numeric"
+              maxLength={6}
+              value={treasuryPin}
+              onChangeText={(text) => {
+                setTreasuryPin(text);
+                setPinError('');
+              }}
+              placeholder="Enter PIN"
+              autoFocus={true}
+              editable={!isPending}
+            />
 
-                <View style={styles.pinActions}>
-                  <TouchableOpacity 
-                    style={styles.pinCancelButton}
-                    onPress={() => {
-                      setIsPinModalVisible(false);
-                      setTreasuryPin('');
-                      setPinError('');
-                    }}
-                  >
-                    <Text style={styles.pinCancelText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[
-                      styles.pinConfirmButton,
-                      isPending && { opacity: 0.7 } // Dim button while loading
-                    ]}
-                    onPress={handleAuthorizeTangent}
-                    disabled={isPending} // ✨ Prevent double taps
-                  >
-                    {/* ✨ Swap text for a spinner so the UI feels responsive */}
-                    {isPending ? (
-                      <ActivityIndicator color="#FFFFFF" />
-                    ) : (
-                      <Text style={styles.pinConfirmText}>Authorize</Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </KeyboardAvoidingView>
-          </Modal>
+            <View style={styles.pinActions}>
+              <TouchableOpacity 
+                style={styles.pinCancelButton}
+                onPress={() => {
+                  setIsPinModalVisible(false);
+                  setTreasuryPin('');
+                  setPinError('');
+                }}
+              >
+                <Text style={styles.pinCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[
+                  styles.pinConfirmButton,
+                  isPending && { opacity: 0.7 } // Dim button while loading
+                ]}
+                onPress={handleAuthorizeTangent}
+                disabled={isPending} // ✨ Prevent double taps
+              >
+                {/* ✨ Swap text for a spinner so the UI feels responsive */}
+                {isPending ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.pinConfirmText}>Authorize</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </>
   );
 }
