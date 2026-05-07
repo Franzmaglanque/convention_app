@@ -1,3 +1,4 @@
+import EnvironmentBanner from '@/components/EnvironmentBanner';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth } from '@/hooks/useAuth';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +16,7 @@ export default function TabsLayout() {
 
   return (
     <ProtectedRoute>
+      <EnvironmentBanner />
       <Tabs
         initialRouteName={isSupplierCashier ? 'cart' : 'index'}
         screenOptions={{

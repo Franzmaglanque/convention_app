@@ -235,7 +235,7 @@ export default function CartScreen() {
   const createNewTransaction = async (isCarded: boolean = false, cardNumber: string = '') => {
     setIsCreatingTransaction(true);
     try {
-
+      console.log('card number',cardNumber);
       await newOrderMutation.mutate({
             user_id: user?.id || null,
             vendor_code: user?.supplier_code || null,
@@ -1094,7 +1094,7 @@ export default function CartScreen() {
               showError('Failed to save loyalty card.');
             }
           }else{
-            createNewTransaction(true, customerCardNumber.trim());
+            createNewTransaction(true, barcodeData.trim());
           }
           // createNewTransaction(true, barcodeData);
           setCustomerCardNumber('');
