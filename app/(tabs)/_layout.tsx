@@ -1,4 +1,3 @@
-import EnvironmentBanner from '@/components/EnvironmentBanner';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth } from '@/hooks/useAuth';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,13 +9,14 @@ export default function TabsLayout() {
   const isAdmin = user?.department === 'ADMIN';
   const isSupplierManager = user?.department === 'SUPPLIER' && user?.role === 'MANAGER';
   const isSupplierCashier = user?.department === 'SUPPLIER' && user?.role === 'CASHIER';
+  const isSupplierGlobe = user?.supplier_code === '14597'
   
   // Fix the typo in "Transactions"
   const transactionsTitle = 'Transactions';
 
   return (
     <ProtectedRoute>
-      <EnvironmentBanner />
+      {/* <EnvironmentBanner /> */}
       <Tabs
         initialRouteName={isSupplierCashier ? 'cart' : 'index'}
         screenOptions={{
@@ -53,14 +53,12 @@ export default function TabsLayout() {
         />
 
         <Tabs.Screen
-          name="returns" // CRITICAL: This must exactly match your filename (orders.tsx)
+          name="returns"
           options={{
-            title: 'Returns', // The label that appears under the icon
+            title: 'Returns',
             tabBarIcon: ({ color, size }) => (
-              // 'swap-horizontal-outline' or 'arrow-undo-outline' are standard icons for returns/exchanges
               <Ionicons name="swap-horizontal-outline" size={size} color={color} />
             ),
-            // If you want to hide this tab from certain users, apply your logic here:
             href: isSupplierCashier ? '/returns' : null,
           }}
         />
@@ -77,14 +75,13 @@ export default function TabsLayout() {
         />
 
         <Tabs.Screen
-          name="load" // Must exactly match the filename load.tsx
+          name="load"
           options={{
             title: 'E-Load',
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="phone-portrait-outline" size={size} color={color} />
             ),
-            // Use your existing logic here to hide/show this for cashiers/managers
-            href : isSupplierCashier ? '/load' : null,
+            href : isSupplierGlobe ? '/load' : null,
           }}
         />
 

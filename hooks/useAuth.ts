@@ -56,7 +56,6 @@ export function useLogout() {
 }
 
 export function useValidatePin() {
-
      return useMutation({
         mutationKey: ['validate-pin'],
         mutationFn: (body:{pin_code:string}) => authService.validateTrsPin(body),
@@ -64,10 +63,20 @@ export function useValidatePin() {
             console.log('Pin validation response', responseData);
         },
         onError: (error) => {
-            console.log('Pin validation failed:', error);
-           
+            console.log('Pin validation failed:', error);     
         }
-    })
-    
+    })   
 }
 
+
+export function useManagerOverride() {
+     return useMutation({
+        mutationKey: ['manager-override'],
+        mutationFn: (body:{password:string}) => authService.managerOverride(body),
+        onSuccess: (responseData) => {
+            console.log('Manager Override ', responseData);
+        },
+        onError: () => {   
+        }
+    })   
+}

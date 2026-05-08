@@ -28,6 +28,14 @@ class AuthService {
         )
         return response.data;
     }
+
+    async managerOverride(body:{password:string}){
+        const response = await apiClient.post(
+            API_ENDPOINTS.AUTH.MANAGER_OVERRIDE,
+            body
+        )
+        return response.data;
+    }
 }
 
 export const authService = new AuthService();

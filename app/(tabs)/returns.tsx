@@ -2,6 +2,7 @@ import BarcodeScanner from '@/components/BarcodeScanner';
 import PaymentSelectionModal, { PaymentDetails } from '@/components/modals/PaymentSelectionModal';
 import ProductCatalogModal from '@/components/modals/ProductCatalogModal';
 import { useToast } from '@/components/ToastProvider';
+import { useManagerOverride } from '@/hooks/useAuth';
 import { useOriginalOrderItems, usePostReturn, useProcessReturn, useSyncExchangeCart, useValidateReturnOrderMutation } from '@/hooks/useOrder';
 import { useProcessPayment, usePwalletDebit, useSaveCashPayment, useSaveCreditCardPayment, useScanPwalletQr, useSkyroPayment } from '@/hooks/usePayment';
 import { useScanProduct, useScanReturnProduct } from '@/hooks/useProduct';
@@ -55,8 +56,6 @@ export default function ReturnsScreen() {
   const [showScanner, setShowScanner] = useState(false);
   const skyroPaymentMutation = useSkyroPayment();
   
-
-
   const validateOrderMutation = useValidateReturnOrderMutation();
   const useProcessReturnMutation = useProcessReturn();
   const usePostReturnMutation = usePostReturn();
@@ -68,8 +67,7 @@ export default function ReturnsScreen() {
   const scanReturnProductMutation = useScanReturnProduct();
   const scanProductMutation = useScanProduct();
   const processPaymentMutation = useProcessPayment();
-  
-
+  const managerOverrideMutation = useManagerOverride();
 
   const totalReturnCredit = returnItems.reduce((sum, item) => sum + (item.price * item.returnQty), 0);
   const totalExchangeCost = exchangeItems.reduce((sum, item) => sum + (item.price * item.qty), 0);
@@ -97,24 +95,50 @@ export default function ReturnsScreen() {
   };
 
   const handleManagerLogin = async () => {
+
+    managerOverrideMutation.mutate({
+      password:managerPin
+    },{
+      onSuccess: async (res) => {
+        console.log('res',res);
+        const { data } = await refetch();
+        const fetchedOriginalItems = data.data; 
+        console.log('fetchedOriginalItems',fetchedOriginalItems);
+        
+        // 2. Save original items to background state for validation
+        setOriginalItems(fetchedOriginalItems);
+        
+        // 3. Start the return cart COMPLETELY BLANK
+        setReturnItems([]); 
+        
+        setManagerPin('');
+        setCurrentStep('selectReturns');
+      },
+      onError: (err) => {
+        console.error("Manager override error:", err);
+        showError('Manager override failed');
+        setManagerPin('');
+        return;
+      }
+    })
     
-    if (managerPin !== '1234') { 
-      Alert.alert('Access Denied', 'Invalid Manager PIN');
-      setManagerPin('');
-      return;
-    }
-    const { data } = await refetch();
-    const fetchedOriginalItems = data.data; 
-    console.log('fetchedOriginalItems',fetchedOriginalItems);
+    // if (managerPin !== '1234') { 
+    //   Alert.alert('Access Denied', 'Invalid Manager PIN');
+    //   setManagerPin('');
+    //   return;
+    // }
+    // const { data } = await refetch();
+    // const fetchedOriginalItems = data.data; 
+    // console.log('fetchedOriginalItems',fetchedOriginalItems);
     
-    // 2. Save original items to background state for validation
-    setOriginalItems(fetchedOriginalItems);
+    // // 2. Save original items to background state for validation
+    // setOriginalItems(fetchedOriginalItems);
     
-    // 3. Start the return cart COMPLETELY BLANK
-    setReturnItems([]); 
+    // // 3. Start the return cart COMPLETELY BLANK
+    // setReturnItems([]); 
     
-    setManagerPin('');
-    setCurrentStep('selectReturns');
+    // setManagerPin('');
+    // setCurrentStep('selectReturns');
   };
 
   const handleAddReturnItem = (itemId: string) => {
@@ -911,11 +935,20 @@ export default function ReturnsScreen() {
               <Ionicons name="shield-checkmark" size={40} color="#FF9500" style={{ marginBottom: 12 }} />
               <Text style={styles.modalTitle}>Manager Override</Text>
               <Text style={styles.modalSubtext}>Enter PIN to authorize return.</Text>
-              <TextInput
+              {/* <TextInput
                 style={styles.pinInput}
                 placeholder="****"
                 secureTextEntry
                 keyboardType="number-pad"
+                value={managerPin}
+                onChangeText={setManagerPin}
+                autoFocus
+              /> */}
+              <TextInput
+                style={styles.pinInput}
+                placeholder="****"
+                secureTextEntry // ✨ Keeps the input masked (dots/asterisks)
+                keyboardType="default" // ✨ Changed to default to allow the full alphanumeric keyboard
                 value={managerPin}
                 onChangeText={setManagerPin}
                 autoFocus

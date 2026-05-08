@@ -87,7 +87,7 @@ export default function LoadScreen() {
       //   loadType === 'DATA' ? selectedPromo?.amount : 
       //   loadType === 'REGULAR' ? Number(customAmount) : 0;
 
-      const discount = Math.floor(Number(commercialAmount) / 10000) * 400;
+      const discount = Math.floor(Number(commercialAmount) / 3500) * 100;
 
       const amount = loadType === 'COMMERCIAL' 
       ? (Number(commercialAmount) - discount) 
@@ -194,7 +194,7 @@ export default function LoadScreen() {
       processLoadSellingMutation.isPending;
 
     const handleAmount =  () => {
-      const discount = Math.floor(Number(commercialAmount) / 10000) * 400;
+      const discount = Math.floor(Number(commercialAmount) / 3500) * 100;
 
       const amount = loadType === 'COMMERCIAL' 
       ? (Number(commercialAmount) - discount) 
@@ -414,7 +414,7 @@ export default function LoadScreen() {
               visible={showPaymentModal}
               onClose={() => setShowPaymentModal(false)}   
               amount={handleAmount()}
-              discount={Math.floor(Number(commercialAmount) / 10000) * 400}
+              discount={Math.floor(Number(commercialAmount) / 3500) * 100}
               onConfirmPayment={handleConfirmPayment}
               isProcessing={isProcessingPayment}
             />
