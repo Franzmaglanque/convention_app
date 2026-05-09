@@ -1,18 +1,20 @@
+import { useToast } from '@/components/ToastProvider';
+import { useRegisterCashier } from '@/hooks/useAuth';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -28,18 +30,26 @@ const COLORS = {
   warningText: '#D97706',
 };
 
+const initialState = {
+  firstName: '',
+  middleName: '',
+  lastName: '',
+  username: '',
+  password: '',
+};
+
 export default function RegisterCashierScreen() {
+  const { showSuccess, showError, showInfo } = useToast();
+  
   // --- Form State ---
-  const [form, setForm] = useState({
-    firstName: '',
-    middleName: '',
-    lastName: '',
-    username: '',
-    password: '',
-  });
+  const [form, setForm] = useState(initialState);
+
+ 
 
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const registerCashierMutation = useRegisterCashier();
 
   // --- Handlers ---
   const handleRegister = async () => {
@@ -55,24 +65,44 @@ export default function RegisterCashierScreen() {
     }
 
     setIsSubmitting(true);
+    registerCashierMutation.mutate({
+        firstname:form.firstName,
+        middlename:form.middleName,
+        lastname:form.lastName,
+        username:form.username,
+        password:form.password
+      },{
+        onSuccess: (response) => {
+            console.log('response',response);
+            setForm(initialState);
+            showSuccess(`Cashier ${form.firstName} ${form.lastName} has been successfully encoded. They will be able to log in once an Admin approves their account.`);
+        },
+        onError: (error) => {
+          console.log('error',error.message)
+          showError('Failed to encode cashier. Please try again.');
+        }
+    })
 
-    try {
-      // TODO: Replace with your actual useMutation hook for Elysia API
-      // await registerCashierMutation.mutateAsync({ ...form, role: 'CASHIER' });
+
+    setIsSubmitting(false);
+
+    // try {
+    //   // TODO: Replace with your actual useMutation hook for Elysia API
+    //   // await registerCashierMutation.mutateAsync({ ...form, role: 'CASHIER' });
       
-      // Simulating API call delay
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+    //   // Simulating API call delay
+    //   await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      Alert.alert(
-        'Registration Submitted',
-        `Cashier ${form.firstName} ${form.lastName} has been successfully encoded. They will be able to log in once an Admin approves their account.`,
-        [{ text: 'Understood', onPress: () => router.back() }]
-      );
-    } catch (error: any) {
-      Alert.alert('Registration Failed', error?.message || 'Something went wrong.');
-    } finally {
-      setIsSubmitting(false);
-    }
+    //   Alert.alert(
+    //     'Registration Submitted',
+    //     `Cashier ${form.firstName} ${form.lastName} has been successfully encoded. They will be able to log in once an Admin approves their account.`,
+    //     [{ text: 'Understood', onPress: () => router.back() }]
+    //   );
+    // } catch (error: any) {
+    //   Alert.alert('Registration Failed', error?.message || 'Something went wrong.');
+    // } finally {
+    //   setIsSubmitting(false);
+    // }
   };
 
   return (
@@ -97,7 +127,7 @@ export default function RegisterCashierScreen() {
             <Ionicons name="information-circle" size={24} color={COLORS.warningText} />
             <Text style={styles.infoBannerText}>
               Encoded cashiers are created as <Text style={{ fontWeight: '700' }}>Pending</Text>. 
-              An Admin must approve this account in the CMS before the cashier can log in to the POS.
+              An Admin must approve this account before the cashier can log in.
             </Text>
           </View>
 

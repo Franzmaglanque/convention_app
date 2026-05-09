@@ -1,5 +1,6 @@
 import { apiClient } from '@/lib/api/client';
 import { API_ENDPOINTS } from '@/lib/api/endpoints';
+import { RegisterCashierPayload } from '@/types/auth.types';
 import { AxiosResponse } from 'axios';
 
 class AuthService {
@@ -32,6 +33,14 @@ class AuthService {
     async managerOverride(body:{password:string}){
         const response = await apiClient.post(
             API_ENDPOINTS.AUTH.MANAGER_OVERRIDE,
+            body
+        )
+        return response.data;
+    }
+
+    async registerCashier(body:RegisterCashierPayload){
+        const response = await apiClient.post(
+            API_ENDPOINTS.AUTH.REGISTER_CASHIER,
             body
         )
         return response.data;

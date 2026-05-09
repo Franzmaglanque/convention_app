@@ -1,5 +1,6 @@
 import { authService } from '@/services/auth.service';
 import { useAuthStore } from '@/stores/auth.store';
+import { RegisterCashierPayload } from '@/types/auth.types';
 import { useMutation } from '@tanstack/react-query';
 
 export function useLogin() {
@@ -75,6 +76,18 @@ export function useManagerOverride() {
         mutationFn: (body:{password:string}) => authService.managerOverride(body),
         onSuccess: (responseData) => {
             console.log('Manager Override ', responseData);
+        },
+        onError: () => {   
+        }
+    })   
+}
+
+export function useRegisterCashier() {
+     return useMutation({
+        mutationKey: ['register-cashier'],
+        mutationFn: (body:RegisterCashierPayload) => authService.registerCashier(body),
+        onSuccess: (responseData) => {
+            console.log('Register cashier', responseData);
         },
         onError: () => {   
         }

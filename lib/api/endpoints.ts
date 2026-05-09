@@ -12,6 +12,7 @@ export const API_ENDPOINTS = {
     VERIFY_TOKEN: '/auth/verify',
     VALIDATE_TRS_PIN: '/auth/trs/pin',
     MANAGER_OVERRIDE: '/auth/manager-override',
+    REGISTER_CASHIER: '/supplier/register-cashier',
   },
 
   STORES: {
