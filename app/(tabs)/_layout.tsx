@@ -10,6 +10,7 @@ export default function TabsLayout() {
   const isSupplierManager = user?.department === 'SUPPLIER' && user?.role === 'MANAGER';
   const isSupplierCashier = user?.department === 'SUPPLIER' && user?.role === 'CASHIER';
   const isSupplierGlobe = user?.supplier_code === '14597'
+  const isItDepartment = user?.department === 'IT'
   
   // Fix the typo in "Transactions"
   const transactionsTitle = 'Transactions';
@@ -137,6 +138,18 @@ export default function TabsLayout() {
               <Ionicons name="person" size={size} color={color} />
             ),
           }}
+        />
+
+        <Tabs.Screen
+          name="it-view-user"
+          options={{
+            title: 'View User',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="person" size={size} color={color} />
+            ),
+            href: isItDepartment ? '/it-view-user' : null,
+          }}
+          
         />
        
       </Tabs>

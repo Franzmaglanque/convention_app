@@ -71,7 +71,15 @@ export const API_ENDPOINTS = {
     FETCH_DATA_PROMOS: (telco:string) => `load/fetch-telco-promos/${telco}`,
     PROCESS_LOAD_SELLING: `load/process-load-selling`,
     FETCH_LOAD_DETAILS: (order_no:string) => `load/app/fetch-load-items/${order_no}`,
+  },
+
+  IT:{
+    FETCH_ACTIVE_VENDORS: 'supplier/cms/fetch-active-suppliers',
+    FETCH_VENDOR_USERS: (vendor_code:string) => `supplier/fetch-supplier-users/${vendor_code}`,
+    RESET_USER_LOGIN: 'supplier/reset-user-login',
+    CHANGE_USER_PASSWORD: 'auth/change-user-password',
   }
+
 
 } as const;
 

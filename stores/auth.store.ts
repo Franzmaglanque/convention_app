@@ -8,7 +8,7 @@ export interface User {
   supplier_code: string;
   supplierName: string;
   username: string;
-  department: 'SUPPLIER' | 'ADMIN'; // Add other departments as needed
+  department: 'SUPPLIER' | 'ADMIN' | 'IT'; // Add other departments as needed
   role: 'MANAGER' | 'CASHIER' | null;
 }
 
