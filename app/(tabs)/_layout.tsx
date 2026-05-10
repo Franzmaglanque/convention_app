@@ -131,16 +131,6 @@ export default function TabsLayout() {
         />
 
         <Tabs.Screen
-          name="profile"
-          options={{
-            title: 'Profile',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="person" size={size} color={color} />
-            ),
-          }}
-        />
-
-        <Tabs.Screen
           name="it-view-user"
           options={{
             title: 'View User',
@@ -149,7 +139,16 @@ export default function TabsLayout() {
             ),
             href: isItDepartment ? '/it-view-user' : null,
           }}
-          
+        />
+
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: 'Profile',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="person" size={size} color={color} />
+            ),
+          }}
         />
        
       </Tabs>

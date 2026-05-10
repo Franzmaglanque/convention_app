@@ -50,12 +50,16 @@ export default function Page() {
   const isAdmin = safeDepartment === 'ADMIN';
   const isSupplierManager = safeDepartment === 'SUPPLIER' && safeRole === 'MANAGER';
   const isSupplierCashier = safeDepartment === 'SUPPLIER' && safeRole === 'CASHIER';
+  const isItDepartment = user?.department === 'IT'
+
 
   console.log('Routing Check -> Dept:', safeDepartment, '| Role:', safeRole);
 
   // 5. Route based on roles
   if (isSupplierCashier) {
     return <Redirect href="/(tabs)/cart" />;
+  } else if (isItDepartment){
+    return <Redirect href="/(tabs)/it-view-user" />;
   } else if (isSupplierManager || isAdmin) {
     return <Redirect href="/(tabs)" />;
   }
