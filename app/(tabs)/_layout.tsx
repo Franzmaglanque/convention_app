@@ -142,6 +142,17 @@ export default function TabsLayout() {
         />
 
         <Tabs.Screen
+          name="it-view-transactions"
+          options={{
+            title: 'View Transactions',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="receipt-outline" size={size} color={color} />
+            ),
+            href: isItDepartment ? '/it-view-transactions' : null,
+          }}
+        />
+
+        <Tabs.Screen
           name="profile"
           options={{
             title: 'Profile',

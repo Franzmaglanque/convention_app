@@ -28,6 +28,7 @@ export const API_ENDPOINTS = {
     COMPLETE_ORDER: '/order/complete',
     CANCEL_ORDER: '/order/cancel',
     SUPPLIER_ORDER_LIST: '/order/list',
+    IT_ORDER_ITEM_LIST: (vendor_code:string) => `order/list/${vendor_code}`,
     ORDER_ITEM_LIST: (order_no:string) => `order/items-list/${order_no}`,
     RETURNED_ITEM_LIST: (returned_id:string) => `order/returned-items/${returned_id}`,
     ORDER_PAYMENT_LIST: (order_no:string) => `order/payments-list/${order_no}`,

@@ -88,6 +88,13 @@ export function fetchSupplierOrders(){
     queryFn: () => orderService.fetchSupplierOrderList()
   });
 }
+export function useFetchItSupplierOrders(vendor_code: string | null) {
+  return useQuery({
+    queryKey: ['it-fetch-supplier-orders', vendor_code],
+    queryFn: () => orderService.itFetchSupplierOrderList(vendor_code!),
+    enabled: !!vendor_code,
+  });
+}
 
 export function useFetchOrderItems(orderNo: string) {
   return useQuery({
