@@ -29,7 +29,7 @@ export default function RemittanceScreen() {
   const datesArray = conventionDatesData?.data?.convention_dates ?? [];
   const [refreshing, setRefreshing] = useState(false);
   
-
+  console.log('vendorRemittancesData',vendorRemittancesData);
   const toggleExpand = (id: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpandedId(expandedId === id ? null : id);
@@ -42,20 +42,12 @@ export default function RemittanceScreen() {
     return `${months[parseInt(month, 10) - 1]} ${parseInt(day, 10)}, ${year}`;
   };
 
-  const formatCurrency = (amount: number) => {
-    // Abbreviate large numbers for the summary boxes (e.g., 150000 -> 150k)
-    if (amount >= 1000) {
-      return `₱${(amount / 1000).toFixed(1)}k`;
-    }
-    return `₱${amount.toFixed(2)}`;
-  };
-
   const formatFullCurrency = (amount: number) => {
     return `₱${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   const remittanceSummary = useMemo(() => {
-    return vendorRemittancesData?.data?.reduce((acc: any, item: any) => {
+    return vendorRemittancesData?.data?.remittances.reduce((acc: any, item: any) => {
       acc.total += parseFloat(item.total_amount);
       if (item.remittance_type === 'full') acc.full += parseFloat(item.total_amount);
       if (item.remittance_type === 'partial') acc.partial += parseFloat(item.total_amount);
@@ -67,50 +59,40 @@ export default function RemittanceScreen() {
   const ListHeader = () => (
     <View>
       <View style={styles.blueHeader}>
-        <View style={styles.headerTopRow}>
-          <View>
-            <Text style={styles.supplierText}>SUPPLIER #{user?.supplier_code}</Text>
-            <Text style={styles.pageTitle}>Remittances</Text>
+          <View style={styles.headerTopRow}>
+            <View>
+              <Text style={styles.supplierText}>SUPPLIER #{user?.supplier_code}</Text>
+              <Text style={styles.pageTitle}>Remittances</Text>
+            </View>
           </View>
-        </View>
 
-        {/* Dynamic Summary Cards */}
-        <View style={styles.summaryRow}>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>GRAND TOTAL</Text>
-            <Text style={styles.summaryValue}>{formatCurrency(remittanceSummary?.total || 0) }</Text>
+          {/* Main Row: Total vs Pending */}
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryLabel}>GRAND TOTAL</Text>
+              <Text style={styles.summaryValue}>{formatFullCurrency(remittanceSummary?.total || 0)}</Text>
+            </View>
+            {/* PENDING CARD */}
+            <View style={[styles.summaryCard, styles.pendingCard]}>
+              <Text style={styles.summaryLabel}>PENDING</Text>
+              <Text style={styles.summaryValue}>{formatFullCurrency(vendorRemittancesData?.data.pending_remittance || 0)}</Text>
+            </View>
           </View>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>FULL</Text>
-            <Text style={styles.summaryValue}>{formatCurrency(remittanceSummary?.full || 0) }</Text>
+
+          {/* Breakdown Row: Full vs Partial */}
+          <View style={[styles.summaryRow, { marginTop: 10 }]}>
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryLabel}>FULL</Text>
+              <Text style={styles.summaryValue}>{formatFullCurrency(remittanceSummary?.full || 0)}</Text>
+            </View>
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryLabel}>PARTIAL</Text>
+              <Text style={styles.summaryValue}>{formatFullCurrency(remittanceSummary?.partial || 0)}</Text>
+            </View>
           </View>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>PARTIAL</Text>
-            <Text style={styles.summaryValue}>{formatCurrency(remittanceSummary?.partial || 0) }</Text>
-          </View>
-        </View>
       </View>
 
       {/* Convention Day Filters */}
-      {/* <View style={styles.filterRow}>
-        {datesArray.map((dateStr:string) => {
-          const isSelected = selectedDate === dateStr;
-          
-          return (
-            <TouchableOpacity 
-              key={dateStr}
-              // Apply active styles if this is the chosen date
-              style={[styles.datePill, isSelected && styles.datePillActive]}
-              onPress={() => setSelectedDate(dateStr)}
-            >
-              <Text style={[styles.datePillText, isSelected && styles.datePillTextActive]}>
-                {formatDisplayDate(dateStr)}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View> */}
-
       <View style={styles.container}>
       <Text style={styles.label}>SELECT CONVENTION DATE</Text>
       
@@ -219,7 +201,7 @@ export default function RemittanceScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <FlatList
-        data={vendorRemittancesData?.data || []}
+        data={vendorRemittancesData?.data?.remittances || []}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={ListHeader}
         renderItem={renderItem}
@@ -260,8 +242,23 @@ const styles = StyleSheet.create({
   supplierText: { color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '600', letterSpacing: 1 },
   pageTitle: { color: '#fff', fontSize: 24, fontWeight: 'bold' },
   
-  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
-  summaryCard: { flex: 1, backgroundColor: 'rgba(255,255,255,0.15)', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+  summaryRow: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    gap: 10 
+  },
+  summaryCard: { 
+    flex: 1, 
+    backgroundColor: 'rgba(255,255,255,0.15)', 
+    padding: 12, 
+    borderRadius: 8, 
+    borderWidth: 1, 
+    borderColor: 'rgba(255,255,255,0.2)' 
+  },
+  pendingCard: {
+    backgroundColor: 'rgba(255, 193, 7, 0.2)', // Slight yellow tint
+    borderColor: 'rgba(255, 193, 7, 0.4)',
+  },
   summaryLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 10, fontWeight: '600', marginBottom: 4 },
   summaryValue: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   
