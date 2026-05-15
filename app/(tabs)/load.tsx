@@ -88,10 +88,11 @@ export default function LoadScreen() {
       //   loadType === 'REGULAR' ? Number(customAmount) : 0;
 
       const discount = Math.floor(Number(commercialAmount) / 3500) * 100;
-
+      
       const amount = loadType === 'COMMERCIAL' 
       ? (Number(commercialAmount) - discount) 
       : (selectedPromo ? selectedPromo.amount : Number(customAmount));
+      console.log('commercialAmount',commercialAmount);
       console.log('amount payment',amount);
       console.log('discount payment',discount);
       
@@ -116,7 +117,7 @@ export default function LoadScreen() {
           case 'PWALLET':
             await pwalletDebitMutation.mutateAsync({
               reference_no: payment_details?.referenceNumber ?? "",
-              amount: Number(amount!),
+              amount: amount!,
               store_code: 801,
               order_no: orderNo.toString(),
               payment_method: payment_details.method
@@ -126,7 +127,7 @@ export default function LoadScreen() {
             await cashPaymentMutation.mutateAsync({
               cash_bill: payment_details.cashReceived.toString(),
               cash_change: payment_details.change.toString(),
-              amount: Number(amount!),
+              amount: amount!,
               payment_method: payment_details.method,
               order_no: orderNo.toString(),
             });
@@ -143,7 +144,19 @@ export default function LoadScreen() {
             });
             break;
           case 'GCASH':
+            await processPaymentMutation.mutateAsync({
+              order_no:orderNo.toString(),
+              payment_method:payment_details.method,
+              amount: amount!,
+              reference_no:payment_details.referenceNumber!
+            });
           case 'SHOPEE_PAY':
+            await processPaymentMutation.mutateAsync({
+              order_no:orderNo.toString(),
+              payment_method:payment_details.method,
+              amount: amount!,
+              reference_no:payment_details.referenceNumber!
+            });
           case 'HOME_CREDIT':
             await processPaymentMutation.mutateAsync({
               order_no: orderNo.toString(),
@@ -167,7 +180,7 @@ export default function LoadScreen() {
           mobile_number: mobileNumber,
           network: selectedNetwork?.telco ?? null,
           promo: selectedPromo ?? null,
-          amount: amount,
+          amount: loadType === 'COMMERCIAL' ? Number(commercialAmount) : Number(amount!),
           discount:discount,
           sku: loadType === 'COMMERCIAL' ? '349315' : loadType === 'REGULAR' ? '322304' : null,
           order_no:orderNo

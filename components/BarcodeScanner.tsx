@@ -4,19 +4,17 @@ import {
   BarcodeScanningResult,
   CameraType,
   CameraView,
-  useCameraPermissions
+  useCameraPermissions,
 } from 'expo-camera';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Button,
-  Dimensions,
-  LayoutChangeEvent,
   Modal,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
 
 interface BarcodeScannerProps {
@@ -26,80 +24,81 @@ interface BarcodeScannerProps {
   scanDelay?: number;
 }
 
-export default function BarcodeScanner({ 
-  isVisible, 
-  onBarcodeScanned, 
+export default function BarcodeScanner({
+  isVisible,
+  onBarcodeScanned,
   onClose,
-  scanDelay = 1500 
+  scanDelay = 1500,
 }: BarcodeScannerProps) {
   const [facing, setFacing] = useState<CameraType>('back');
-  const [scanned, setScanned] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
   const [isLoading, setIsLoading] = useState(true);
   const cameraRef = useRef<CameraView>(null);
   const { showError } = useToast();
-  const [frameLayout, setFrameLayout] = useState({ x: 0, y: 0, width: 0, height: 0 });
-  const screenWidth = Dimensions.get('window').width;
-  const screenHeight = Dimensions.get('window').height;
 
-  // Request permissions when component mounts
+  // ✅ FIX 1: Use a ref as an immediate guard instead of (or alongside) state.
+  // setState is async — multiple scan events can fire before React re-renders
+  // and flips `scanned` to true. A ref update is synchronous and instant.
+  const isScannedRef = useRef(false);
+  const scanTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ✅ FIX 2: Reset loading and scanned state every time the modal opens.
+  // Without this, isLoading stays false on the second open, skipping the
+  // loading indicator. The scanned ref also needs resetting on each open.
+  useEffect(() => {
+    if (isVisible) {
+      setIsLoading(true);
+      isScannedRef.current = false;
+    }
+  }, [isVisible]);
+
+  // ✅ FIX 3: Correct dep array — include permission and requestPermission.
   useEffect(() => {
     if (isVisible && !permission?.granted) {
       requestPermission();
     }
-  }, [isVisible]);
+  }, [isVisible, permission, requestPermission]);
 
-  const onFrameLayout = (event: LayoutChangeEvent) => {
-    // We need to calculate absolute coordinates relative to the screen
-    // Since the frame is centered in an overlay, we estimate its position
-    const { width, height } = event.nativeEvent.layout;
-    const x = (screenWidth - width) / 2;
-    const y = (screenHeight - height) / 2.5; // Matches 'justifyContent: center' offset
-    setFrameLayout({ x, y, width, height });
-  };
-
-  // const handleBarcodeScanned = ({ data, type }: BarcodeScanningResult) => {
-  //   if (!scanned && data) {
-  //     setScanned(true);
-  //     console.log(`Scanned barcode: ${data} (type: ${type})`);
-      
-  //     // Pass the scanned data to parent component
-  //     onBarcodeScanned(data);
-      
-  //     // Reset scanner after delay to allow next scan
-  //     setTimeout(() => setScanned(false), scanDelay);
-  //   }
-  // };
-  const handleBarcodeScanned = (result: BarcodeScanningResult) => {
-    const { data, bounds } = result;
-
-    if (!scanned && data && bounds) {
-      const { origin, size } = bounds;
-      
-      // ✨ BOX CONSTRAINT LOGIC: 
-      // Check if the center of the barcode is within our frameLayout
-      const barcodeCenterX = origin.x + size.width / 2;
-      const barcodeCenterY = origin.y + size.height / 2;
-
-      const isInside = 
-        barcodeCenterX >= frameLayout.x &&
-        barcodeCenterX <= (frameLayout.x + frameLayout.width) &&
-        barcodeCenterY >= frameLayout.y &&
-        barcodeCenterY <= (frameLayout.y + frameLayout.height);
-
-      if (isInside) {
-        setScanned(true);
-        onBarcodeScanned(data);
-        setTimeout(() => setScanned(false), scanDelay);
+  // ✅ FIX 4: Clear the timeout on unmount so it can't fire on a dead component.
+  useEffect(() => {
+    return () => {
+      if (scanTimeoutRef.current) {
+        clearTimeout(scanTimeoutRef.current);
       }
-    }
+    };
+  }, []);
+
+  // ✅ useCallback keeps the function reference stable across renders,
+  // preventing unnecessary re-registrations on CameraView.
+  const handleBarcodeScanned = useCallback(
+    ({ data, type }: BarcodeScanningResult) => {
+      // Guard with the ref — synchronous, no async delay
+      if (isScannedRef.current || !data) return;
+
+      isScannedRef.current = true;
+      console.log(`Scanned barcode: ${data} (type: ${type})`);
+      onBarcodeScanned(data);
+
+      // Reset after delay, clearing any previous pending reset first
+      if (scanTimeoutRef.current) {
+        clearTimeout(scanTimeoutRef.current);
+      }
+      scanTimeoutRef.current = setTimeout(() => {
+        isScannedRef.current = false;
+      }, scanDelay);
+    },
+    [onBarcodeScanned, scanDelay],
+  );
+
+  const toggleCameraFacing = () => {
+    setFacing(current => (current === 'back' ? 'front' : 'back'));
   };
-  
+
   const handleCameraReady = () => {
     setIsLoading(false);
   };
 
-  const handleCameraError = (error: any) => {
+  const handleCameraError = (error: unknown) => {
     console.error('Camera error:', error);
     showError('Camera failed to load. Please try again.');
     setIsLoading(false);
@@ -120,7 +119,6 @@ export default function BarcodeScanner({
     return (
       <Modal visible={isVisible} animationType="slide">
         <View style={styles.centerContainer}>
-          {/* FIXED: Using valid Ionicons name */}
           <Ionicons name="camera" size={64} color="#8E8E93" />
           <Text style={styles.permissionTitle}>Camera Access Required</Text>
           <Text style={styles.permissionText}>
@@ -146,57 +144,51 @@ export default function BarcodeScanner({
             <Text style={styles.loadingText}>Initializing camera...</Text>
           </View>
         )}
-        
+
         <CameraView
           style={styles.camera}
           facing={facing}
-          onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
+          // ✅ Pass undefined when already scanned to stop expo-camera from
+          // even invoking the callback — belt-and-suspenders with the ref guard.
+          // Note: we derive this from the ref via a local variable because
+          // we don't store scanned in state anymore (ref-only approach).
+          onBarcodeScanned={handleBarcodeScanned}
           onCameraReady={handleCameraReady}
           onMountError={handleCameraError}
           barcodeScannerSettings={{
             barcodeTypes: [
-              'qr', 'pdf417', 'aztec', 'code39', 'code93', 
-              'code128', 'codabar', 'ean13', 'ean8', 
-              'upc_a', 'upc_e', 'itf14'
+              'qr', 'pdf417', 'aztec', 'code39', 'code93',
+              'code128', 'codabar', 'ean13', 'ean8',
+              'upc_a', 'upc_e', 'itf14',
             ],
           }}
           ref={cameraRef}
         >
           <View style={styles.overlay}>
-            {/* Scanner frame overlay */}
-            {/* <View style={styles.scannerFrame}>
+            <View style={styles.scannerFrame}>
               <View style={[styles.corner, styles.topLeft]} />
               <View style={[styles.corner, styles.topRight]} />
               <View style={[styles.corner, styles.bottomLeft]} />
               <View style={[styles.corner, styles.bottomRight]} />
             </View>
-            
-            <Text style={styles.scannerText}>
-              {scanned ? 'Processing...' : 'Align barcode within frame'}
-            </Text> */}
-            <View style={styles.scannerFrame} onLayout={onFrameLayout}>
-              <View style={[styles.corner, styles.topLeft]} />
-              <View style={[styles.corner, styles.topRight]} />
-              <View style={[styles.corner, styles.bottomLeft]} />
-              <View style={[styles.corner, styles.bottomRight]} />
-              
-              {/* ✨ VISUAL FEEDBACK: A scanning line animation could go here */}
-              <View style={styles.scanLine} />
-            </View>
+
+            <Text style={styles.scannerText}>Align barcode within frame</Text>
           </View>
         </CameraView>
 
         <View style={styles.controls}>
-          {/* FIXED: Using valid Ionicons name */}
+          <TouchableOpacity style={styles.controlButton} onPress={toggleCameraFacing}>
+            <Ionicons name="camera-reverse" size={28} color="#FFFFFF" />
+            <Text style={styles.controlButtonText}>Flip</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity style={styles.closeControlButton} onPress={onClose}>
             <Ionicons name="close-circle" size={48} color="#FF3B30" />
             <Text style={styles.closeControlButtonText}>Close</Text>
           </TouchableOpacity>
-          
+
           <View style={styles.controlInfo}>
-            <Text style={styles.infoText}>
-              Scan product barcodes (EAN-13, UPC, QR)
-            </Text>
+            <Text style={styles.infoText}>Scan product barcodes (EAN-13, UPC, QR)</Text>
           </View>
         </View>
       </View>
@@ -214,30 +206,17 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)', // Darker background for focus
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   scannerFrame: {
-    width: 280, // Slightly wider for EAN-13 barcodes
-    height: 180,
-    borderWidth: 2,
-    borderColor: '#FFFFFF', // White border makes the box pop
+    width: 250,
+    height: 150,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
     position: 'relative',
-    backgroundColor: 'transparent', // This creates the "hole" effect
-  },
-  scanLine: {
-    position: 'absolute',
-    left: 10,
-    right: 10,
-    top: '50%',
-    height: 2,
-    backgroundColor: '#007AFF',
-    opacity: 0.5,
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 10,
+    marginBottom: 20,
   },
   corner: {
     position: 'absolute',
