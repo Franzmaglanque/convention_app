@@ -37,13 +37,20 @@ const formatCurrency = (value: number | string) => {
   }).format(numericValue || 0);
 };
 
-const ProductItem = React.memo(({ item,onAdd,currentQty,onRemove }:{ 
+const ProductItem = React.memo(({ item,onAdd,currentQty,onRemove, onSetQty }:{ 
   item: Product;
   currentQty: number;
   onAdd: (item: Product) => void;
-  onRemove: (item: Product) => void
+  onRemove: (item: Product) => void;
+  onSetQty: (qty: number, item: Product) => void;
+
 }) => {
+
+  const [showQtyModal, setShowQtyModal] = useState(false);
+  const [qtyInput, setQtyInput] = useState(currentQty.toString());
+
   return (
+    <>
     <View style={styles.browseItemRow}>
       <View style={styles.browseItemInfo}>
         <Text style={styles.itemName} numberOfLines={2}>
@@ -66,7 +73,47 @@ const ProductItem = React.memo(({ item,onAdd,currentQty,onRemove }:{
           <Ionicons name="remove" size={20} color={currentQty === 0 ? "#C7C7CC" : "#007AFF"} />
         </TouchableOpacity>
         
-        <Text style={styles.stepperValue}>{currentQty}</Text>
+        <Text 
+          style={styles.stepperValue} 
+          onPress={() => setShowQtyModal(true)} 
+          style={{
+              width: '40', 
+              textAlign: 'center',
+              fontWeight: '700',
+              fontSize: 15
+          }}
+          >{currentQty}</Text>
+        {/* <TextInput
+          keyboardType="numeric"
+          style={{
+            width: 50,
+            borderColor: 'black'
+          }}
+          value={currentQty.toString()}
+          onChangeText={(value) => {
+
+            // allow only digits (but allow empty while typing)
+            if (value !== '' && !/^[0-9]+$/.test(value)) {
+              return;
+            }
+
+            // EMPTY → remove item
+            if (value === '') {
+              onRemove(item);
+              return;
+            }
+
+            const qty = parseInt(value, 10);
+
+            // ZERO → remove item
+            if (qty === 0) {
+              onRemove(item);
+              return;
+            }
+
+            onSetQty(qty, item);
+          }}
+        /> */}
         <TouchableOpacity 
           style={styles.stepperBtn} 
           onPress={() => onAdd(item)}
@@ -75,6 +122,110 @@ const ProductItem = React.memo(({ item,onAdd,currentQty,onRemove }:{
         </TouchableOpacity>
       </View>
     </View>
+        <Modal
+          visible={showQtyModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowQtyModal(false)}
+        >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.4)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+        <View
+          style={{
+            width: 260,
+            backgroundColor: '#fff',
+            borderRadius: 14,
+            padding: 18,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 16,
+              fontWeight: '700',
+              marginBottom: 12,
+              color: '#1C1C1E',
+            }}
+          >
+            Set Quantity
+          </Text>
+          <TextInput
+            keyboardType="number-pad"
+            autoFocus
+            value={qtyInput}
+            style={{
+              borderWidth: 1,
+              borderColor: '#D1D1D6',
+              borderRadius: 8,
+              height: 42,
+              paddingHorizontal: 12,
+              fontSize: 20,
+              marginBottom: 18,
+            }}
+            onChangeText={(value) => {
+              
+              const sanitized = value.replace(/[^0-9]/g, '');
+              setQtyInput(sanitized);
+              
+
+            }}
+          />
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+            }}
+          >
+            <TouchableOpacity
+              onPress={() => setShowQtyModal(false)}
+              style={{
+                marginRight: 16,
+              }}
+            >
+              <Text
+                style={{
+                  color: 'red',
+                  fontWeight: '600',
+                  fontSize: 20,
+                }}
+              >
+                Cancel
+              </Text>
+            </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                    const qty = parseInt(qtyInput || '0', 10);
+
+                    if (qty <= 0) {
+                      onRemove(item);
+                    } else {
+                      onSetQty(qty, item);
+                    }
+
+                    setShowQtyModal(false);
+
+                  }}
+              >
+              <Text
+                style={{
+                  color: '#007AFF',
+                  fontWeight: '700',
+                  fontSize: 20,
+                }}
+              >
+                OK
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+    </>
   );
 }, (prevProps, nextProps) => {
   // ✨ PERFORMANCE BOOST: Only re-render if the quantity changes!
@@ -82,7 +233,7 @@ const ProductItem = React.memo(({ item,onAdd,currentQty,onRemove }:{
 });
 
 // const ItemList: React.FC<ItemListProps> = ({ visible, onClose,onAdd,cartItemsMap }) => {
-const ItemList: React.FC<ItemListProps> = ({ visible, onClose, onAdd, onRemove, cartItems }) => {
+const ItemList: React.FC<ItemListProps> = ({ visible, onClose, onAdd, onRemove, cartItems, onSetQty }) => {
   const [searchQuery,setSearchQuery] = useState('');
   
   const {
@@ -148,8 +299,9 @@ const ItemList: React.FC<ItemListProps> = ({ visible, onClose, onAdd, onRemove, 
       <ProductItem 
         item={item} 
         currentQty={currentQty} 
-        onAdd={onAdd} 
-        onRemove={onRemove} 
+r        onAdd={onAdd} 
+        onRemove={onRemove}
+        onSetQty={onSetQty} 
       />
     );
   }, [,cartItems,onAdd,onRemove]);

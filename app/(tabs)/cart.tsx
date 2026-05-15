@@ -10,7 +10,7 @@ import { useProcessPayment, usePwalletDebit, useSaveCashPayment, useSaveCreditCa
 import { useScanProduct } from '@/hooks/useProduct';
 import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
-import React, { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
@@ -109,6 +109,8 @@ function useDebounce(callback: Function, delay: number) {
 }
 
 export default function CartScreen() {
+
+
   const { showSuccess, showError, showInfo } = useToast();
   const { user } = useAuth();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -194,6 +196,11 @@ export default function CartScreen() {
     !isAmountValid || 
     (requiresRefNumber && !isRefValid) ||
     (currentPaymentType === 'CASH' && !isCashBillValid);
+
+
+  const [showQtyModal, setShowQtyModal] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [qtyInput, setQtyInput] = useState('');
 
     ///
   const handleNewTransaction = async () => {
@@ -622,6 +629,24 @@ export default function CartScreen() {
     })
   }
 
+  const handleSetQty = (qty: number, item: CartItem['product']) => {
+
+   
+    console.log('QTTYYYYY', qty, 'ITEMSSSS', item);
+    console.log('Setting Quantity...');
+    setIsCartSynced(false);
+    setCartItems(prev => {
+      const existingItem = prev.find(i => i.product.id === item.id)
+      if(existingItem){
+        return prev.map(i => 
+          i.product.id === item.id ? { ...i, quantity: Number(qty)}  : i
+        )
+      }
+
+      return [...prev,{product:item,quantity: Number(qty)}]
+    })
+  }
+
   const handleProceedToCheckout = async () => {
     
     console.log('isCartSynced',isCartSynced);
@@ -826,6 +851,12 @@ export default function CartScreen() {
     setShowPaymentModal(false)
   }
 
+  const openQtyModal = (item: any) => {
+    setSelectedItem(item);
+    setQtyInput(item.quantity.toString());
+    setShowQtyModal(true);
+  };
+
   const isProcessingPayment = 
     cashPaymentMutation.isPending || 
     creditCardPaymentMutation.isPending || 
@@ -921,8 +952,8 @@ export default function CartScreen() {
             )}
           </View>
         ) : (
-          cartItems.map((item) => (
-            <View key={item.product.id} style={styles.cartItem}>
+          cartItems.map((item, index) => (
+            <View key={item.product.id} style={styles.cartItem} key={index}>
               <View style={styles.cartItemInfo}>
                 <Text style={styles.productName}>{item.product.description}</Text>
                 <Text style={styles.productDetails}>
@@ -954,15 +985,57 @@ export default function CartScreen() {
                     />
                   </TouchableOpacity>
                   
-                  <View style={styles.quantityDisplay}>
+                  {/* <View style={styles.quantityDisplay}>
                     <Text style={[
                       styles.quantityText,
                       payments.length > 0 && styles.quantityTextDisabled
                     ]}>
                       {item.quantity}
                     </Text>
-                  </View>
-                  
+                  </View> */}
+                  <TouchableOpacity
+                      onPress={() => openQtyModal(item)}
+                      disabled={payments.length > 0}
+                    >
+                      <View style={styles.quantityDisplay}>
+                        <Text
+                          style={[
+                            styles.quantityText,
+                            payments.length > 0 && styles.quantityTextDisabled
+                          ]}
+                        >
+                          {item.quantity}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  {/* <TextInput
+                    keyboardType="numeric"
+                    style={{
+                      width: 50,
+                      borderColor: 'black'
+                    }}
+                    value={item.quantity?.toString()}
+
+                    onChangeText={(value) => {
+
+                      console.log('valuezzzz', value);
+
+                      console.log(item.product);
+
+                      // allow only digits (remove everything else)
+                      const sanitized = value.replace(/[^0-9]/g, '');
+
+                      const qty = Number(sanitized);
+
+                      if(qty === 0){
+                        handleRemove(item.product);
+                        return;
+                      }
+
+                      // allow editing freely, DO NOT block partial states
+                      handleSetQty(Number(qty), item.product);
+                    }}
+                  /> */}
                   <TouchableOpacity
                     style={[
                       styles.quantityButton,
@@ -1327,6 +1400,7 @@ export default function CartScreen() {
         onRemove={handleRemove}
         // cartItemsMap={cartItemsMap }
         cartItems={cartItems}
+        onSetQty={handleSetQty}
       />
 
       {/* Payment Selection Modal */}
@@ -1346,6 +1420,103 @@ export default function CartScreen() {
         onClose={() => setShowSmsModal(false)}
         onSubmit={handleCompleteTransaction}
       />
+      <Modal
+        visible={showQtyModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowQtyModal(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.4)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <View
+            style={{
+              width: 260,
+              backgroundColor: '#fff',
+              borderRadius: 14,
+              padding: 18,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 16,
+                fontWeight: '700',
+                marginBottom: 12,
+              }}
+            >
+              Set Quantity
+            </Text>
+
+            <TextInput
+              keyboardType="number-pad"
+              autoFocus
+              value={qtyInput}
+              onChangeText={(value) => {
+                const sanitized = value.replace(/[^0-9]/g, '');
+                setQtyInput(sanitized);
+              }}
+              style={{
+                borderWidth: 1,
+                borderColor: '#D1D1D6',
+                borderRadius: 8,
+                height: 42,
+                paddingHorizontal: 12,
+                fontSize: 16,
+                marginBottom: 18,
+              }}
+            />
+
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'flex-end',
+              }}
+            >
+              <TouchableOpacity
+                onPress={() => setShowQtyModal(false)}
+                style={{ marginRight: 16 }}
+              >
+                <Text
+                  style={{
+                    color: '#8E8E93',
+                    fontWeight: '600',
+                  }}
+                >
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => {
+                  const qty = Number(qtyInput || '0');
+
+                  if (qty <= 0) {
+                    handleRemove(selectedItem.product);
+                  } else {
+                    handleSetQty(qty, selectedItem.product);
+                  }
+
+                  setShowQtyModal(false);
+                }}
+              >
+                <Text
+                  style={{
+                    color: '#007AFF',
+                    fontWeight: '700',
+                  }}
+                >
+                  OK
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
