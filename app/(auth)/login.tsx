@@ -1,11 +1,10 @@
-import LoadingSpinner from '@/components/LoadingSpinner';
 import { useToast } from '@/components/ToastProvider';
 import { useLogin } from '@/hooks/useAuth';
 import { useAuthStore } from '@/stores/auth.store';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -28,19 +27,20 @@ const COLORS = {
 };
 
 export default function LoginScreen() {
-  const { isAuthenticated, sessionMessage, clearSessionMessage } = useAuthStore();
+  const { sessionMessage, clearSessionMessage } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
 
   // Clear the message after showing it
   useEffect(() => {
-    return () => {
-      if (sessionMessage) clearSessionMessage();
-    };
-  }, []);
+    if (sessionMessage) {
+      showError(sessionMessage);
+      clearSessionMessage();
+    }
+  }, [sessionMessage]);
 
   const { showSuccess, showError } = useToast();
   const [loginForm, setLoginForm] = useState({
-    email: '',
+    username: '',
     password: ''
   });
 
@@ -48,13 +48,13 @@ export default function LoginScreen() {
 
   const handleLogin = () => {
     // Basic validation
-    if (!loginForm.email || !loginForm.password) {
+    if (!loginForm.username || !loginForm.password) {
       showError('Please enter both username and password.');
       return;
     }
 
     loginMutation.mutate(
-      { username: loginForm.email, password: loginForm.password },
+      { username: loginForm.username, password: loginForm.password },
       {
         onSuccess: (responseData) => {
           showSuccess('Welcome to the Convention!');
@@ -99,8 +99,8 @@ export default function LoginScreen() {
                 style={styles.input}
                 placeholder="Username"
                 placeholderTextColor={COLORS.textLight}
-                value={loginForm.email}
-                onChangeText={(text) => setLoginForm({...loginForm, email: text})}
+                value={loginForm.username}
+                onChangeText={(text) => setLoginForm({...loginForm, username: text})}
                 autoCapitalize="none"
               />
             </View>
@@ -139,18 +139,11 @@ export default function LoginScreen() {
               disabled={loginMutation.isPending}
             >
               {loginMutation.isPending ? (
-                <LoadingSpinner color={COLORS.white} />
+                <ActivityIndicator color={COLORS.white} />
               ) : (
                 <Text style={styles.buttonText}>Login</Text>
               )}
-            </Pressable>
-
-            {/* Register Link */}
-            <Pressable 
-              onPress={() => router.push('/(auth)/register')}
-              style={styles.registerLinkContainer}
-            >
-            </Pressable>
+            </Pressable>          
           </View>
 
         </View>
@@ -266,12 +259,4 @@ const styles = StyleSheet.create({
     marginTop: 24,
     alignItems: 'center',
   },
-  registerText: {
-    fontSize: 14,
-    color: COLORS.textLight,
-  },
-  registerTextHighlight: {
-    color: COLORS.puregoldGreen,
-    fontWeight: '700',
-  }
 });

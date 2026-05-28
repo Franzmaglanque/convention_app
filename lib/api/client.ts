@@ -21,7 +21,7 @@ export const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     // Skip adding token for login endpoint
-    if (config.url === '/supplier/login') {
+    if (config.url === '/auth/login') {
       return config;
     }
 
@@ -49,10 +49,12 @@ apiClient.interceptors.response.use(
     if (serverMessage) {
       error.message = serverMessage; // "Token expired"
     }
-
-    if(status === 401){
+    console.log('API error:', error.config?.url);
+    if(status === 401 && error.config?.url !== '/auth/login'){
       // useAuthStore.getState().logout();
-      useAuthStore.getState().logout('Your session has expired. Please log in again.');
+      // useAuthStore.getState().logout('Your session has expired. Please log in again.');
+      useAuthStore.getState().logout(serverMessage);
+
       router.replace('/(auth)/login');
     }
     return Promise.reject(error);
