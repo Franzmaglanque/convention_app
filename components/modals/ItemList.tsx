@@ -4,7 +4,9 @@ import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   RefreshControl,
   StyleSheet,
   Text,
@@ -27,6 +29,7 @@ interface ItemListProps {
   onAdd: (item: Product) => void;
   onRemove: (item: Product) => void;
   cartItems: any[];
+  onSetQty: (qty: number, item: Product) => void;
     // cartItemsMap:Record<number, number>
 }
 const formatCurrency = (value: number | string) => {
@@ -51,180 +54,111 @@ const ProductItem = React.memo(({ item,onAdd,currentQty,onRemove, onSetQty }:{
 
   return (
     <>
-    <View style={styles.browseItemRow}>
-      <View style={styles.browseItemInfo}>
-        <Text style={styles.itemName} numberOfLines={2}>
-          {item.description}
-        </Text>
-        <View style={styles.skuRow}>
-          <Text style={styles.itemSubDetail}>SKU: {item.sku || 'N/A'}</Text>
-          <Text style={styles.itemSubDetail}> • </Text>
-          <Text style={styles.itemSubDetail}>UPC: {item.barcode || 'N/A'}</Text>
-        </View>
-        <Text style={styles.itemPrice}>{formatCurrency(item.price)}</Text>
-      </View>
-      
-      <View style={styles.stepper}>
-        <TouchableOpacity 
-          style={[styles.stepperBtn, currentQty === 0 && styles.stepperDisabled]} 
-          onPress={() => onRemove(item)}
-          disabled={currentQty === 0}
-        >
-          <Ionicons name="remove" size={20} color={currentQty === 0 ? "#C7C7CC" : "#007AFF"} />
-        </TouchableOpacity>
-        
-        <Text 
-          style={styles.stepperValue} 
-          onPress={() => setShowQtyModal(true)} 
-          style={{
-              width: '40', 
-              textAlign: 'center',
-              fontWeight: '700',
-              fontSize: 15
-          }}
-          >{currentQty}</Text>
-        {/* <TextInput
-          keyboardType="numeric"
-          style={{
-            width: 50,
-            borderColor: 'black'
-          }}
-          value={currentQty.toString()}
-          onChangeText={(value) => {
-
-            // allow only digits (but allow empty while typing)
-            if (value !== '' && !/^[0-9]+$/.test(value)) {
-              return;
-            }
-
-            // EMPTY → remove item
-            if (value === '') {
-              onRemove(item);
-              return;
-            }
-
-            const qty = parseInt(value, 10);
-
-            // ZERO → remove item
-            if (qty === 0) {
-              onRemove(item);
-              return;
-            }
-
-            onSetQty(qty, item);
-          }}
-        /> */}
-        <TouchableOpacity 
-          style={styles.stepperBtn} 
-          onPress={() => onAdd(item)}
-        >
-          <Ionicons name="add" size={20} color="#007AFF" />
-        </TouchableOpacity>
-      </View>
-    </View>
-        <Modal
-          visible={showQtyModal}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setShowQtyModal(false)}
-        >
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.4)',
-            justifyContent: 'center',
-            alignItems: 'center',
-          }}
-        >
-        <View
-          style={{
-            width: 260,
-            backgroundColor: '#fff',
-            borderRadius: 14,
-            padding: 18,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 16,
-              fontWeight: '700',
-              marginBottom: 12,
-              color: '#1C1C1E',
-            }}
-          >
-            Set Quantity
+      <View style={styles.browseItemRow}>
+        <View style={styles.browseItemInfo}>
+          <Text style={styles.itemName} numberOfLines={2}>
+            {item.description}
           </Text>
-          <TextInput
-            keyboardType="number-pad"
-            autoFocus
-            value={qtyInput}
-            style={{
-              borderWidth: 1,
-              borderColor: '#D1D1D6',
-              borderRadius: 8,
-              height: 42,
-              paddingHorizontal: 12,
-              fontSize: 20,
-              marginBottom: 18,
-            }}
-            onChangeText={(value) => {
-              
-              const sanitized = value.replace(/[^0-9]/g, '');
-              setQtyInput(sanitized);
-              
-
-            }}
-          />
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-            }}
+          <View style={styles.skuRow}>
+            <Text style={styles.itemSubDetail}>SKU: {item.sku || 'N/A'}</Text>
+            <Text style={styles.itemSubDetail}> • </Text>
+            <Text style={styles.itemSubDetail}>UPC: {item.barcode || 'N/A'}</Text>
+          </View>
+          <Text style={styles.itemPrice}>{formatCurrency(item.price)}</Text>
+        </View>
+        
+        <View style={styles.stepper}>
+          <TouchableOpacity 
+            style={[styles.stepperBtn, currentQty === 0 && styles.stepperDisabled]} 
+            onPress={() => onRemove(item)}
+            disabled={currentQty === 0}
           >
-            <TouchableOpacity
-              onPress={() => setShowQtyModal(false)}
-              style={{
-                marginRight: 16,
+            <Ionicons name="remove" size={20} color={currentQty === 0 ? "#C7C7CC" : "#007AFF"} />
+          </TouchableOpacity>
+          
+          <Text 
+            // style={styles.stepperValue} 
+            onPress={() => setShowQtyModal(true)} 
+            style={[
+              styles.stepperValue,
+              {
+                  width: 40, 
+                  textAlign: 'center',
+                  fontWeight: '700',
+                  fontSize: 15,
+                  
+              }]}
+            >{currentQty}</Text>
+        
+          <TouchableOpacity 
+            style={styles.stepperBtn} 
+            onPress={() => onAdd(item)}
+          >
+            <Ionicons name="add" size={20} color="#007AFF" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <Modal
+        visible={showQtyModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowQtyModal(false)}
+      >
+        {/* KeyboardAvoidingView prevents the modal from being covered by the keyboard on smaller screens */}
+        <KeyboardAvoidingView 
+          style={styles.modalOverlay} 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={styles.modalContainer}>
+            <Text style={styles.titleText}>Set Quantity</Text>
+
+            <TextInput
+              style={styles.input}
+              keyboardType="number-pad"
+              autoFocus
+              value={qtyInput}
+              maxLength={5} // Optional: Prevents users from typing unreasonably large numbers
+              onChangeText={(value) => {
+                const sanitized = value.replace(/[^0-9]/g, '');
+                setQtyInput(sanitized);
               }}
-            >
-              <Text
-                style={{
-                  color: 'red',
-                  fontWeight: '600',
-                  fontSize: 20,
+            />
+
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                onPress={() => setShowQtyModal(false)}
+                style={styles.cancelButton}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} 
+              >
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                disabled={Number(qtyInput || '0') === 0}
+                onPress={() => {
+                  console.log('set quantity test',qtyInput);
+                  const qty = parseInt(qtyInput || '0', 10);                  
+
+                  if (qty <= 0) {
+                    onRemove(item);
+                  } else {
+                    onSetQty(qty, item);
+                  }
+                  setShowQtyModal(false);
                 }}
               >
-                Cancel
-              </Text>
-            </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => {
-                    const qty = parseInt(qtyInput || '0', 10);
-
-                    if (qty <= 0) {
-                      onRemove(item);
-                    } else {
-                      onSetQty(qty, item);
-                    }
-
-                    setShowQtyModal(false);
-
-                  }}
-              >
-              <Text
-                style={{
-                  color: '#007AFF',
+                <Text style={{
                   fontWeight: '700',
                   fontSize: 20,
-                }}
-              >
-                OK
-              </Text>
-            </TouchableOpacity>
+                  color: Number(qtyInput || '0') === 0 ? '#999' : '#007AFF'
+                }}>OK</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </View>
-    </Modal>
+        </KeyboardAvoidingView>
+      </Modal>
     </>
   );
 }, (prevProps, nextProps) => {
@@ -240,7 +174,6 @@ const ProductItem = React.memo(({ item,onAdd,currentQty,onRemove, onSetQty }:{
   return qtyIsSame && itemIsSame;
 });
 
-// const ItemList: React.FC<ItemListProps> = ({ visible, onClose,onAdd,cartItemsMap }) => {
 const ItemList: React.FC<ItemListProps> = ({ visible, onClose, onAdd, onRemove, cartItems, onSetQty }) => {
   const [searchQuery,setSearchQuery] = useState('');
   
@@ -253,16 +186,6 @@ const ItemList: React.FC<ItemListProps> = ({ visible, onClose, onAdd, onRemove, 
   } = useFetchProductList({
     enabled: visible
   });
-  //   const {
-  //   data: products,
-  //   isLoading,
-  //   isError,
-  //   refetch
-  // } = useFetchProductList({
-  //   // ✨ Remove 'enabled: visible'. Let it fetch quietly in the 
-  //   // background as soon as the Cart screen mounts!
-  //   staleTime: 1000 * 60 * 30, // Tell React Query: "This data is good for 30 minutes, don't refetch it every time the modal opens"
-  // });
 
   const filteredData = useMemo(() => {
       if (!products?.data) return [];
@@ -289,25 +212,15 @@ const ItemList: React.FC<ItemListProps> = ({ visible, onClose, onAdd, onRemove, 
       }
     });
     return map;
-  }, [cartItems]); // Only recalculates when the cart actually changes!
-    // ✨ FIX: Create a proper renderItem callback
+  }, [cartItems]);
+
   const renderItem = useCallback(({ item }: { item: Product }) => {
-    // const currentQty = cartItemsMap[item.id] || 0;
-    // return (
-    //   <ProductItem 
-    //     item={item}
-    //     onAdd={onAdd}
-    //     currentQty={currentQty}
-    //   />
-    // );
-    // const currentQty = cartItems.find(cartItem => cartItem.product?.id === item.id)?.quantity || 0;
-    // ✨ INSTANT LOOKUP! No more .find() loops.
     const currentQty = cartQtyMap[item.id] || 0;
     return (
       <ProductItem 
         item={item} 
         currentQty={currentQty} 
-r        onAdd={onAdd} 
+        onAdd={onAdd} 
         onRemove={onRemove}
         onSetQty={onSetQty} 
       />
@@ -338,7 +251,6 @@ r        onAdd={onAdd}
                     />
                 </View>
 
-                {/* ✨ OPTIMIZATION 4: The FlatList replaces the ScrollView */}
                 {isLoading ? (
                     <View style={styles.centerContainer}>
                         <ActivityIndicator size="large" color="#007AFF" />
@@ -408,6 +320,57 @@ const styles = StyleSheet.create({
   stepperBtn: { padding: 8 },
   stepperDisabled: { opacity: 0.5 },
   stepperValue: { fontSize: 16, fontWeight: '600', minWidth: 24, textAlign: 'center', color: '#1C1C1E' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: 260,
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 18,
+    // Optional: Add a subtle shadow for better depth on iOS/Android
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  titleText: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 12,
+    color: '#1C1C1E',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#D1D1D6',
+    borderRadius: 8,
+    height: 42,
+    paddingHorizontal: 12,
+    fontSize: 20,
+    marginBottom: 18,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8, // Adds a bit of breathing room for the buttons
+  },
+  cancelButton: {
+    marginRight: 16,
+  },
+  cancelText: {
+    color: '#FF3B30', // Standard iOS System Red for destructive/cancel actions
+    fontWeight: '600',
+    fontSize: 20,
+  },
+  okText: {
+    color: '#007AFF', // Standard iOS System Blue
+    fontWeight: '700',
+    fontSize: 20,
+  }
 });
 
 export default ItemList;

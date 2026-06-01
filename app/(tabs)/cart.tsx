@@ -853,7 +853,7 @@ export default function CartScreen() {
           </View>
         ) : (
           cartItems.map((item, index) => (
-            <View key={item.product.id} style={styles.cartItem} key={index}>
+            <View key={item.product.id} style={styles.cartItem}>
               <View style={styles.cartItemInfo}>
                 <Text style={styles.productName}>{item.product.description}</Text>
                 <Text style={styles.productDetails}>
@@ -873,7 +873,6 @@ export default function CartScreen() {
                     ]}
                     onPress={() => {
                       if (payments.length > 0) return;
-                      // updateQuantity(item, item.quantity - 1);
                       handleRemove(item.product);
                     }}
                     disabled={payments.length > 0}
@@ -885,14 +884,6 @@ export default function CartScreen() {
                     />
                   </TouchableOpacity>
                   
-                  {/* <View style={styles.quantityDisplay}>
-                    <Text style={[
-                      styles.quantityText,
-                      payments.length > 0 && styles.quantityTextDisabled
-                    ]}>
-                      {item.quantity}
-                    </Text>
-                  </View> */}
                   <TouchableOpacity
                       onPress={() => openQtyModal(item)}
                       disabled={payments.length > 0}
@@ -908,34 +899,7 @@ export default function CartScreen() {
                         </Text>
                       </View>
                     </TouchableOpacity>
-                  {/* <TextInput
-                    keyboardType="numeric"
-                    style={{
-                      width: 50,
-                      borderColor: 'black'
-                    }}
-                    value={item.quantity?.toString()}
-
-                    onChangeText={(value) => {
-
-                      console.log('valuezzzz', value);
-
-                      console.log(item.product);
-
-                      // allow only digits (remove everything else)
-                      const sanitized = value.replace(/[^0-9]/g, '');
-
-                      const qty = Number(sanitized);
-
-                      if(qty === 0){
-                        handleRemove(item.product);
-                        return;
-                      }
-
-                      // allow editing freely, DO NOT block partial states
-                      handleSetQty(Number(qty), item.product);
-                    }}
-                  /> */}
+                 
                   <TouchableOpacity
                     style={[
                       styles.quantityButton,
@@ -943,7 +907,6 @@ export default function CartScreen() {
                     ]}
                     onPress={() => {
                       if (payments.length > 0) return;
-                      // updateQuantity(item, item.quantity + 1);
                       handleAdd(item.product);
                     }}
                     disabled={payments.length > 0}
@@ -1151,41 +1114,38 @@ export default function CartScreen() {
       <BarcodeScanner
         isVisible={isScanningCard}
         onBarcodeScanned={async(barcodeData) => {
-          if(cardModalMode == 'convert'){
-            // setIsCardedTransaction(true);
-            try {
-              // 1. We WAIT for the database to confirm it saved
-              await saveLoyaltyCardMutation.mutateAsync({
-                order_no: orderNo!, // whatever your payload is
-                loyalty_card: barcodeData.trim()
-              });
-              setIsCardedTransaction(true);
-              setShowCardInputModal(false);
-              setCustomerCardNumber('');
-              setCardModalMode('new')
-            } catch (error) {
-              showError('Failed to save loyalty card.');
+          const trimmedData = barcodeData.trim();
+          const regex = /^\d{16}$/;
+          if(regex.test(trimmedData)){
+
+            if(cardModalMode == 'convert'){
+              try {
+
+                await saveLoyaltyCardMutation.mutateAsync({
+                  order_no: orderNo!, 
+                  loyalty_card: trimmedData
+                });
+                setIsCardedTransaction(true);
+                setShowCardInputModal(false);
+                setCustomerCardNumber('');
+                setCardModalMode('new')
+              } catch (error) {
+                showError('Failed to save loyalty card.');
+              }
+            }else{
+              createNewTransaction(true, trimmedData);
             }
+
           }else{
-            createNewTransaction(true, barcodeData.trim());
+            showError("Invalid Loyalty Card Format. Please scan a valid 16-digit card.");
           }
-          // createNewTransaction(true, barcodeData);
+
           setCustomerCardNumber('');
           setIsScanningCard(false);
         }}
         onClose={() => setIsScanningCard(false)}
         scanDelay={1000}
       />
-
-        {/* Payment Scanner Modal */}
-      {/* <BarcodeScanner
-        isVisible={paymentScanner}
-        onBarcodeScanned={(barcodeData) => {
-          handlePaymentScanned(barcodeData)
-        }}
-        onClose={() => setPaymentScanner(false)}
-        scanDelay={1000}
-      /> */}
 
         {/* Transaction Type Selection Modal */}
       <Modal
@@ -1287,16 +1247,15 @@ export default function CartScreen() {
                 style={[styles.processButton, !customerCardNumber && styles.processButtonDisabled]}
                 disabled={!customerCardNumber}
                 onPress={async() => {
-                  if (customerCardNumber.trim()) {
+                  const trimmedCardNumber = customerCardNumber.trim();
+                  const regex = /^\d{16}$/;
+                  if(regex.test(trimmedCardNumber)){
                     setShowCardInputModal(false);
-                    console.log('cardModalMode',cardModalMode);
                     if(cardModalMode == 'convert'){
-                      // setIsCardedTransaction(true);
                       try {
-                        // 1. We WAIT for the database to confirm it saved
                         await saveLoyaltyCardMutation.mutateAsync({
-                          order_no: orderNo!, // whatever your payload is
-                          loyalty_card: customerCardNumber.trim()
+                          order_no: orderNo!,
+                          loyalty_card: trimmedCardNumber
                         });
                         setIsCardedTransaction(true);
                         setShowCardInputModal(false);
@@ -1305,11 +1264,12 @@ export default function CartScreen() {
                         showError('Failed to save loyalty card.');
                       }
                     }else{
-                      createNewTransaction(true, customerCardNumber.trim());
+                      createNewTransaction(true, trimmedCardNumber);
                     }
-                    
-                    setCustomerCardNumber('');
+                  }else{
+                    showError("Invalid Loyalty Card Format. Please enter a 16-digit card number.");
                   }
+                  setCustomerCardNumber('');
                 }}
               >
                 <Text style={styles.processButtonText}>Start Carded Transaction</Text>
@@ -1324,7 +1284,6 @@ export default function CartScreen() {
         onClose={() => setShowItemList(false)}
         onAdd={handleAdd}
         onRemove={handleRemove}
-        // cartItemsMap={cartItemsMap }
         cartItems={cartItems}
         onSetQty={handleSetQty}
       />
@@ -1346,6 +1305,7 @@ export default function CartScreen() {
         onClose={() => setShowSmsModal(false)}
         onSubmit={handleCompleteTransaction}
       />
+
       <Modal
         visible={showQtyModal}
         transparent
@@ -1418,9 +1378,10 @@ export default function CartScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
+                disabled={Number(qtyInput || '0') === 0}
                 onPress={() => {
                   const qty = Number(qtyInput || '0');
-
+                  console.log('set quantity test',qty);
                   if (qty <= 0) {
                     handleRemove(selectedItem.product);
                   } else {
@@ -1432,8 +1393,8 @@ export default function CartScreen() {
               >
                 <Text
                   style={{
-                    color: '#007AFF',
                     fontWeight: '700',
+                    color: Number(qtyInput || '0') === 0 ? '#999' : '#007AFF'
                   }}
                 >
                   OK
