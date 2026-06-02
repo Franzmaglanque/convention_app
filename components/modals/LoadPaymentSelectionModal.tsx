@@ -87,7 +87,7 @@ export default function LoadPaymentSelectionModal({
 
   // --- CONFIG ---
   const paymentOptions = [
-    { id: 'CASH', title: 'Cash', icon: 'cash-outline', color: '#34C759' },
+    // { id: 'CASH', title: 'Cash', icon: 'cash-outline', color: '#34C759' },
     { id: 'GCASH', title: 'GCash', icon: 'phone-portrait-outline', color: '#007AFF' },
     { id: 'PWALLET', title: 'PWallet', icon: 'wallet-outline', color: '#FF9500' },
     { id: 'CREDIT_DEBIT_CARD', title: 'Credit / Debit Card', icon: 'card-outline', color: '#5856D6' },

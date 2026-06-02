@@ -35,7 +35,6 @@ export interface PaymentDetails {
   cashReceived?: number;
   change?: number;
   ccQrData?: string;
-  // ✨ NEW: Add the new fields
   terminalType?: TerminalType;
   cardType?: CardType;
 }
@@ -45,7 +44,7 @@ interface PaymentSelectionModalProps {
   onClose: () => void;
   balanceDue: number;
   onConfirmPayment: (details: PaymentDetails) => void;
-  isProcessing: boolean; // ✨ NEW: Tell the modal when the API is running
+  isProcessing: boolean;
 }
 
 const roundMoney = (amount: number): number => {
@@ -60,31 +59,26 @@ export default function PaymentSelectionModal({
   isProcessing
 }: PaymentSelectionModalProps) {
   
-  const { showSuccess, showError, showInfo } = useToast();
-  
-  // --- STATE ---
+  const { showError } = useToast();
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
   const [paymentScanner, setPaymentScanner] = useState(false);
   const [ccQrData, setCcQrData] = useState('');
-  // ✨ NEW: Credit Card Sub-flow States
+
+
   const [terminalType, setTerminalType] = useState<TerminalType | null>(null);
   const [cardType, setCardType] = useState<CardType | null>(null);
 
   const { mutate: validatePin, isPending } = useValidatePin();
   
-  // Form States
-  const [inputAmount, setInputAmount] = useState(''); // Starts empty now!
+  const [inputAmount, setInputAmount] = useState('');
   const [cashReceived, setCashReceived] = useState('');
   const [referenceNo, setReferenceNo] = useState('');
-
 
   // const [isOverrideVisible, setIsOverrideVisible] = useState(false);
   const [isPinModalVisible, setIsPinModalVisible] = useState(false);
   const [treasuryPin, setTreasuryPin] = useState('');
   const [pinError, setPinError] = useState('');
   const [isTangentAuthorized, setIsTangentAuthorized] = useState(false);
-
-
   const scanPwalletQrMutation = useScanPwalletQr();
   
 
@@ -108,7 +102,6 @@ export default function PaymentSelectionModal({
   useEffect(() => {
     if (selectedMethod === 'CREDIT_DEBIT_CARD') {
       setTerminalType('GCASH');
-      // ✨ FIX: Start as null since GCash terminal doesn't specify card type
       setCardType(null); 
       setIsTangentAuthorized(false);
     }
@@ -116,7 +109,7 @@ export default function PaymentSelectionModal({
 
   // --- CONFIG ---
   const paymentOptions = [
-    { id: 'CASH', title: 'Cash', icon: 'cash-outline', color: '#34C759' },
+    // { id: 'CASH', title: 'Cash', icon: 'cash-outline', color: '#34C759' },
     { id: 'GCASH', title: 'GCash', icon: 'phone-portrait-outline', color: '#007AFF' },
     { id: 'PWALLET', title: 'P-Wallet', icon: 'wallet-outline', color: '#FF9500' },
     { id: 'CREDIT_DEBIT_CARD', title: 'Credit / Debit Card', icon: 'card-outline', color: '#5856D6' },

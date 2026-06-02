@@ -1306,6 +1306,7 @@ export default function CartScreen() {
         onSubmit={handleCompleteTransaction}
       />
 
+      {/* Quantity Input Modal */}
       <Modal
         visible={showQtyModal}
         transparent
@@ -1404,6 +1405,7 @@ export default function CartScreen() {
           </View>
         </View>
       </Modal>
+      
     </SafeAreaView>
   );
 }
