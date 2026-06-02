@@ -81,32 +81,22 @@ export default function LoadScreen() {
     };
 
     const handleConfirmPayment = async(payment_details: any) => {
-      // ✨ CHANGED: Calculate amount based on commercialAmount input
-      // const amount = 
-      //   loadType === 'COMMERCIAL' ? Number(commercialAmount) : 
-      //   loadType === 'DATA' ? selectedPromo?.amount : 
-      //   loadType === 'REGULAR' ? Number(customAmount) : 0;
 
-      const discount = Math.floor(Number(commercialAmount) / 3500) * 100;
-      
-      const amount = loadType === 'COMMERCIAL' 
-      ? (Number(commercialAmount) - discount) 
-      : (selectedPromo ? selectedPromo.amount : Number(customAmount));
+      const discount = handleDiscount();
+      console.log('handleConfirmPayment');
+      console.log('payment_details',payment_details);
+
+      const originalAmount = loadType === 'REGULAR' 
+      ? Number(customAmount) 
+      : (selectedPromo ? selectedPromo.amount : Number(commercialAmount));
+
+      const amount = loadType === 'REGULAR' 
+      ? (originalAmount - discount) 
+      : originalAmount;
+
       console.log('commercialAmount',commercialAmount);
       console.log('amount payment',amount);
       console.log('discount payment',discount);
-      
-
-      // await processLoadSellingMutation.mutateAsync({
-      //     load_type: loadType,
-      //     mobile_number: mobileNumber,
-      //     network: selectedNetwork?.telco ?? null,
-      //     promo: selectedPromo ?? null,
-      //     amount: amount,
-      //     discount:discount,
-      //     sku: loadType === 'COMMERCIAL' ? '349315' : loadType === 'REGULAR' ? '322304' : null,
-      //     order_no:orderNo
-      //   });
 
       try {
         const orderNo = await orderLoadMutation.mutateAsync();
@@ -150,6 +140,7 @@ export default function LoadScreen() {
               amount: amount!,
               reference_no:payment_details.referenceNumber!
             });
+            break;
           case 'SHOPEE_PAY':
             await processPaymentMutation.mutateAsync({
               order_no:orderNo.toString(),
@@ -157,6 +148,7 @@ export default function LoadScreen() {
               amount: amount!,
               reference_no:payment_details.referenceNumber!
             });
+            break;
           case 'HOME_CREDIT':
             await processPaymentMutation.mutateAsync({
               order_no: orderNo.toString(),
@@ -180,7 +172,7 @@ export default function LoadScreen() {
           mobile_number: mobileNumber,
           network: selectedNetwork?.telco ?? null,
           promo: selectedPromo ?? null,
-          amount: loadType === 'COMMERCIAL' ? Number(commercialAmount) : Number(amount!),
+          amount: originalAmount,
           discount:discount,
           sku: loadType === 'COMMERCIAL' ? '349315' : loadType === 'REGULAR' ? '322304' : null,
           order_no:orderNo
@@ -206,12 +198,19 @@ export default function LoadScreen() {
       skyroPaymentMutation.isPending ||
       processLoadSellingMutation.isPending;
 
-    const handleAmount =  () => {
-      const discount = Math.floor(Number(commercialAmount) / 3500) * 100;
+    const handleDiscount = () => {
+      if(loadType === 'REGULAR' && Number(customAmount) >= 120){
+        return Number(customAmount) * 0.10;
+      }
+      return 0;
+    }
 
-      const amount = loadType === 'COMMERCIAL' 
-      ? (Number(commercialAmount) - discount) 
-      : (selectedPromo ? selectedPromo.amount : Number(customAmount));
+    const handleAmount =  () => {
+      const discount = handleDiscount();
+
+      const amount = loadType === 'REGULAR' 
+      ? (Number(customAmount) - discount) 
+      : (selectedPromo ? selectedPromo.amount : Number(commercialAmount));
 
       return amount;
     }
@@ -427,7 +426,7 @@ export default function LoadScreen() {
               visible={showPaymentModal}
               onClose={() => setShowPaymentModal(false)}   
               amount={handleAmount()}
-              discount={Math.floor(Number(commercialAmount) / 3500) * 100}
+              discount={handleDiscount()}
               onConfirmPayment={handleConfirmPayment}
               isProcessing={isProcessingPayment}
             />
