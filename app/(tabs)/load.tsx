@@ -88,11 +88,9 @@ export default function LoadScreen() {
 
       const originalAmount = loadType === 'REGULAR' 
       ? Number(customAmount) 
-      : (selectedPromo ? selectedPromo.amount : Number(commercialAmount));
+      : (selectedPromo ? Number(selectedPromo.amount) : Number(commercialAmount));
 
-      const amount = loadType === 'REGULAR' 
-      ? (originalAmount - discount) 
-      : originalAmount;
+      const amount = handleAmount();
 
       console.log('commercialAmount',commercialAmount);
       console.log('amount payment',amount);
@@ -202,15 +200,22 @@ export default function LoadScreen() {
       if(loadType === 'REGULAR' && Number(customAmount) >= 120){
         return Number(customAmount) * 0.10;
       }
+
+      if(loadType === 'DATA' && Number(selectedPromo?.amount) >= 120){
+        return Number(selectedPromo?.amount) * 0.10;
+      }
+
       return 0;
     }
 
     const handleAmount =  () => {
       const discount = handleDiscount();
 
-      const amount = loadType === 'REGULAR' 
-      ? (Number(customAmount) - discount) 
-      : (selectedPromo ? selectedPromo.amount : Number(commercialAmount));
+      const amount = loadType === 'REGULAR'
+      ? (Number(customAmount) - discount)
+      : loadType === 'DATA'
+        ? (Number(selectedPromo?.amount) - discount)
+        : (selectedPromo ? Number(selectedPromo.amount) : Number(commercialAmount));
 
       return amount;
     }
