@@ -92,7 +92,7 @@ export default function LoadScreen() {
 
       const amount = handleAmount();
 
-      console.log('commercialAmount',commercialAmount);
+      console.log('originalAmountt',originalAmount);
       console.log('amount payment',amount);
       console.log('discount payment',discount);
 
@@ -196,17 +196,22 @@ export default function LoadScreen() {
       skyroPaymentMutation.isPending ||
       processLoadSellingMutation.isPending;
 
-    const handleDiscount = () => {
-      if(loadType === 'REGULAR' && Number(customAmount) >= 120){
-        return Number(customAmount) * 0.10;
-      }
+      const handleDiscount = () => {
+        if(loadType === 'REGULAR' && Number(customAmount) >= 120){
+          return Number(customAmount) * 0.10;
+        }
 
-      if(loadType === 'DATA' && Number(selectedPromo?.amount) >= 120){
-        return Number(selectedPromo?.amount) * 0.10;
-      }
+        if (
+          loadType === 'DATA' &&
+          Number(selectedPromo?.amount) >= 120 &&
+          selectedNetwork?.telco !== 'GOMO' &&
+          selectedNetwork?.telco !== 'GLOBE FIBER'
+        ) {
+          return Number(selectedPromo?.amount) * 0.10;
+        }
 
-      return 0;
-    }
+        return 0;
+      }
 
     const handleAmount =  () => {
       const discount = handleDiscount();
